@@ -64,8 +64,8 @@ prefix resolution, and base/platform/model/version overlays.
 
 - `snippet`: missing global references are not definitive; diagnostics become INFO/UNKNOWN.
 - `full`: the supplied configuration is treated as the complete candidate configuration.
-- `snapshot`: accepts a snapshot container in the API; v1.0 Beta uses configuration evidence
-  and reserves runtime evidence fields for future routing/interface command output.
+- `snapshot`: parses bounded Huawei IPv4/IPv6 RIB, BGP peer, and interface-status sections.
+  A matching RIB makes exact prefix presence or absence verifiable; omitted sections do not.
 
 ## Threading and GUI
 
@@ -73,6 +73,17 @@ QML owns layout and interaction. Python exposes QObject controllers and list mod
 controller runs analysis through a worker thread so large inputs cannot freeze the UI.
 QML receives display-ready roles and jump targets; it never parses commands or evaluates a
 rule.
+
+Translation catalogs, optional privacy-minimized history, and block-based syntax highlighting
+also sit behind QObject/list-model boundaries. QML does not access the filesystem directly.
+
+## Version/profile evidence
+
+Huawei profile facts are data in `vendors/huawei/profiles/catalog.json`. Each fact names one or
+more official-source records and is inherited through base/platform/version overlays. Profile
+resolution is conservative: a documented release overlay requires explicit version/platform or
+model evidence, while unmatched input uses the generic VRP base profile. The catalog records
+facts needed by this analyzer, not complete copies of vendor documentation.
 
 ## Compatibility confidence
 

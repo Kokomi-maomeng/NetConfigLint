@@ -14,7 +14,7 @@ ApplicationWindow {
     height: 800
     minimumWidth: 960
     minimumHeight: 600
-    title: "NetConfigLint v1.0 Beta"
+    title: i18n.catalog["app.title"]
     color: Colors.background
     Material.theme: Theme.dark ? Material.Dark : Material.Light
     Material.accent: Colors.primary
@@ -35,9 +35,9 @@ ApplicationWindow {
             Layout.fillHeight: true
             currentIndex: window.currentPage
             ConfigCheckPage { controller: analysisController }
-            HistoryPage { }
+            HistoryPage { controller: analysisController }
             RuleLibraryPage { controller: analysisController }
-            SettingsPage { }
+            SettingsPage { controller: analysisController }
             AboutPage { }
         }
     }

@@ -23,11 +23,19 @@ AppCard {
                 anchors.fill: parent
                 anchors.leftMargin: Spacing.md
                 anchors.rightMargin: Spacing.md
-                Text { text: "Diagnostics"; color: Colors.textPrimary; font: Typography.subtitle }
+                Text { text: i18n.catalog["analysis.diagnostics"]; color: Colors.textPrimary; font: Typography.subtitle }
                 Item { Layout.fillWidth: true }
                 ComboBox {
                     id: filterBox
-                    model: ["All", "Error", "Warning", "Info", "Unknown"]
+                    model: [
+                        { label: i18n.catalog["analysis.all"], value: "ALL" },
+                        { label: i18n.catalog["analysis.error"], value: "ERROR" },
+                        { label: i18n.catalog["analysis.warning"], value: "WARNING" },
+                        { label: i18n.catalog["analysis.info"], value: "INFO" },
+                        { label: i18n.catalog["analysis.unknown"], value: "UNKNOWN" }
+                    ]
+                    textRole: "label"
+                    valueRole: "value"
                     Layout.preferredWidth: 116
                 }
             }
@@ -55,14 +63,14 @@ AppCard {
                 anchors.rightMargin: Spacing.sm
                 anchors.bottomMargin: Spacing.sm
                 model: root.diagnosticsModel
-                severityFilter: filterBox.currentIndex === 0 ? "ALL" : filterBox.currentText.toUpperCase()
+                severityFilter: filterBox.currentValue
                 onIssueActivated: row => root.issueActivated(row)
             }
             EmptyState {
                 anchors.fill: parent
                 visible: issueList.count === 0
-                title: "No diagnostics"
-                description: "Paste or open a Huawei VRP configuration, then run local analysis."
+                title: i18n.catalog["analysis.empty"]
+                description: i18n.catalog["analysis.empty_detail"]
             }
         }
     }

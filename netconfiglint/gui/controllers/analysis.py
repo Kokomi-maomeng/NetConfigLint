@@ -11,7 +11,7 @@ from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 
 from netconfiglint import analyze
 from netconfiglint.core.analyzer import AnalysisResult
-from netconfiglint.gui.models import DiagnosticListModel
+from netconfiglint.gui.models import DiagnosticListModel, HistoryListModel, HistoryStore
 from netconfiglint.vendors.huawei.rules import HUAWEI_RULES
 
 Analyzer = Callable[[str, str, str], AnalysisResult]
@@ -26,6 +26,7 @@ class AnalysisController(QObject):
     detectionChanged = Signal()
     summaryChanged = Signal()
     fileNameChanged = Signal()
+    historyEnabledChanged = Signal()
     analysisFinished = Signal()
     analysisFailed = Signal(str)
     jumpToLine = Signal(int, int)
@@ -33,7 +34,13 @@ class AnalysisController(QObject):
     _workerSucceeded = Signal(object)
     _workerFailed = Signal(str)
 
-    def __init__(self, analyzer: Analyzer = analyze, *, async_enabled: bool = True) -> None:
+    def __init__(
+        self,
+        analyzer: Analyzer = analyze,
+        *,
+        async_enabled: bool = True,
+        history_store: HistoryStore | None = None,
+    ) -> None:
         super().__init__()
         self._analyzer = analyzer
         self._async_enabled = async_enabled
@@ -47,6 +54,8 @@ class AnalysisController(QObject):
         self._detection: dict[str, Any] = self._empty_detection()
         self._summary: dict[str, int] = {key: 0 for key in ("ERROR", "WARNING", "INFO", "UNKNOWN")}
         self._diagnostics = DiagnosticListModel()
+        self._history_store = history_store or HistoryStore()
+        self._history_model = HistoryListModel(self._history_store.entries)
         self._workerSucceeded.connect(self._apply_result)
         self._workerFailed.connect(self._apply_error)
 
@@ -59,6 +68,8 @@ class AnalysisController(QObject):
             "model": "Unknown",
             "version": "Unknown",
             "confidence": 0.0,
+            "profile_id": "unresolved",
+            "profile_confidence": "GENERIC",
         }
 
     def _get_source_text(self) -> str:
@@ -120,6 +131,21 @@ class AnalysisController(QObject):
         return self._diagnostics
 
     diagnosticsModel = Property(QObject, _get_diagnostics_model, constant=True)
+
+    def _get_history_model(self) -> QObject:
+        return self._history_model
+
+    historyModel = Property(QObject, _get_history_model, constant=True)
+
+    def _get_history_enabled(self) -> bool:
+        return self._history_store.enabled
+
+    def _set_history_enabled(self, value: bool) -> None:
+        if value != self._history_store.enabled:
+            self._history_store.set_enabled(value)
+            self.historyEnabledChanged.emit()
+
+    historyEnabled = Property(bool, _get_history_enabled, _set_history_enabled, notify=historyEnabledChanged)
 
     def _get_rule_catalog(self) -> list[dict[str, str]]:
         return [
@@ -223,6 +249,11 @@ class AnalysisController(QObject):
         self._detection = result.detection.to_dict()
         counts = Counter(item.severity.value for item in result.diagnostics)
         self._summary = {key: counts[key] for key in self._summary}
+        try:
+            self._history_store.append(result)
+            self._history_model.replace(self._history_store.entries)
+        except OSError:
+            self.toastRequested.emit("Could not write local history")
         self.detectionChanged.emit()
         self.summaryChanged.emit()
         self._set_busy(False)
@@ -241,6 +272,15 @@ class AnalysisController(QObject):
         item = self._diagnostics.item_at(row)
         if item is not None:
             self.jumpToLine.emit(item.source.line, item.source.end_line or item.source.line)
+
+    @Slot()
+    def clearHistory(self) -> None:
+        try:
+            self._history_store.clear()
+            self._history_model.replace([])
+            self.toastRequested.emit("Local analysis history cleared")
+        except OSError:
+            self.toastRequested.emit("Could not clear local history")
 
     def close(self) -> None:
         self._executor.shutdown(wait=False, cancel_futures=True)

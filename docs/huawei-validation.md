@@ -1,47 +1,65 @@
 # Huawei VRP validation notes
 
-v1.0 Beta intentionally uses a bounded, generic interpretation of Huawei-style configuration.
-The following items require future validation using licensed official documentation and, where
-appropriate, a lab device for each supported platform/version profile.
+v1.1 Beta separates documented command facts from parser heuristics. The machine-readable
+catalog is `netconfiglint/vendors/huawei/profiles/catalog.json`; every documented fact references
+an official Huawei source record with URL, document ID, and access date. It stores only the
+minimum structured facts needed by NetConfigLint, not copies of vendor documentation.
 
-## Heuristic or generic behavior
+## Documented facts in the current catalog
 
-- Huawei detection uses VRP banners and a small set of Huawei-style configuration signatures.
-- `CloudEngine` is emitted only when explicit CloudEngine/CE-family text exists; model remains
-  Unknown.
-- VLAN ranges accept `N to M` for 1–4094; advanced keywords and service references are not parsed.
+- `display ip routing-table` is a supported source of local IPv4 RIB evidence.
+- `display ipv6 routing-table` has both brief two-line and detailed field-oriented output forms.
+- `display bgp peer` exposes operational peer state.
+- `display ip interface brief` exposes physical/protocol interface state.
+- BGP peer groups, IPv6 static routes, interface `ospf enable`, and ACL6-based traffic-policy
+  constructs exist in the cited Huawei documentation.
+- CloudEngine V200R024/V300R024 and S7700 V200R021 overlays are selected only when explicit
+  platform/model/version evidence matches catalog patterns.
+
+These facts do not prove that every syntax variant is available on every Huawei platform.
+
+## Generic or heuristic behavior
+
+- Huawei detection uses VRP banners and a bounded set of Huawei-style signatures.
+- A model is reported only when an explicit model-shaped token is found; otherwise it is Unknown.
+- VLAN ranges accept `N to M` within 1–4094; service-specific VLAN consumers are incomplete.
 - Interface link-type checks cover clear access/trunk/hybrid conflicts only.
-- An Eth-Trunk reference is resolved by normalized `Eth-Trunk<ID>` naming.
-- Static-route parsing covers common IPv4 destination/mask/prefix plus next-hop forms. Interface-
-  only, preference, tag, description, BFD, track, and advanced VPN forms need expansion.
-- Next-hop warnings are limited to unspecified, multicast, or loopback address classes. Interface
-  names and special keywords are left unjudged.
-- BGP network evidence is inferred from exact normalized static or connected candidate networks;
-  this is not a real RIB check.
-- OSPF participation is inferred by matching interface IPv4 addresses to area network/wildcard
-  statements. Interface-mode activation and advanced OSPF features are not modeled.
-- ACL parsing recognizes common `acl`, `acl number`, and `acl name` definitions plus a bounded set
-  of traffic-filter/route-policy references.
-- “Unused VLAN/route-policy” means unused by supported normalized consumers, not proven globally
-  unused.
-- Sensitive detection is keyword-based and deliberately returns only a count and first line.
+- Eth-Trunk references normalize the `Eth-Trunk<ID>` form.
+- IPv4/IPv6 static-route parsing covers common destination/prefix plus next-hop forms. Advanced
+  VPN/topology/BFD/track/preference/tag variants remain partially normalized.
+- BGP configuration candidates use exact normalized static/connected prefixes. Snapshot mode
+  becomes VERIFIED only when the matching address-family RIB section is present.
+- Exact RIB means an exact prefix match, not proof of active forwarding, recursive reachability,
+  route preference, or FIB programming.
+- BGP peer state is definitive only for peers present in a supplied peer table. An absent row is
+  not currently treated as a failed peer because filtered output may have been supplied.
+- OSPF participation combines process network statements and interface `ospf enable` bindings;
+  OSPFv3 and advanced inheritance are incomplete.
+- ACL/ACL6 and traffic-policy parsing covers recognized definitions and selected consumers.
+- “Unused” means unused by recognized consumers, not globally proven unused.
+- Sensitive detection is keyword-based and never returns the matched secret text.
 
-## Commands/behavior needing device or official-document validation
+## Device/document validation still required
 
-1. Exact `port trunk allow-pass vlan` and `vlan batch` variants across VRP and CloudEngine releases.
-2. Hybrid-port VLAN semantics and interaction with default/PVID commands.
-3. Eth-Trunk membership command availability and naming across device families.
-4. Static-route grammar for outbound-interface, VPN, IPv6, BFD/track, preference, and special
-   discard next hops.
-5. BGP peer route-policy syntax inside each address-family and group inheritance behavior.
-6. BGP `network` mask defaults, VPN address-family forms, and per-release RIB eligibility rules.
-7. Route-policy node, `if-match ip-prefix`/ACL, and apply/continue semantics.
-8. OSPF area/network syntax, interface-mode activation, silent-interface, and process inheritance.
-9. ACL named/numbered ranges, advanced ACL variants, and all feature reference sites.
-10. VPN-instance definitions and BGP VPN address-family relationships across VRP versions.
-11. Shortest-unique-prefix behavior and ambiguity for real command trees.
-12. Platform/model/version overlay precedence and commands removed or added by release.
+1. `port trunk allow-pass vlan`, hybrid/PVID, and `vlan batch` variants across named releases.
+2. Eth-Trunk membership and naming across CloudEngine, S-series, and router families.
+3. IPv4/IPv6 static-route outbound-interface, VPN/topology, BFD/track, preference, tag, and
+   discard-route variants.
+4. BGP peer/group inheritance order, address-family activation, route-policy application, and
+   peer-state output variants across VRP V200/V300/V800.
+5. BGP `network` mask defaults and the precise platform RIB eligibility rules.
+6. Route-policy node, ACL/ip-prefix/IPv6-prefix matching, apply/continue, and all redistribution
+   reference sites.
+7. Interface/process OSPF association, OSPFv3, silent-interface, and process inheritance.
+8. ACL named/numbered ranges, advanced ACL6 forms, traffic classifier match rules, policy
+   precedence, and all policy application points.
+9. VPN-instance address-family relationships, route-target consumers, and VPN-specific RIB output.
+10. `display ipv6 routing-table` layouts on additional enterprise switches, especially wrapped
+    interfaces and brief output with multiple next hops.
+11. `display bgp peer` IPv6/group/VPN output columns and non-negotiated state spellings.
+12. `display interface brief` versus `display ip interface brief` administrative-down variants.
+13. Shortest-unique-prefix ambiguity against real command trees.
+14. Profile overlay precedence and commands added/removed by service packs and patches.
 
-Until validated evidence is added to a profile, compatibility findings must remain GENERIC,
-INFERRED, LOW, or UNKNOWN rather than presenting an absolute platform error.
-
+Until evidence is added, compatibility diagnostics remain GENERIC, INFERRED, LOW, or UNKNOWN
+instead of asserting an absolute platform error.

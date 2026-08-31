@@ -62,3 +62,52 @@ interface GigabitEthernet1/0/1
     serialized = config.to_dict()
     assert serialized["interfaces"]["GigabitEthernet1/0/1"]["allowed_vlans"] == [10, 20]
     json.dumps(serialized)
+
+
+def test_parser_normalizes_ipv6_bgp_group_and_interface_ospf() -> None:
+    source = """interface Vlanif10
+ ipv6 address 2001:db8::1/64
+ ospf enable 10 area 0.0.0.0
+#
+ipv6 route-static 2001:db8:2:: 64 2001:db8::2
+bgp 65000
+ group EDGE external
+ peer EDGE as-number 65001
+ peer 2001:db8::2 group EDGE
+ ipv6-family unicast
+  network 2001:db8:2:: 64
+"""
+    config = HuaweiConfigParser().parse(source, AnalysisMode.FULL, DETECTION)
+
+    assert config.interfaces["Vlanif10"].ipv6_addresses[0][0] == "2001:db8::1/64"
+    assert config.interfaces["Vlanif10"].ospf_bindings[0][:2] == ("10", "0.0.0.0")
+    assert config.ipv6_static_routes[0].destination == "2001:db8:2::"
+    assert config.bgp is not None
+    assert config.bgp.groups["EDGE"].remote_as == "65001"
+    assert config.bgp.peers["2001:db8::2"].group == "EDGE"
+    assert config.bgp.address_families[-1].networks[0][:2] == ("2001:db8:2::", "64")
+
+
+def test_parser_normalizes_acl_classifier_policy_reference_chain() -> None:
+    source = """acl ipv6 number 3001
+#
+traffic classifier IPV6-WEB
+ if-match ipv6 acl 3001
+#
+traffic behavior FORWARD
+#
+traffic policy EDGE
+ classifier IPV6-WEB behavior FORWARD
+#
+interface Vlanif10
+ traffic-policy EDGE inbound
+"""
+    config = HuaweiConfigParser().parse(source, AnalysisMode.FULL, DETECTION)
+
+    assert "3001" in config.acls
+    assert config.traffic_classifiers["IPV6-WEB"].acl_references[0][0] == "3001"
+    assert config.traffic_policies["EDGE"].classifier_bindings[0][:2] == (
+        "IPV6-WEB",
+        "FORWARD",
+    )
+    assert config.interfaces["Vlanif10"].traffic_policies[0][:2] == ("EDGE", "inbound")

@@ -11,7 +11,9 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
 from netconfiglint import __version__
+from netconfiglint.gui.bridge import SyntaxHighlighterBridge
 from netconfiglint.gui.controllers import AnalysisController
+from netconfiglint.gui.i18n import TranslationController
 
 
 def qml_root() -> Path:
@@ -21,8 +23,12 @@ def qml_root() -> Path:
 def create_engine(controller: AnalysisController) -> QQmlApplicationEngine:
     QQuickStyle.setStyle("Material")
     engine = QQmlApplicationEngine()
+    i18n = TranslationController(engine)
+    highlighter = SyntaxHighlighterBridge(engine)
     engine.addImportPath(str(qml_root()))
     engine.rootContext().setContextProperty("analysisController", controller)
+    engine.rootContext().setContextProperty("i18n", i18n)
+    engine.rootContext().setContextProperty("syntaxHighlighter", highlighter)
     engine.load(QUrl.fromLocalFile(str(qml_root() / "Main.qml")))
     return engine
 

@@ -9,6 +9,7 @@ htmlcov/
 build/
 dist/
 deployment/
+release/
 *.spec
 !/pysidedeploy.spec
 *.log

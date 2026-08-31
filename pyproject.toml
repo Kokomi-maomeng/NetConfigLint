@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "netconfiglint"
-version = "1.0.0b1"
+version = "1.1.0b1"
 description = "A fast, offline, extensible static analyzer for network device configurations."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -22,6 +22,7 @@ dependencies = []
 gui = ["PySide6>=6.8,<7"]
 dev = [
   "mypy>=1.13",
+  "pefile==2024.8.26",
   "pytest>=8.3",
   "pytest-cov>=6.0",
   "ruff>=0.8",
@@ -35,12 +36,15 @@ netconfiglint-gui = "netconfiglint.gui.app.main:main"
 packages = ["netconfiglint"]
 artifacts = [
   "netconfiglint/gui/qml/**/*.qml",
+  "netconfiglint/gui/i18n/*.json",
+  "netconfiglint/vendors/huawei/profiles/*.json",
   "netconfiglint/resources/**/*",
 ]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"
 testpaths = ["tests"]
+markers = ["performance: bounded synthetic performance regression checks"]
 
 [tool.ruff]
 target-version = "py312"

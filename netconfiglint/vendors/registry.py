@@ -22,6 +22,8 @@ class VendorPlugin:
     detector: VendorDetector
     parser: ConfigParser
     rules: tuple[Rule, ...]
+    default_profile_id: str = "unresolved"
+    default_profile_confidence: str = "GENERIC"
 
     def forced_detection(self) -> VendorDetection:
         return VendorDetection(
@@ -32,6 +34,8 @@ class VendorPlugin:
             version="Unknown",
             confidence=0.5,
             evidence=("Vendor selected by user",),
+            profile_id=self.default_profile_id,
+            profile_confidence=self.default_profile_confidence,
         )
 
 
@@ -44,6 +48,7 @@ VENDOR_PLUGINS: tuple[VendorPlugin, ...] = (
         detector=HuaweiDetector(),
         parser=HuaweiConfigParser(),
         rules=HUAWEI_RULES,
+        default_profile_id="huawei-vrp-base",
     ),
 )
 

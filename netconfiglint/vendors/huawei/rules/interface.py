@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from netconfiglint.core.analyzer import AnalysisMode
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
@@ -83,6 +84,41 @@ class MissingEthTrunkRule:
                     explanation="The member interface references an Eth-Trunk interface that is "
                     "absent from the supplied full configuration.",
                     suggested_fix=f"Create Eth-Trunk{interface.eth_trunk} or correct the member reference.",
+                )
+            )
+        return tuple(result)
+
+
+class OperationalInterfaceDownRule:
+    metadata = RuleMetadata("HUA-IF-004", "Business interface operationally down", Severity.WARNING, "Huawei")
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        if context.mode != AnalysisMode.SNAPSHOT:
+            return ()
+        result = []
+        for interface in context.config.interfaces.values():
+            status = context.config.snapshot.interfaces.get(interface.name.lower())
+            business = bool(
+                interface.allowed_vlans
+                or interface.access_vlan is not None
+                or interface.ip_addresses
+                or interface.ipv6_addresses
+                or interface.vpn_instance
+            )
+            if status is None or not business or interface.shutdown:
+                continue
+            if status.physical_state == "up" and status.protocol_state == "up":
+                continue
+            result.append(
+                Diagnostic(
+                    Severity.WARNING,
+                    self.metadata.rule_id,
+                    status.source,
+                    interface.name,
+                    "The configured business interface is not operationally up.",
+                    f"Snapshot state is physical={status.physical_state}, protocol={status.protocol_state}.",
+                    "Check link, optics/cabling, peer state, VLAN/L3 configuration, and device logs.",
+                    Confidence.VERIFIED,
                 )
             )
         return tuple(result)

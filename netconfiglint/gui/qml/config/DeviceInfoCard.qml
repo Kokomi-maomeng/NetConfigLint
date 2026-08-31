@@ -14,7 +14,7 @@ AppCard {
         ColumnLayout {
             Layout.preferredWidth: 140
             spacing: 2
-            Text { text: "Detected device"; color: Colors.textSecondary; font: Typography.caption }
+            Text { text: i18n.catalog["device.detected"]; color: Colors.textSecondary; font: Typography.caption }
             Text {
                 text: root.detection.vendor || "Unknown"
                 color: Colors.textPrimary
@@ -23,11 +23,12 @@ AppCard {
         }
         Repeater {
             model: [
-                ["OS", root.detection.os || "Unknown"],
-                ["Platform", root.detection.platform_family || "Unknown"],
-                ["Model", root.detection.model || "Unknown"],
-                ["Version", root.detection.version || "Unknown"],
-                ["Confidence", Number(root.detection.confidence || 0).toFixed(2)]
+                [i18n.catalog["device.os"], root.detection.os || "Unknown"],
+                [i18n.catalog["device.platform"], root.detection.platform_family || "Unknown"],
+                [i18n.catalog["device.model"], root.detection.model || "Unknown"],
+                [i18n.catalog["device.version"], root.detection.version || "Unknown"],
+                [i18n.catalog["device.profile"], root.detection.profile_id || "unresolved"],
+                [i18n.catalog["device.confidence"], Number(root.detection.confidence || 0).toFixed(2)]
             ]
             delegate: ColumnLayout {
                 required property var modelData

@@ -61,9 +61,9 @@ AppCard {
                 anchors.fill: parent
                 anchors.leftMargin: Spacing.md
                 anchors.rightMargin: Spacing.md
-                Text { text: "Configuration"; color: Colors.textPrimary; font: Typography.subtitle }
+                Text { text: i18n.catalog["editor.configuration"]; color: Colors.textPrimary; font: Typography.subtitle }
                 Text {
-                    text: "Line " + root.currentLine + " / " + Math.max(1, editor.lineCount)
+                    text: i18n.catalog["editor.line"] + " " + root.currentLine + " / " + Math.max(1, editor.lineCount)
                     color: Colors.textSecondary
                     font: Typography.caption
                 }
@@ -72,12 +72,12 @@ AppCard {
                     id: searchField
                     visible: false
                     Layout.preferredWidth: 220
-                    placeholderText: "Find in configuration"
+                    placeholderText: i18n.catalog["editor.find"]
                     onAccepted: root.findNext()
                 }
                 AppButton {
                     visible: searchField.visible
-                    text: "Next"
+                    text: i18n.catalog["editor.next"]
                     onClicked: root.findNext()
                 }
             }
@@ -140,12 +140,20 @@ AppCard {
         }
     }
     Shortcut { sequence: "Ctrl+G"; onActivated: jumpDialog.open() }
+    Component.onCompleted: {
+        syntaxHighlighter.attach(editor.textDocument)
+        syntaxHighlighter.setDark(Theme.dark)
+    }
+    Connections {
+        target: Theme
+        function onDarkChanged() { syntaxHighlighter.setDark(Theme.dark) }
+    }
     AppDialog {
         id: jumpDialog
-        title: "Go to line"
+        title: i18n.catalog["editor.goto"]
         contentItem: AppTextField {
             id: lineField
-            placeholderText: "Line number"
+            placeholderText: i18n.catalog["editor.line_number"]
             inputMethodHints: Qt.ImhDigitsOnly
             onAccepted: { root.jumpToLine(parseInt(text)); jumpDialog.close() }
         }

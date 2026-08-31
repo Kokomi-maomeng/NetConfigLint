@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+import re
+from typing import Any
+
+from PySide6.QtCore import QObject, Slot
+from PySide6.QtGui import QColor, QSyntaxHighlighter, QTextCharFormat, QTextDocument
+
+
+class HuaweiConfigHighlighter(QSyntaxHighlighter):
+    """Block highlighter; Qt automatically re-highlights only changed text blocks."""
+
+    _KEYWORDS = re.compile(
+        r"\b(interface|vlan|bgp|ospf|area|peer|group|network|route-policy|"
+        r"traffic|classifier|behavior|policy|ipv4-family|ipv6-family|ip|ipv6|undo|shutdown)\b",
+        re.IGNORECASE,
+    )
+    _ADDRESS = re.compile(
+        r"(?<![\w:])(?:\d{1,3}(?:\.\d{1,3}){3}(?:/\d{1,2})?|"
+        r"[0-9a-f]{0,4}:[0-9a-f:]+(?:/\d{1,3})?)(?![\w:])",
+        re.IGNORECASE,
+    )
+    _SENSITIVE = re.compile(
+        r"\b(password|cipher|community|pre-shared-key|secret|private-key)\b", re.IGNORECASE
+    )
+
+    def __init__(self, document: QTextDocument, *, dark: bool = False) -> None:
+        super().__init__(document)
+        self._dark = dark
+        self._formats = self._make_formats()
+
+    def _make_formats(self) -> dict[str, QTextCharFormat]:
+        colors = {
+            "keyword": "#9BCBFF" if self._dark else "#315F9B",
+            "address": "#83D5A5" if self._dark else "#1B6D43",
+            "section": "#8C9199" if self._dark else "#74777F",
+            "sensitive": "#FFB4AB" if self._dark else "#BA1A1A",
+        }
+        formats = {}
+        for name, color in colors.items():
+            value = QTextCharFormat()
+            value.setForeground(QColor(color))
+            if name in {"keyword", "sensitive"}:
+                value.setFontWeight(600)
+            formats[name] = value
+        return formats
+
+    def set_dark(self, dark: bool) -> None:
+        if dark != self._dark:
+            self._dark = dark
+            self._formats = self._make_formats()
+            self.rehighlight()
+
+    def highlightBlock(self, text: str) -> None:
+        if text.strip() in {"#", "return"}:
+            self.setFormat(0, len(text), self._formats["section"])
+            return
+        for match in self._KEYWORDS.finditer(text):
+            self.setFormat(match.start(), match.end() - match.start(), self._formats["keyword"])
+        for match in self._ADDRESS.finditer(text):
+            self.setFormat(match.start(), match.end() - match.start(), self._formats["address"])
+        for match in self._SENSITIVE.finditer(text):
+            self.setFormat(match.start(), match.end() - match.start(), self._formats["sensitive"])
+
+
+class SyntaxHighlighterBridge(QObject):
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._highlighters: list[HuaweiConfigHighlighter] = []
+
+    @Slot(QObject)
+    def attach(self, value: QObject) -> None:
+        document: Any = value
+        if hasattr(value, "textDocument"):
+            document = value.textDocument()
+        if not isinstance(document, QTextDocument):
+            return
+        if any(item.document() is document for item in self._highlighters):
+            return
+        self._highlighters.append(HuaweiConfigHighlighter(document))
+
+    @Slot(bool)
+    def setDark(self, dark: bool) -> None:
+        for highlighter in self._highlighters:
+            highlighter.set_dark(dark)

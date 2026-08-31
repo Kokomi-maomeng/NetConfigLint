@@ -5,6 +5,7 @@ from contextlib import suppress
 
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
+from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
 
 
 def _ospf_network(address: str, wildcard: str) -> ipaddress.IPv4Network | None:
@@ -41,6 +42,28 @@ class OspfAreaAssociationRule:
         return tuple(result)
 
 
+class MissingInterfaceOspfProcessRule:
+    metadata = RuleMetadata("HUA-OSPF-003", "Undefined interface OSPF process", Severity.ERROR, "Huawei")
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        return tuple(
+            missing_reference_diagnostic(
+                context,
+                rule_id=self.metadata.rule_id,
+                source=source,
+                object_name=interface.name,
+                full_message=f"Interface references undefined OSPF process {process_id}.",
+                snippet_message=f"OSPF process {process_id} was not found in the snippet.",
+                explanation="The interface-level ospf enable command references a process absent "
+                "from the full configuration.",
+                suggested_fix=f"Create OSPF process {process_id} or correct the interface binding.",
+            )
+            for interface in context.config.interfaces.values()
+            for process_id, _area, source in interface.ospf_bindings
+            if process_id not in context.config.ospf_processes
+        )
+
+
 class OspfNoParticipatingInterfaceRule:
     metadata = RuleMetadata("HUA-OSPF-002", "No apparent OSPF interface", Severity.WARNING, "Huawei")
 
@@ -52,6 +75,13 @@ class OspfNoParticipatingInterfaceRule:
                     interface_ips.append(ipaddress.IPv4Address(address.split("/")[0]))
         result = []
         for process in context.config.ospf_processes.values():
+            has_interface_binding = any(
+                binding[0] == process.process_id
+                for interface in context.config.interfaces.values()
+                for binding in interface.ospf_bindings
+            )
+            if has_interface_binding:
+                continue
             networks = [
                 candidate
                 for item in process.networks

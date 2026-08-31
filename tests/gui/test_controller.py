@@ -49,6 +49,6 @@ def test_controller_loads_utf8_file(tmp_path: Path, qapp: object) -> None:
 
 def test_rule_catalog_comes_from_registered_rules(qapp: object) -> None:
     controller = AnalysisController(async_enabled=False)
-    assert len(controller.ruleCatalog) == 18
+    assert len(controller.ruleCatalog) >= 20
     assert {item["ruleId"] for item in controller.ruleCatalog} >= {"HUA-VLAN-001", "HUA-SEC-001"}
     controller.close()

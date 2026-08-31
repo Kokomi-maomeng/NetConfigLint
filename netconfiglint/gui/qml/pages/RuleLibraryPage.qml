@@ -11,9 +11,9 @@ Item {
         anchors.fill: parent
         anchors.margins: Spacing.lg
         spacing: Spacing.md
-        Text { text: "Rule Library"; color: Colors.textPrimary; font: Typography.display }
+        Text { text: i18n.catalog["page.rules"]; color: Colors.textPrimary; font: Typography.display }
         Text {
-            text: "Huawei VRP beta rules currently registered in the shared analysis engine."
+            text: i18n.catalog["page.rules.subtitle"]
             color: Colors.textSecondary
             font: Typography.body
         }

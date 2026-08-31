@@ -24,6 +24,8 @@ class VendorDetection:
     version: str
     confidence: float
     evidence: tuple[str, ...] = ()
+    profile_id: str = "unresolved"
+    profile_confidence: str = "GENERIC"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

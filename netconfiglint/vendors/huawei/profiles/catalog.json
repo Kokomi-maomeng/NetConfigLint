@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "sources": [
+    {"id": "hua-routing-table", "title": "Routing Table and FIB Table", "url": "https://info.support.huawei.com/hedex/api/pages/EDOC1000053358/YEF0907R/25/resources/en-us_concept_0141549028.html", "document_id": "EDOC1000053358", "accessed": "2026-08-31"},
+    {"id": "hua-ipv6-routing-table", "title": "Basic IP Routing Configuration", "url": "https://info.support.huawei.com/enterprise/en/doc/EDOC1100335692/c1ebaf03/basic-ip-routing-configuration", "document_id": "EDOC1100335692", "accessed": "2026-08-31"},
+    {"id": "hua-bgp-peer", "title": "Huawei BGP peer operational output example", "url": "https://info.support.huawei.com/hedex/api/pages/EDOC1100413634/FEN1022J/03/resources/en-us_topic_0000001525611993.html", "document_id": "EDOC1100413634", "accessed": "2026-08-31"},
+    {"id": "hua-interface-brief", "title": "CloudEngine 12800 V200R024C00 Interface Commands", "url": "https://support.huawei.com/enterprise/zh/doc/EDOC1100420507/cdd85713", "document_id": "EDOC1100420507", "accessed": "2026-08-31"},
+    {"id": "hua-bgp-group", "title": "peer as-number", "url": "https://info.support.huawei.com/hedex/api/pages/EDOC1100331435/AEM10132/04/resources/dc/peer_as-number.html", "document_id": "EDOC1100331435", "accessed": "2026-08-31"},
+    {"id": "hua-ipv6-static", "title": "ipv6 route-static vpn-instance", "url": "https://info.support.huawei.com/hedex/api/pages/EDOC1100277644/AEM10221/03/resources/command/yunshan/ADDIPV6VPNROUTE%28STATICRTOM%29.html", "document_id": "EDOC1100277644", "accessed": "2026-08-31"},
+    {"id": "hua-ospf-interface", "title": "S7700 V200R021C10 ospf enable", "url": "https://support.huawei.com/enterprise/en/doc/EDOC1100248440/1696cc5b/ospf-enable", "document_id": "EDOC1100248440", "accessed": "2026-08-31"},
+    {"id": "hua-acl-policy", "title": "Configuring an ACL6-based Traffic Classifier", "url": "https://info.support.huawei.com/hedex/api/pages/EDOC1100334321/AEM1020X/05/resources/dc/dc_cfg_ACL_0089.html", "document_id": "EDOC1100334321", "accessed": "2026-08-31"},
+    {"id": "hua-cloudengine-catalog", "title": "Huawei CloudEngine support document catalog", "url": "https://support.huawei.com/enterprise/en/data-center-switches/ce9800-pid-252837181", "document_id": "Huawei Support Catalog", "accessed": "2026-08-31"}
+  ],
+  "profiles": [
+    {
+      "id": "huawei-vrp-base", "platform_family": "Unknown", "source_ids": [],
+      "features": [
+        {"feature": "snapshot.ipv4_rib", "syntax": "display ip routing-table", "confidence": "DOCUMENTED", "source_ids": ["hua-routing-table"]},
+        {"feature": "snapshot.ipv6_rib", "syntax": "display ipv6 routing-table", "confidence": "DOCUMENTED", "source_ids": ["hua-ipv6-routing-table"]},
+        {"feature": "snapshot.bgp_peer", "syntax": "display bgp peer", "confidence": "DOCUMENTED", "source_ids": ["hua-bgp-peer"]},
+        {"feature": "snapshot.interface_ipv4", "syntax": "display ip interface brief", "confidence": "DOCUMENTED", "source_ids": ["hua-interface-brief"]},
+        {"feature": "bgp.peer_group", "syntax": "peer { group-name | ipv4-address | ipv6-address } as-number", "confidence": "DOCUMENTED", "source_ids": ["hua-bgp-group"]},
+        {"feature": "route.ipv6_static", "syntax": "ipv6 route-static", "confidence": "DOCUMENTED", "source_ids": ["hua-ipv6-static"]},
+        {"feature": "ospf.interface_enable", "syntax": "ospf enable [ process-id ] area area-id", "confidence": "DOCUMENTED", "source_ids": ["hua-ospf-interface"]},
+        {"feature": "acl.traffic_policy", "syntax": "traffic classifier / traffic policy", "confidence": "DOCUMENTED", "source_ids": ["hua-acl-policy"]}
+      ]
+    },
+    {"id": "cloudengine-v200r024", "platform_family": "CloudEngine", "model_patterns": ["^CE(?:5|6|8|9)\\d{3}"], "version_patterns": ["^V200R024C"], "inherits": ["huawei-vrp-base"], "features": [], "source_ids": ["hua-cloudengine-catalog", "hua-interface-brief"]},
+    {"id": "cloudengine-v300r024", "platform_family": "CloudEngine", "model_patterns": ["^CE(?:5|6|8|9)\\d{3}"], "version_patterns": ["^V300R024C"], "inherits": ["huawei-vrp-base"], "features": [], "source_ids": ["hua-cloudengine-catalog"]},
+    {"id": "s7700-v200r021", "platform_family": "S-Series", "model_patterns": ["^S77\\d{2}"], "version_patterns": ["^V200R021C"], "inherits": ["huawei-vrp-base"], "features": [], "source_ids": ["hua-ospf-interface"]}
+  ]
+}

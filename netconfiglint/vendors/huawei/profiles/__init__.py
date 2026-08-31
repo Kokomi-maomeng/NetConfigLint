@@ -1,3 +1,19 @@
-from netconfiglint.vendors.huawei.profiles.models import CommandProfile, ProfileOverlay
+from netconfiglint.vendors.huawei.profiles.models import (
+    CommandProfile,
+    EvidenceSource,
+    FeatureFact,
+    ProfileDatabase,
+    ProfileOverlay,
+    ProfileResolution,
+    VersionProfile,
+)
 
-__all__ = ["CommandProfile", "ProfileOverlay"]
+__all__ = [
+    "CommandProfile",
+    "EvidenceSource",
+    "FeatureFact",
+    "ProfileDatabase",
+    "ProfileOverlay",
+    "ProfileResolution",
+    "VersionProfile",
+]

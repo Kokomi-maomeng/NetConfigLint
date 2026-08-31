@@ -6,6 +6,7 @@ lines instead of guessing at unsupported command semantics.
 
 from __future__ import annotations
 
+import ipaddress
 import re
 
 from netconfiglint.core.analyzer.models import AnalysisMode, VendorDetection
@@ -14,18 +15,24 @@ from netconfiglint.core.lexer import SourceLine, lex_lines
 from netconfiglint.core.model import (
     ACL,
     BGPAddressFamily,
+    BGPGroup,
     BGPPeer,
     BGPProcess,
     DeviceConfig,
     Interface,
+    IPv6StaticRoute,
     OSPFNetwork,
     OSPFProcess,
     PrefixList,
     RoutePolicy,
     StaticRoute,
+    TrafficBehavior,
+    TrafficClassifier,
+    TrafficPolicy,
     Vlan,
     VpnInstance,
 )
+from netconfiglint.vendors.huawei.parser.snapshot_parser import HuaweiSnapshotParser
 
 _SENSITIVE = re.compile(r"\b(password|cipher|community|pre-shared-key|secret|private-key)\b", re.IGNORECASE)
 
@@ -35,10 +42,10 @@ class HuaweiConfigParser:
         self._active_ospf_area: dict[int, str] = {}
 
     def parse(self, source: str, mode: AnalysisMode, detection: VendorDetection) -> DeviceConfig:
-        del mode
         lines = lex_lines(source)
         self._active_ospf_area = {}
         config = DeviceConfig(vendor=detection.vendor, source_lines=tuple(line.raw for line in lines))
+        config.metadata["profile_id"] = detection.profile_id
         context: tuple[str, object] | None = None
 
         for line in lines:
@@ -60,28 +67,49 @@ class HuaweiConfigParser:
             if context is not None and self._parse_context(config, line, context):
                 continue
             config.unparsed_lines.append(SourceRange(line.number))
+        if mode == AnalysisMode.SNAPSHOT:
+            config.snapshot = HuaweiSnapshotParser().parse(source)
         return config
 
     def _start_block(self, config: DeviceConfig, line: SourceLine) -> tuple[str, object] | None:
+        if line.raw[:1].isspace():
+            return None
         tokens = line.tokens
         lower = line.text.lower()
         source = SourceRange(line.number)
         if len(tokens) >= 2 and lower.startswith("interface "):
+            if tokens[1].lower() == "ip" and "address/mask" in lower:
+                return None
             interface = config.interfaces.setdefault(tokens[1], Interface(tokens[1], source))
             return ("interface", interface)
         if len(tokens) >= 2 and lower.startswith("bgp "):
+            if lower.startswith("bgp local router id"):
+                return None
             config.bgp = config.bgp or BGPProcess(tokens[1], source)
             return ("bgp", config.bgp)
         if lower.startswith("ospf"):
+            if len(tokens) >= 2 and tokens[1].lower() == "process":
+                return None
             process_id = tokens[1] if len(tokens) >= 2 and tokens[1].isdigit() else "1"
             process = config.ospf_processes.setdefault(process_id, OSPFProcess(process_id, source))
             return ("ospf", process)
         if len(tokens) >= 4 and lower.startswith("route-policy "):
-            policy = config.route_policies.setdefault(tokens[1], RoutePolicy(tokens[1], source))
-            return ("route_policy", policy)
+            route_policy = config.route_policies.setdefault(tokens[1], RoutePolicy(tokens[1], source))
+            return ("route_policy", route_policy)
         if len(tokens) >= 3 and lower.startswith("ip vpn-instance "):
             vpn = config.vpn_instances.setdefault(tokens[2], VpnInstance(tokens[2], source))
             return ("vpn", vpn)
+        if len(tokens) >= 3 and lower.startswith("traffic classifier "):
+            classifier = config.traffic_classifiers.setdefault(
+                tokens[2], TrafficClassifier(tokens[2], source)
+            )
+            return ("traffic_classifier", classifier)
+        if len(tokens) >= 3 and lower.startswith("traffic behavior "):
+            behavior = config.traffic_behaviors.setdefault(tokens[2], TrafficBehavior(tokens[2], source))
+            return ("traffic_behavior", behavior)
+        if len(tokens) >= 3 and lower.startswith("traffic policy "):
+            traffic_policy = config.traffic_policies.setdefault(tokens[2], TrafficPolicy(tokens[2], source))
+            return ("traffic_policy", traffic_policy)
         return None
 
     def _parse_global(self, config: DeviceConfig, line: SourceLine) -> bool:
@@ -98,11 +126,22 @@ class HuaweiConfigParser:
         if lower.startswith("ip route-static "):
             config.static_routes.append(self._parse_static_route(line))
             return True
+        if lower.startswith("ipv6 route-static "):
+            config.ipv6_static_routes.append(self._parse_ipv6_static_route(line))
+            return True
         if lower.startswith("ip ip-prefix ") and len(tokens) >= 3:
             config.prefix_lists.setdefault(tokens[2], PrefixList(tokens[2], source))
             return True
+        if lower.startswith("ip ipv6-prefix ") and len(tokens) >= 3:
+            config.prefix_lists.setdefault(tokens[2], PrefixList(tokens[2], source))
+            return True
         if lower.startswith("acl ") and len(tokens) >= 2:
-            name = tokens[2] if len(tokens) >= 3 and tokens[1].lower() in {"name", "number"} else tokens[1]
+            if len(tokens) >= 4 and tokens[1].lower() == "ipv6" and tokens[2].lower() in {"name", "number"}:
+                name = tokens[3]
+            else:
+                name = (
+                    tokens[2] if len(tokens) >= 3 and tokens[1].lower() in {"name", "number"} else tokens[1]
+                )
             config.acls.setdefault(name, ACL(name, source))
             return True
         if lower.startswith("traffic-filter "):
@@ -123,6 +162,12 @@ class HuaweiConfigParser:
             return self._parse_ospf(line, value)
         if kind == "route_policy" and isinstance(value, RoutePolicy):
             return self._parse_route_policy(line, value)
+        if kind == "traffic_classifier" and isinstance(value, TrafficClassifier):
+            return self._parse_traffic_classifier(line, value)
+        if kind == "traffic_policy" and isinstance(value, TrafficPolicy):
+            return self._parse_traffic_policy(line, value)
+        if kind == "traffic_behavior":
+            return True
         return kind == "vpn"
 
     def _parse_interface(self, config: DeviceConfig, line: SourceLine, interface: Interface) -> bool:
@@ -144,6 +189,18 @@ class HuaweiConfigParser:
         elif lower.startswith("ip address ") and len(tokens) >= 3:
             interface.ip_addresses.append((tokens[2], tokens[3] if len(tokens) >= 4 else None, source))
             interface.command_sources["ip_address"] = source
+        elif lower.startswith("ipv6 address ") and len(tokens) >= 3:
+            interface.ipv6_addresses.append((tokens[2], tokens[3] if len(tokens) >= 4 else None, source))
+            interface.command_sources["ipv6_address"] = source
+        elif lower.startswith("ospf enable ") and "area" in tuple(token.lower() for token in tokens):
+            area_index = tuple(token.lower() for token in tokens).index("area")
+            process_id = tokens[2] if len(tokens) > 2 and tokens[2].isdigit() else "1"
+            if area_index + 1 < len(tokens):
+                interface.ospf_bindings.append((process_id, tokens[area_index + 1], source))
+                interface.command_sources["ospf_enable"] = source
+        elif lower.startswith("traffic-policy ") and len(tokens) >= 2:
+            direction = tokens[2].lower() if len(tokens) >= 3 else "unknown"
+            interface.traffic_policies.append((tokens[1], direction, source))
         elif lower == "shutdown":
             interface.shutdown = True
             interface.command_sources["shutdown"] = source
@@ -169,15 +226,32 @@ class HuaweiConfigParser:
         if lower.startswith("router-id ") and len(tokens) >= 2:
             bgp.router_id = tokens[1]
             return True
-        if lower.startswith("peer ") and len(tokens) >= 3:
-            peer = bgp.peers.setdefault(tokens[1], BGPPeer(tokens[1], source))
-            if tokens[2].lower() == "as-number" and len(tokens) >= 4:
-                peer.remote_as = tokens[3]
-            elif tokens[2].lower() == "route-policy" and len(tokens) >= 5:
-                target = peer.import_policies if tokens[4].lower() == "import" else peer.export_policies
-                target.append((tokens[3], source))
+        if lower.startswith("group ") and len(tokens) >= 2:
+            group = bgp.groups.setdefault(tokens[1], BGPGroup(tokens[1], source))
+            if len(tokens) >= 3:
+                group.group_type = tokens[2].lower()
             return True
-        if lower.startswith("ipv4-family "):
+        if lower.startswith("peer ") and len(tokens) >= 3:
+            target_name = tokens[1]
+            is_address = self._is_ip_address(target_name)
+            if is_address:
+                peer = bgp.peers.setdefault(target_name, BGPPeer(target_name, source))
+                if tokens[2].lower() == "as-number" and len(tokens) >= 4:
+                    peer.remote_as = tokens[3]
+                elif tokens[2].lower() == "group" and len(tokens) >= 4:
+                    peer.group = tokens[3]
+                elif tokens[2].lower() == "route-policy" and len(tokens) >= 5:
+                    target = peer.import_policies if tokens[4].lower() == "import" else peer.export_policies
+                    target.append((tokens[3], source))
+            else:
+                group = bgp.groups.setdefault(target_name, BGPGroup(target_name, source))
+                if tokens[2].lower() == "as-number" and len(tokens) >= 4:
+                    group.remote_as = tokens[3]
+                elif tokens[2].lower() == "route-policy" and len(tokens) >= 5:
+                    target = group.import_policies if tokens[4].lower() == "import" else group.export_policies
+                    target.append((tokens[3], source))
+            return True
+        if lower.startswith(("ipv4-family ", "ipv6-family ")):
             vpn_name = tokens[2] if len(tokens) >= 3 and tokens[1].lower() == "vpn-instance" else None
             bgp.address_families.append(BGPAddressFamily(line.text, source, vpn_name))
             return True
@@ -216,6 +290,29 @@ class HuaweiConfigParser:
             return True
         return False
 
+    @staticmethod
+    def _parse_traffic_classifier(line: SourceLine, classifier: TrafficClassifier) -> bool:
+        tokens = line.tokens
+        lower_tokens = tuple(token.lower() for token in tokens)
+        source = SourceRange(line.number)
+        if lower_tokens[:2] == ("if-match", "acl") and len(tokens) >= 3:
+            classifier.acl_references.append((tokens[2], source))
+            return True
+        if lower_tokens[:3] == ("if-match", "ipv6", "acl") and len(tokens) >= 4:
+            classifier.acl_references.append((tokens[3], source))
+            return True
+        return False
+
+    @staticmethod
+    def _parse_traffic_policy(line: SourceLine, policy: TrafficPolicy) -> bool:
+        tokens = line.tokens
+        lower = line.text.lower()
+        source = SourceRange(line.number)
+        if lower.startswith("classifier ") and len(tokens) >= 4 and tokens[2].lower() == "behavior":
+            policy.classifier_bindings.append((tokens[1], tokens[3], source))
+            return True
+        return False
+
     def _parse_static_route(self, line: SourceLine) -> StaticRoute:
         tokens = list(line.tokens[2:])
         source = SourceRange(line.number)
@@ -234,6 +331,33 @@ class HuaweiConfigParser:
         if next_hop_index >= len(tokens):
             return StaticRoute(destination, mask, "", vpn, source, False, "Missing next hop")
         return StaticRoute(destination, mask, tokens[next_hop_index], vpn, source)
+
+    def _parse_ipv6_static_route(self, line: SourceLine) -> IPv6StaticRoute:
+        tokens = list(line.tokens[2:])
+        source = SourceRange(line.number)
+        vpn = None
+        if len(tokens) >= 2 and tokens[0].lower() == "vpn-instance":
+            vpn = tokens[1]
+            tokens = tokens[2:]
+        if len(tokens) < 2:
+            return IPv6StaticRoute("", None, "", vpn, source, False, "Too few arguments")
+        destination = tokens[0]
+        prefix_length = None
+        next_hop_index = 1
+        if "/" not in destination and len(tokens) >= 3 and tokens[1].isdigit():
+            prefix_length = tokens[1]
+            next_hop_index = 2
+        if next_hop_index >= len(tokens):
+            return IPv6StaticRoute(destination, prefix_length, "", vpn, source, False, "Missing next hop")
+        return IPv6StaticRoute(destination, prefix_length, tokens[next_hop_index], vpn, source)
+
+    @staticmethod
+    def _is_ip_address(value: str) -> bool:
+        try:
+            ipaddress.ip_address(value)
+        except ValueError:
+            return False
+        return True
 
     @staticmethod
     def _looks_like_mask(token: str) -> bool:

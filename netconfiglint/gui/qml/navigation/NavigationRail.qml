@@ -43,11 +43,11 @@ Rectangle {
 
         Repeater {
             model: [
-                { label: "Configuration Check", icon: "check.svg" },
-                { label: "History", icon: "history.svg" },
-                { label: "Rule Library", icon: "rules.svg" },
-                { label: "Settings", icon: "settings.svg" },
-                { label: "About", icon: "about.svg" }
+                { label: i18n.catalog["nav.check"], icon: "check.svg" },
+                { label: i18n.catalog["nav.history"], icon: "history.svg" },
+                { label: i18n.catalog["nav.rules"], icon: "rules.svg" },
+                { label: i18n.catalog["nav.settings"], icon: "settings.svg" },
+                { label: i18n.catalog["nav.about"], icon: "about.svg" }
             ]
             delegate: NavigationItem {
                 required property int index
@@ -64,7 +64,7 @@ Rectangle {
         Text {
             Layout.fillWidth: true
             visible: root.expanded
-            text: "Offline analysis"
+            text: i18n.catalog["nav.offline"]
             color: Colors.success
             font: Typography.caption
             horizontalAlignment: Text.AlignHCenter

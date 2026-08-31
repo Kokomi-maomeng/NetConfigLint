@@ -1,60 +1,56 @@
-# NetConfigLint v1.0 Beta
+# NetConfigLint v1.1 Beta
 
 > A fast, offline, extensible static analyzer for network device configurations.
 
-NetConfigLint is a local static-analysis tool for network engineers. It parses supported
+NetConfigLint is a local static-analysis tool for network engineers. It converts supported
 configuration constructs into a normalized model, evaluates versioned rules, and returns
-source-linked diagnostics to the CLI and a QML desktop application through one shared API.
+source-linked diagnostics to the CLI and QML desktop application through one shared API.
 
-NetConfigLint is **not** a complete VRP emulator, network simulator, configuration migration
-engine, or replacement for vendor validation and lab testing.
+It is not a complete VRP emulator, network simulator, migration engine, or replacement for
+vendor-supported validation and lab testing.
 
-## Status and supported scope
+## Supported scope
 
-v1.0 Beta currently supports a conservative subset of Huawei Enterprise/CloudEngine-style
-VRP configuration:
+The v1.1 Beta Huawei VRP implementation includes:
 
-- vendor/OS/platform-family detection without guessing a model;
-- VLANs, interfaces, Eth-Trunk membership, IPv4 static routes;
-- BGP peers, policies, IPv4 network statements and VPN address-families;
-- OSPF area/network associations;
-- ACL, route-policy, ip-prefix and VPN-instance references;
-- sensitive-keyword detection without returning the sensitive value;
-- snippet, full configuration, and snapshot-framework analysis modes.
+- conservative vendor, OS, platform, model, version, and profile detection;
+- an auditable profile catalog whose facts link to official Huawei documents;
+- VLAN, interface, Eth-Trunk, IPv4/IPv6 static route, BGP peer/group/network, OSPF,
+  ACL/ACL6, route-policy, prefix-list, traffic-policy, and VPN-instance models;
+- operational snapshot parsing for IPv4/IPv6 RIB, BGP peer, and interface state;
+- exact BGP network-to-RIB checks when the matching routing table is supplied;
+- Snippet, Full Configuration, and Snapshot analysis semantics;
+- 26 Huawei rules with synthetic valid/invalid regression fixtures.
 
-Unknown commands are retained in source mapping and do not make parsing fail. H3C, Juniper,
-Cisco, complete command compatibility, and runtime routing validation are not yet supported.
+Unknown commands retain source mapping and do not make parsing fail. Unsupported vendors,
+platforms, and releases remain Unknown rather than being guessed.
 
-## Privacy and security
+## Privacy
 
-All analysis runs locally. NetConfigLint has no cloud backend and does not upload source text.
-Default logs must not contain the complete configuration. Diagnostics may contain object names
-and line numbers, but the sensitive-data rule never copies a detected secret value.
+All analysis runs locally. NetConfigLint has no cloud backend and does not upload configuration
+text. Default logs do not contain the complete configuration. Sensitive-data diagnostics expose
+only a rule, line, and generic warning, never the detected value.
 
-Treat exported reports as potentially sensitive because interface names, policy names, and
-addresses can still reveal network design.
+Local history is optional and disabled by default. When enabled it stores only time, mode,
+detected vendor/platform, source line count, diagnostic counts, and Rule IDs. It does not store
+configuration text, filenames, object names, or network addresses.
 
-## Requirements and installation
+Exported reports can still disclose network design through ordinary diagnostics; review them
+before sharing.
 
-- Python 3.12 or newer
-- Windows, macOS, or Linux
-- PySide6 only when using the GUI
+## Install from source
 
-PowerShell:
+Requirements: Python 3.12 or newer; PySide6 is optional for CLI-only use.
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install -e '.[dev,gui]'
 ```
 
-POSIX shell:
-
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev,gui]'
 ```
-
-The core and CLI have no runtime third-party dependency.
 
 ## CLI
 
@@ -65,9 +61,9 @@ netconfiglint check config.txt --mode full --vendor huawei --format json
 netconfiglint check snapshot.txt --mode snapshot
 ```
 
-Exit codes are `0` when no ERROR diagnostic is produced, `1` when at least one ERROR is
-reported, and `2` for input/usage/vendor-detection failures. JSON output is stable enough for
-beta CI and editor integration experiments; additions may still occur before v1.0 final.
+Exit code `0` means no ERROR diagnostic, `1` means at least one ERROR, and `2` means an
+input, usage, or vendor-detection failure. Text output uses terminal colors; JSON uses the same
+diagnostic model consumed by the GUI.
 
 ## Desktop GUI
 
@@ -75,32 +71,32 @@ beta CI and editor integration experiments; additions may still occur before v1.
 netconfiglint-gui
 ```
 
-The desktop application uses PySide6, QML, Qt Quick Controls 2, and Material style. It provides:
+The QML-first PySide6 desktop application provides:
 
-- file open, paste, edit, drag/drop, analyze, clear, and JSON report export;
-- Snippet / Full / Snapshot mode and Auto / Huawei vendor selection;
-- conservative device detection details;
-- line-numbered monospaced editor, Ctrl+F search, Ctrl+G line jump;
-- severity filters, expandable diagnostic cards, and click-to-source navigation;
-- Light, Dark, and System themes without restart;
-- responsive navigation rail and horizontal/vertical analysis layouts.
+- Material-inspired responsive navigation, Light/Dark/System themes, and high-DPI support;
+- English and Simplified Chinese UI, selected from the system locale on first run;
+- unsupported system languages falling back to English and instant manual language switching;
+- file open, paste/edit, drag/drop, analyze, clear, and JSON export;
+- line numbers, Ctrl+F, Ctrl+G, incremental block syntax highlighting, and diagnostic jumps;
+- device/profile details, severity filters, expandable issues, and source-line navigation;
+- optional privacy-minimized local history with an explicit clear action;
+- asynchronous analysis so large configuration input does not block the GUI thread.
 
-History is intentionally non-persistent in this beta. Rule Library and Settings are functional
-foundations; richer P2 behavior remains planned.
+Diagnostic messages are English in v1.1 Beta; localization currently covers the application
+shell and controls. Rule-message catalogs are planned next.
 
 ### Screenshot
 
-_Screenshot placeholder: release screenshots will be added under `docs/screenshots/` after the
-first signed Windows artifact is produced._
+_Release screenshots are reserved for `docs/screenshots/`._
 
 ## Analysis modes
 
-- **Snippet**: missing references become UNKNOWN because the definition may exist outside the
-  supplied text. Unused-object checks are suppressed.
-- **Full**: the source is treated as a complete candidate configuration, enabling definitive
+- **Snippet**: unresolved definitions become UNKNOWN because they may exist outside the input;
+  unused-object rules are suppressed.
+- **Full**: input is treated as a complete candidate configuration, enabling definitive
   normalized reference checks.
-- **Snapshot**: the data model is reserved for configuration plus operational output. v1.0 Beta
-  currently has only configuration evidence and therefore remains conservative.
+- **Snapshot**: configuration plus recognized `display` output can prove RIB presence, peer
+  state, and interface state. Missing operational sections remain unknown rather than failing.
 
 ## Rule catalog
 
@@ -112,21 +108,29 @@ first signed Windows artifact is produced._
 | `HUA-IF-001` | WARNING | Shutdown interface contains apparent business configuration |
 | `HUA-IF-002` | ERROR | VLAN command conflicts with interface link type |
 | `HUA-IF-003` | ERROR | Eth-Trunk member references an undefined Eth-Trunk |
-| `HUA-ROUTE-001` | ERROR | Static route cannot be normalized as an IPv4 route |
-| `HUA-ROUTE-002` | WARNING | Static route has an unusual next-hop address class |
-| `HUA-BGP-001` | ERROR | BGP peer references an undefined route-policy |
-| `HUA-BGP-002` | WARNING | BGP network cannot be proven from configured route candidates |
-| `HUA-RPOL-001` | ERROR | Route-policy references an undefined ip-prefix |
+| `HUA-IF-004` | WARNING | Snapshot reports a business-configured interface down |
+| `HUA-ROUTE-001` | ERROR | IPv4 static route cannot be normalized |
+| `HUA-ROUTE-002` | WARNING | IPv4 static route has an unusual next-hop class |
+| `HUA-IPV6-001` | ERROR | IPv6 static route cannot be normalized |
+| `HUA-IPV6-002` | ERROR | Interface IPv6 address cannot be normalized |
+| `HUA-BGP-001` | ERROR | BGP peer/group references an undefined route-policy |
+| `HUA-BGP-002` | WARNING | BGP network is not proven by configuration or supplied RIB |
+| `HUA-BGP-003` | ERROR | Snapshot reports a configured BGP peer not Established |
+| `HUA-BGP-004` | ERROR | BGP peer references an undefined group |
+| `HUA-RPOL-001` | ERROR | Route-policy references an undefined prefix-list |
 | `HUA-RPOL-002` | INFO | Route-policy has no supported consumer reference |
-| `HUA-OSPF-001` | ERROR | OSPF network lacks a valid area/network association |
+| `HUA-OSPF-001` | ERROR | OSPF network lacks a valid area association |
 | `HUA-OSPF-002` | WARNING | No interface can be shown to participate in OSPF |
-| `HUA-ACL-001` | ERROR | ACL is referenced but not defined |
+| `HUA-OSPF-003` | ERROR | Interface OSPF binding references an undefined process |
+| `HUA-ACL-001` | ERROR | ACL/ACL6 is referenced but not defined |
+| `HUA-POL-001` | ERROR | Traffic policy references an undefined classifier/behavior |
+| `HUA-POL-002` | ERROR | Interface applies an undefined traffic policy |
 | `HUA-VPN-001` | ERROR | Interface references an undefined VPN instance |
 | `HUA-VPN-002` | ERROR | BGP VPN address-family references an undefined VPN instance |
 | `HUA-SEC-001` | INFO | Potentially sensitive configuration keywords detected |
 
-Severity can change by mode. Severity and confidence are independent: VERIFIED, DOCUMENTED,
-INFERRED, GENERIC, and LOW describe evidence quality, not operational impact.
+Severity and confidence are independent. Confidence is VERIFIED, DOCUMENTED, INFERRED,
+GENERIC, or LOW. Rule severity can change with the analysis mode and available evidence.
 
 ## Public API
 
@@ -138,98 +142,90 @@ for diagnostic in result.diagnostics:
     print(diagnostic.rule_id, diagnostic.source.line, diagnostic.message)
 ```
 
-CLI and GUI call this same API. See [architecture](docs/architecture.md) for dependency rules
-and extension points.
+CLI and GUI use this same entry point. See [architecture](docs/architecture.md).
 
-## Development and tests
+## Development, tests, and benchmark
 
 ```powershell
 .venv\Scripts\python.exe -m pytest
-.venv\Scripts\ruff.exe format --check netconfiglint tests
-.venv\Scripts\ruff.exe check netconfiglint tests
+.venv\Scripts\ruff.exe format --check netconfiglint tests benchmarks scripts
+.venv\Scripts\ruff.exe check netconfiglint tests benchmarks scripts
 .venv\Scripts\mypy.exe netconfiglint
+.venv\Scripts\python.exe benchmarks\benchmark_large_config.py
 ```
 
-Headless GUI smoke tests use `QT_QPA_PLATFORM=offscreen`. Every registered rule has a valid and
-invalid regression case. Synthetic test data is mandatory; see [CONTRIBUTING.md](CONTRIBUTING.md).
+The benchmark is synthetic and contains no production data. It measures parser/analyzer
+throughput, not device behavior. Headless GUI tests use the Qt offscreen platform.
 
-## Windows packaging
+## Windows packaging and signing
 
-The project uses Qt's recommended `pyside6-deploy` path with Nuitka standalone mode:
+The standalone build uses `pyside6-deploy`/Nuitka, then resolves the recursive PE import graph
+from only the required PySide6/Shiboken roots. It prunes unused QML modules and Qt plug-ins before
+checking the final dependency closure.
 
 ```powershell
-.\scripts\build_windows.ps1 -DryRun
 .\scripts\build_windows.ps1
+.\scripts\build_installer.ps1 -SkipAppBuild
 ```
 
-The build script enables UTF-8 for Chinese paths, generates the `.ico` from the project SVG,
-preserves the portable spec file, includes QML/SVG resources, and verifies that an executable
-was produced. With PySide6 6.11 on a builder without Visual Studio `dumpbin`, deployment may
-omit wheel runtime DLLs; the script copies the official wheel-provided PySide6/Shiboken DLLs as
-a reliability fallback. This makes the current standalone directory large and is a documented
-beta packaging tradeoff.
+Unsigned builds are named `*-setup-unsigned.exe`. A trusted signed build requires a valid code
+signing certificate with private key and Windows SDK SignTool:
+
+```powershell
+.\scripts\build_installer.ps1 -CertificateThumbprint '<certificate-thumbprint>'
+```
+
+The script signs the installer and uninstaller with SHA-256, uses an RFC 3161 timestamp, and fails
+the build unless Authenticode validation succeeds. See [Windows signing](docs/windows-signing.md).
 
 ## Dependencies and licenses
 
-NetConfigLint source is Apache-2.0 licensed. Runtime/build dependencies are intentionally small:
+NetConfigLint is Apache-2.0 licensed.
 
-| Dependency | Scope | License information | Reason |
+| Dependency | Scope | License information | Purpose |
 |---|---|---|---|
 | PySide6 / Qt for Python | Optional GUI/runtime | LGPLv3, GPLv3, or Qt commercial | Official Qt 6 Python/QML bindings |
-| Nuitka via `pyside6-deploy` | Build only | See the installed Nuitka distribution and upstream terms | Produces Windows standalone artifacts |
-| pytest, Ruff, mypy | Development only | MIT | Tests, linting, and static typing |
+| Nuitka | Build only | Apache-2.0 | Windows standalone compilation through `pyside6-deploy` |
+| pefile | Build only | MIT | Verifiable recursive Windows PE import resolution |
+| Inno Setup | Build machine | Modified BSD-style | Windows installer generation |
+| pytest, Ruff, mypy | Development only | MIT | Test, lint, and type validation |
 
-The SVG icons in this repository are original project assets under Apache-2.0; no vendor icon
-pack or copied vendor documentation is included. Redistributors must independently satisfy Qt,
-Python, Nuitka, and bundled third-party license obligations. This section is informational, not
-legal advice.
+Original project SVG assets are Apache-2.0. No vendor firmware, private software, documentation
+copies, credentials, or production configurations are included. Redistributors must satisfy the
+licenses of their selected Python/Qt distribution and packaging toolchain.
 
 ## Known limitations
 
-- The parser covers a bounded VRP subset and is not a CLI emulator.
-- Model and version identification stay Unknown unless explicit evidence exists.
-- Command availability by exact platform/version is not asserted yet.
-- BGP local-RIB and OSPF runtime-state checks cannot be proven from configuration alone.
-- “Unused” means no reference recognized by the beta parser; unsupported consumers may exist.
-- IPv6 and advanced route/policy constructs are incomplete.
-- Snapshot operational-output parsers are placeholders.
-- Syntax highlighting and persistent history are not implemented.
-- Current Windows standalone output favors reliable DLL inclusion over package size.
+- The parser is a bounded VRP subset, not a command-line emulator.
+- Profile matches require explicit model/version evidence; generic VRP stays generic.
+- Profile facts prove only cited command forms, not every model/version combination.
+- Snapshot parsing covers recognized table/detail layouts and is not a general screen-scraper.
+- Exact RIB checks compare route prefixes; route preference, active/invalid state, recursive
+  resolution, and forwarding hardware are not fully modeled.
+- BGP group inheritance, ACL/policy consumers, IPv6, and OSPF interface mode remain partial.
+- “Unused” means no consumer recognized by this parser; an unsupported feature may reference it.
+- Chinese localization does not yet include rule-generated diagnostic prose.
+- Release binaries are unsigned unless a valid external code-signing identity is supplied.
 
-Detailed heuristic and device-validation items are tracked in
-[Huawei validation notes](docs/huawei-validation.md) and implementation maturity is recorded in
-[project status](docs/status.md).
+See [Huawei validation notes](docs/huawei-validation.md), [status](docs/status.md), and the
+[executable roadmap](docs/roadmap.md).
 
 ## Roadmap
 
-### v1.0 Beta
-
-Huawei VRP static analysis, shared rule engine, CLI, and Material desktop GUI.
-
-### v1.1
-
-More Huawei rules, validated command compatibility profiles, parser coverage, package-size
-reduction, GUI usability, and syntax highlighting.
-
-### v1.5
-
-H3C Comware detector, parser, profile overlays, and rules using the existing core.
-
-### v2.0
-
-Juniper Junos support.
-
-### Future
-
-Snapshot analysis, VS Code extension, topology visualization, Batfish integration, CI/CD
-configuration validation, dependency graph, configuration diff, and migration assistance.
+- **v1.1 Beta**: verified profiles, operational snapshots, IPv6/group/policy expansion,
+  bilingual GUI shell, optional history, incremental highlighting, and optimized Windows build.
+- **v1.2**: localized diagnostics, snapshot section boundaries, signed CI release provenance,
+  and richer route/peer/interface evidence.
+- **v1.5**: H3C Comware vendor package using the shared core.
+- **v2.0**: Juniper Junos support.
+- **Future**: VS Code integration, configuration diff, topology/dependency graph, Batfish
+  integration, CI validation, and migration assistance.
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md). New rules require a unique Rule ID, valid and invalid
-synthetic fixtures, expected diagnostics, conservative confidence, and documentation. New vendor
-support must plug into detection/parser/rule boundaries rather than introduce vendor conditionals
-into GUI or shared diagnostics.
+Read [CONTRIBUTING.md](CONTRIBUTING.md). Every rule requires a unique Rule ID, valid and invalid
+synthetic fixtures, expected diagnostics, conservative confidence, and documentation. Do not
+commit real enterprise configurations or personal/sensitive data.
 
 ## Disclaimer
 
@@ -238,4 +234,3 @@ correctly on physical hardware.
 
 Always validate production network changes using vendor-supported procedures and appropriate lab
 or staging environments.
-

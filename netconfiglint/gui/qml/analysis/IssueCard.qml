@@ -42,7 +42,7 @@ AppCard {
             StatusBadge { label: root.severity }
             Text { text: root.ruleId; color: Colors.textSecondary; font: Typography.caption }
             Item { Layout.fillWidth: true }
-            Text { text: "Line " + root.line; color: Colors.primary; font: Typography.label }
+            Text { text: i18n.catalog["issue.line"] + " " + root.line; color: Colors.primary; font: Typography.label }
         }
         Text {
             Layout.fillWidth: true
@@ -62,7 +62,7 @@ AppCard {
             Layout.fillWidth: true
             visible: root.expanded
             spacing: Spacing.xs
-            Text { text: "Explanation"; color: Colors.textPrimary; font: Typography.label }
+            Text { text: i18n.catalog["issue.explanation"]; color: Colors.textPrimary; font: Typography.label }
             Text {
                 Layout.fillWidth: true
                 text: root.explanation
@@ -70,7 +70,7 @@ AppCard {
                 font: Typography.body
                 wrapMode: Text.Wrap
             }
-            Text { text: "Suggested fix"; color: Colors.textPrimary; font: Typography.label }
+            Text { text: i18n.catalog["issue.fix"]; color: Colors.textPrimary; font: Typography.label }
             Text {
                 Layout.fillWidth: true
                 text: root.suggestedFix
@@ -81,10 +81,10 @@ AppCard {
         }
         RowLayout {
             Layout.fillWidth: true
-            AppButton { text: "Go to line"; onClicked: root.jumpRequested() }
+            AppButton { text: i18n.catalog["issue.goto"]; onClicked: root.jumpRequested() }
             Item { Layout.fillWidth: true }
             AppButton {
-                text: root.expanded ? "Less" : "Details"
+                text: root.expanded ? i18n.catalog["issue.less"] : i18n.catalog["issue.details"]
                 onClicked: root.expanded = !root.expanded
             }
         }

@@ -29,6 +29,22 @@ class MissingBgpRoutePolicyRule:
                         suggested_fix=f"Define route-policy {name} or remove/correct the peer reference.",
                     )
                 )
+        for group in context.config.bgp.groups.values():
+            for name, source in (*group.import_policies, *group.export_policies):
+                if name in context.config.route_policies:
+                    continue
+                result.append(
+                    missing_reference_diagnostic(
+                        context,
+                        rule_id=self.metadata.rule_id,
+                        source=source,
+                        object_name=group.name,
+                        full_message=f"BGP group references undefined route-policy {name}.",
+                        snippet_message=f"Route-policy {name} was not found in the snippet.",
+                        explanation="The group policy reference has no matching route-policy definition.",
+                        suggested_fix=f"Define route-policy {name} or remove/correct the group reference.",
+                    )
+                )
         return tuple(result)
 
 
@@ -64,6 +80,8 @@ class MissingAclRule:
         references = list(context.config.acl_references)
         for policy in context.config.route_policies.values():
             references.extend((name, policy.name, source) for name, source in policy.acl_references)
+        for classifier in context.config.traffic_classifiers.values():
+            references.extend((name, classifier.name, source) for name, source in classifier.acl_references)
         return tuple(
             missing_reference_diagnostic(
                 context,
@@ -90,6 +108,8 @@ class UnusedRoutePolicyRule:
         if context.config.bgp is not None:
             for peer in context.config.bgp.peers.values():
                 used.update(name for name, _ in (*peer.import_policies, *peer.export_policies))
+            for group in context.config.bgp.groups.values():
+                used.update(name for name, _ in (*group.import_policies, *group.export_policies))
         return tuple(
             Diagnostic(
                 Severity.INFO,

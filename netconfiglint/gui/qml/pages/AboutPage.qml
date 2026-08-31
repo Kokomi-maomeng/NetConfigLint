@@ -16,13 +16,13 @@ Item {
         }
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: "NetConfigLint v1.0 Beta"
+            text: i18n.catalog["app.title"]
             color: Colors.textPrimary
             font: Typography.display
         }
         Text {
             Layout.fillWidth: true
-            text: "A fast, offline, extensible static analyzer for network device configurations."
+            text: i18n.catalog["page.about.tagline"]
             color: Colors.textSecondary
             font: Typography.body
             horizontalAlignment: Text.AlignHCenter
@@ -30,7 +30,7 @@ Item {
         }
         Text {
             Layout.fillWidth: true
-            text: "Static analysis cannot guarantee that a configuration will operate correctly on physical hardware."
+            text: i18n.catalog["about.disclaimer"]
             color: Colors.warning
             font: Typography.body
             horizontalAlignment: Text.AlignHCenter

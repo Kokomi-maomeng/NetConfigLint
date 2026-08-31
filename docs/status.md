@@ -1,42 +1,48 @@
-# v1.0 Beta implementation status
+# v1.1 Beta implementation status
 
 ## Stable architecture
 
-- `analyze(source, mode, vendor) -> AnalysisResult` public boundary.
-- Vendor-neutral configuration, source range, diagnostic, severity, and confidence models.
-- Detector/parser/rule protocols and unique-ID rule engine.
-- Shared result consumption by CLI and GUI.
-- QML-first GUI boundary using QObject, Property, Signal, Slot, and QAbstractListModel.
-- Package-relative QML and SVG resource loading.
-- Synthetic-fixture and no-production-data contribution policy.
+- `analyze(source, mode, vendor) -> AnalysisResult` integration boundary.
+- Vendor-neutral configuration, operational evidence, source range, diagnostic, severity, and
+  confidence models.
+- Detector/parser/rule protocols, registry boundaries, and unique-ID rule engine.
+- Shared result consumption by CLI, GUI, and future integrations.
+- QML-first GUI using QObject, Property, Signal, Slot, and QAbstractListModel.
+- Package-relative QML, translation, profile, and SVG resource loading.
+- Synthetic-fixture, local-only processing, and no-production-data contribution policy.
+- Base/platform/model/version profile inheritance with auditable source references.
 
 ## Beta implementation
 
-- Huawei VRP line/block parser for the documented v1.0 subset.
-- Eighteen Huawei rules and their mode-aware behavior.
-- Huawei detection confidence and conservative metadata.
-- CLI text/JSON rendering and exit codes.
-- Material-inspired desktop pages, editor, diagnostics, filters, themes, file/report actions, and
-  async controller.
-- Windows standalone build with a runtime-DLL fallback for builders without `dumpbin`.
+- Huawei VRP bounded line/block parser plus recognized operational snapshot sections.
+- 26 mode-aware Huawei rules, each with valid and invalid synthetic fixtures.
+- IPv4/IPv6 RIB exact-prefix evidence, BGP peer state, and interface state parsing.
+- IPv6 static/address checks, BGP groups, interface OSPF, ACL6 and traffic-policy references.
+- CLI text/JSON rendering and documented exit codes.
+- Material-inspired bilingual desktop shell, editor, diagnostics, themes, async analysis,
+  incremental highlighting, and optional privacy-minimized history.
+- Synthetic large-configuration regression benchmark.
+- Recursive Windows PE dependency closure and Inno Setup installer workflow.
 
 ## Experimental / TODO
 
-- Snapshot operational-output parsing.
-- Command tree/profile data beyond demonstration structures.
-- Syntax highlighting and richer editor behavior.
-- Persistent history (disabled by design in this beta).
-- Exact platform/model/version compatibility rules.
-- Optimized Windows DLL dependency closure and signed installers.
-- Linux/macOS packaged artifact tests; CI currently validates source/QML execution.
+- Exact Huawei command availability outside the documented catalog facts.
+- Complete snapshot output variants and explicit section/container schema.
+- Active/inactive route selection, recursive next-hop resolution, and hardware FIB evidence.
+- Complete BGP group inheritance and address-family activation semantics.
+- Complete OSPF/OSPFv3, ACL/QoS/policy consumer graph, and IPv6 command coverage.
+- Localized rule messages; v1.1 translates the GUI shell and controls.
+- Trusted Windows signing; the build supports it but needs an external certificate/private key
+  and Windows SDK SignTool.
+- Linux/macOS packaged artifact tests; CI validates source/QML execution on all three platforms.
 
 ## H3C reuse boundary
 
-Directly reusable: analyzer result contract, analysis modes, diagnostics/confidence, source mapping,
-normalized models, rule engine, CLI formatters, GUI controller/list model/QML, tests patterns, and
-CI.
+Directly reusable: public analyzer/result contract, modes, operational-evidence containers,
+diagnostics/confidence, source mapping, normalized models, rule engine, CLI formatters, GUI
+controller/list models/QML, translation/history infrastructure, fixture patterns, benchmark,
+and CI.
 
-H3C-specific additions: detector signatures, Comware lexer/parser grammar, platform/version
-profiles, command tree overlays, rule registry, and fixtures. Shared models may gain optional
-vendor-neutral fields, but H3C support must not add parsing or rules to GUI code.
-
+H3C-specific additions: detector signatures, Comware parser/grammar, operational-output parser,
+platform/version profiles, command overlays, vendor rule registry, and synthetic fixtures. Shared
+models may gain optional vendor-neutral fields, but Comware knowledge must not enter GUI code.

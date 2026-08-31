@@ -46,16 +46,18 @@ if (-not $DryRun) {
     $dist = Join-Path $projectRoot 'dist'
     if (-not (Test-Path -LiteralPath $dist)) { throw 'Packaging did not create the dist directory.' }
 
-    # PySide6 6.11 + Nuitka may omit ABI/runtime DLLs when Visual Studio dumpbin is unavailable.
-    # Copy the wheel-provided runtimes so the standalone build remains reproducible on clean builders.
+    # Resolve the PE import graph when Visual Studio dumpbin is unavailable. This avoids copying
+    # every DLL from the PySide wheel while retaining a verifiable standalone dependency closure.
     $distributionDirs = Get-ChildItem -LiteralPath $dist -Directory -Filter '*.dist'
     foreach ($distribution in $distributionDirs) {
-        $pysideTarget = Join-Path $distribution.FullName 'PySide6'
-        $shibokenTarget = Join-Path $distribution.FullName 'shiboken6'
-        Get-ChildItem -LiteralPath (Join-Path $projectRoot '.venv\Lib\site-packages\PySide6') -Filter '*.dll' |
-            Copy-Item -Destination $pysideTarget -Force
-        Get-ChildItem -LiteralPath (Join-Path $projectRoot '.venv\Lib\site-packages\shiboken6') -Filter '*.dll' |
-            Copy-Item -Destination $shibokenTarget -Force
+        $pruner = Join-Path $projectRoot 'scripts\prepare_windows_runtime.py'
+        & $python $pruner $distribution.FullName
+        if ($LASTEXITCODE -ne 0) { throw 'Could not prune the broad Qt deployment payload.' }
+
+        $resolver = Join-Path $projectRoot 'scripts\resolve_windows_dlls.py'
+        $sitePackages = Join-Path $projectRoot '.venv\Lib\site-packages'
+        & $python $resolver $distribution.FullName $sitePackages
+        if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the standalone DLL dependency closure.' }
 
         $generatedExe = Join-Path $distribution.FullName 'deploy_main.exe'
         $namedExe = Join-Path $distribution.FullName 'NetConfigLint.exe'

@@ -23,9 +23,13 @@ def _read_expected(rule_id: str) -> list[dict[str, Any]]:
     return value
 
 
+def _analysis_mode(rule_id: str) -> str:
+    return "snapshot" if rule_id in {"HUA-BGP-003", "HUA-IF-004"} else "full"
+
+
 @pytest.mark.parametrize("rule_id", RULE_CASES)
 def test_rule_reports_expected_invalid_diagnostic(rule_id: str) -> None:
-    diagnostics = analyze(_read_case(rule_id, "invalid.cfg"), "full").diagnostics
+    diagnostics = analyze(_read_case(rule_id, "invalid.cfg"), _analysis_mode(rule_id)).diagnostics
     actual = [item.to_dict() for item in diagnostics if item.rule_id == rule_id]
 
     expected = _read_expected(rule_id)
@@ -36,7 +40,7 @@ def test_rule_reports_expected_invalid_diagnostic(rule_id: str) -> None:
 
 @pytest.mark.parametrize("rule_id", RULE_CASES)
 def test_rule_accepts_valid_fixture(rule_id: str) -> None:
-    diagnostics = analyze(_read_case(rule_id, "valid.cfg"), "full").diagnostics
+    diagnostics = analyze(_read_case(rule_id, "valid.cfg"), _analysis_mode(rule_id)).diagnostics
     assert rule_id not in {item.rule_id for item in diagnostics}
 
 

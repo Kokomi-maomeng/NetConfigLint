@@ -34,6 +34,9 @@ class Interface:
     access_vlan: int | None = None
     allowed_vlans: set[int] = field(default_factory=set)
     ip_addresses: list[tuple[str, str | None, SourceRange]] = field(default_factory=list)
+    ipv6_addresses: list[tuple[str, str | None, SourceRange]] = field(default_factory=list)
+    ospf_bindings: list[tuple[str, str, SourceRange]] = field(default_factory=list)
+    traffic_policies: list[tuple[str, str, SourceRange]] = field(default_factory=list)
     shutdown: bool = False
     eth_trunk: str | None = None
     vpn_instance: str | None = None
@@ -53,9 +56,31 @@ class StaticRoute:
 
 
 @dataclass(slots=True)
+class IPv6StaticRoute:
+    destination: str
+    prefix_length: str | None
+    next_hop: str
+    vpn_instance: str | None
+    source: SourceRange
+    parse_valid: bool = True
+    parse_issue: str = ""
+
+
+@dataclass(slots=True)
 class BGPPeer:
     address: str
     source: SourceRange
+    remote_as: str | None = None
+    group: str | None = None
+    import_policies: list[tuple[str, SourceRange]] = field(default_factory=list)
+    export_policies: list[tuple[str, SourceRange]] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class BGPGroup:
+    name: str
+    source: SourceRange
+    group_type: str | None = None
     remote_as: str | None = None
     import_policies: list[tuple[str, SourceRange]] = field(default_factory=list)
     export_policies: list[tuple[str, SourceRange]] = field(default_factory=list)
@@ -75,6 +100,7 @@ class BGPProcess:
     source: SourceRange
     router_id: str | None = None
     peers: dict[str, BGPPeer] = field(default_factory=dict)
+    groups: dict[str, BGPGroup] = field(default_factory=dict)
     address_families: list[BGPAddressFamily] = field(default_factory=list)
 
 
@@ -115,9 +141,67 @@ class RoutePolicy:
 
 
 @dataclass(slots=True)
+class TrafficClassifier:
+    name: str
+    source: SourceRange
+    acl_references: list[tuple[str, SourceRange]] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class TrafficBehavior:
+    name: str
+    source: SourceRange
+
+
+@dataclass(slots=True)
+class TrafficPolicy:
+    name: str
+    source: SourceRange
+    classifier_bindings: list[tuple[str, str, SourceRange]] = field(default_factory=list)
+
+
+@dataclass(slots=True)
 class VpnInstance:
     name: str
     source: SourceRange
+
+
+@dataclass(frozen=True, slots=True)
+class SnapshotRoute:
+    prefix: str
+    protocol: str
+    next_hop: str
+    interface: str
+    source: SourceRange
+
+
+@dataclass(frozen=True, slots=True)
+class SnapshotBgpPeer:
+    address: str
+    remote_as: str
+    state: str
+    received_prefixes: int | None
+    source: SourceRange
+
+
+@dataclass(frozen=True, slots=True)
+class SnapshotInterface:
+    name: str
+    address: str
+    physical_state: str
+    protocol_state: str
+    source: SourceRange
+
+
+@dataclass(slots=True)
+class SnapshotEvidence:
+    ipv4_rib_present: bool = False
+    ipv6_rib_present: bool = False
+    bgp_peer_table_present: bool = False
+    interface_table_present: bool = False
+    routes: list[SnapshotRoute] = field(default_factory=list)
+    bgp_peers: dict[str, SnapshotBgpPeer] = field(default_factory=dict)
+    interfaces: dict[str, SnapshotInterface] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -127,16 +211,21 @@ class DeviceConfig:
     vlans: dict[int, Vlan] = field(default_factory=dict)
     interfaces: dict[str, Interface] = field(default_factory=dict)
     static_routes: list[StaticRoute] = field(default_factory=list)
+    ipv6_static_routes: list[IPv6StaticRoute] = field(default_factory=list)
     bgp: BGPProcess | None = None
     ospf_processes: dict[str, OSPFProcess] = field(default_factory=dict)
     acls: dict[str, ACL] = field(default_factory=dict)
     route_policies: dict[str, RoutePolicy] = field(default_factory=dict)
+    traffic_classifiers: dict[str, TrafficClassifier] = field(default_factory=dict)
+    traffic_behaviors: dict[str, TrafficBehavior] = field(default_factory=dict)
+    traffic_policies: dict[str, TrafficPolicy] = field(default_factory=dict)
     prefix_lists: dict[str, PrefixList] = field(default_factory=dict)
     vpn_instances: dict[str, VpnInstance] = field(default_factory=dict)
     acl_references: list[tuple[str, str, SourceRange]] = field(default_factory=list)
     sensitive_lines: list[SourceRange] = field(default_factory=list)
     metadata: dict[str, str] = field(default_factory=dict)
     unparsed_lines: list[SourceRange] = field(default_factory=list)
+    snapshot: SnapshotEvidence = field(default_factory=SnapshotEvidence)
 
     def to_dict(self) -> dict[str, Any]:
         data = _json_compatible(asdict(self))

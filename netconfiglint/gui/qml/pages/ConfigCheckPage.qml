@@ -18,7 +18,7 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Text { text: "Configuration Check"; color: Colors.textPrimary; font: Typography.display }
+            Text { text: i18n.catalog["page.check"]; color: Colors.textPrimary; font: Typography.display }
             Item { Layout.fillWidth: true }
             Text {
                 text: root.controller.fileName
@@ -85,7 +85,7 @@ Item {
                 }
                 Item { Layout.fillWidth: true }
                 Text {
-                    text: "Configuration is processed locally and is not uploaded."
+                    text: i18n.catalog["status.local"]
                     color: Colors.textSecondary
                     font: Typography.caption
                 }
@@ -95,13 +95,13 @@ Item {
 
     FileDialog {
         id: openDialog
-        title: "Open network configuration"
+        title: i18n.catalog["dialog.open"]
         nameFilters: ["Configuration files (*.cfg *.conf *.txt)", "All files (*)"]
         onAccepted: root.controller.loadFile(selectedFile)
     }
     FileDialog {
         id: exportDialog
-        title: "Export diagnostic report"
+        title: i18n.catalog["dialog.export"]
         fileMode: FileDialog.SaveFile
         defaultSuffix: "json"
         nameFilters: ["JSON report (*.json)"]

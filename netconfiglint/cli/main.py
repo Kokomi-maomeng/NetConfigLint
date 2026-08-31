@@ -56,6 +56,7 @@ def _write_text(result: object, stream: TextIO, *, color: bool) -> None:
         f"Vendor: {detection.vendor}  OS: {detection.os}  "
         f"Platform: {detection.platform_family}  Model: {detection.model}\n"
         f"Version: {detection.version}  Detection confidence: {detection.confidence:.2f}\n"
+        f"Profile: {detection.profile_id}  Profile confidence: {detection.profile_confidence}\n"
         f"Mode: {result.mode.value}  Lines: {result.source_line_count}  "
         f"Diagnostics: {len(result.diagnostics)}\n\n"
     )
