@@ -9,10 +9,17 @@ Set-Location -LiteralPath $projectRoot
 
 $python = Join-Path $projectRoot '.venv\Scripts\python.exe'
 $deploy = Join-Path $projectRoot '.venv\Scripts\pyside6-deploy.exe'
-$scripts = Join-Path $projectRoot '.venv\Scripts'
-if (-not (Test-Path -LiteralPath $python) -or -not (Test-Path -LiteralPath $deploy)) {
-    throw 'Create .venv and install .[dev,gui] before packaging.'
+if (-not (Test-Path -LiteralPath $python)) {
+    $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+    if (-not $pythonCommand) { throw 'Python is required for packaging.' }
+    $python = $pythonCommand.Source
 }
+if (-not (Test-Path -LiteralPath $deploy)) {
+    $deployCommand = Get-Command pyside6-deploy -ErrorAction SilentlyContinue
+    if (-not $deployCommand) { throw 'Install the gui dependencies before packaging.' }
+    $deploy = $deployCommand.Source
+}
+$scripts = Split-Path -Parent $deploy
 
 $svg = Join-Path $projectRoot 'netconfiglint\resources\icons\app.svg'
 $ico = Join-Path $projectRoot 'netconfiglint\resources\icons\app.ico'
@@ -55,7 +62,7 @@ if (-not $DryRun) {
         if ($LASTEXITCODE -ne 0) { throw 'Could not prune the broad Qt deployment payload.' }
 
         $resolver = Join-Path $projectRoot 'scripts\resolve_windows_dlls.py'
-        $sitePackages = Join-Path $projectRoot '.venv\Lib\site-packages'
+        $sitePackages = & $python -c "import site; print(site.getsitepackages()[0])"
         & $python $resolver $distribution.FullName $sitePackages
         if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the standalone DLL dependency closure.' }
 
