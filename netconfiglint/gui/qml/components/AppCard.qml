@@ -1,0 +1,20 @@
+import QtQuick
+import theme 1.0
+
+Rectangle {
+    id: root
+    default property alias contentData: content.data
+    property int padding: Spacing.md
+    color: Colors.surface
+    border.color: Colors.outlineVariant
+    border.width: 1
+    radius: Spacing.radiusCard
+    implicitWidth: content.implicitWidth + padding * 2
+    implicitHeight: content.implicitHeight + padding * 2
+
+    Item {
+        id: content
+        anchors.fill: parent
+        anchors.margins: root.padding
+    }
+}

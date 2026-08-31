@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python-version: ["3.12"]
+    env:
+      QT_QPA_PLATFORM: offscreen
+      QSG_RHI_BACKEND: software
+      QT_QUICK_CONTROLS_STYLE: Material
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install project
+        run: python -m pip install -e ".[dev,gui]"
+      - name: Ruff format
+        run: ruff format --check netconfiglint tests
+      - name: Ruff lint
+        run: ruff check netconfiglint tests
+      - name: Mypy
+        run: mypy netconfiglint
+      - name: Pytest
+        run: python -m pytest
+      - name: CLI startup
+        run: python -m netconfiglint --version
+      - name: Windows deployment dry run
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build_windows.ps1 -DryRun
+

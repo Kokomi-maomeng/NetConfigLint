@@ -1,0 +1,7 @@
+{
+  "rule_id": "HUA-VLAN-001",
+  "severity": "ERROR",
+  "line": 5,
+  "object": "GigabitEthernet1/0/1"
+}
+
