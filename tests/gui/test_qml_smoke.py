@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PySide6.QtCore import QCoreApplication
+from PySide6.QtQuick import QQuickItem, QQuickWindow
+from PySide6.QtTest import QTest
+
 from netconfiglint.gui.app.main import create_engine, qml_root
 from netconfiglint.gui.controllers import AnalysisController
 
@@ -10,6 +14,31 @@ def test_main_qml_loads_offscreen(qapp: object) -> None:
     controller = AnalysisController(async_enabled=False)
     engine = create_engine(controller)
     assert engine.rootObjects(), "Main.qml failed to create an ApplicationWindow"
+    controller.close()
+
+
+def test_diagnostic_delegate_maps_model_roles_to_visible_card(qapp: object) -> None:
+    controller = AnalysisController(async_enabled=False)
+    engine = create_engine(controller)
+    controller.sourceText = "sysname SYNTHETIC-LAB\ntelnet server enable\n"
+    controller.analyzeConfig()
+    QCoreApplication.processEvents()
+    QTest.qWait(100)
+
+    window = engine.rootObjects()[0]
+    assert isinstance(window, QQuickWindow)
+
+    def descendants(item: QQuickItem) -> list[QQuickItem]:
+        children = item.childItems()
+        return children + [grandchild for child in children for grandchild in descendants(child)]
+
+    cards = [
+        child for child in descendants(window.contentItem()) if child.objectName() == "diagnosticIssueCard"
+    ]
+    telnet = next(card for card in cards if card.property("ruleIdentifier") == "HUA-SEC-002")
+    assert telnet.property("severityValue") == "WARNING"
+    assert telnet.property("sourceLine") == 2
+    assert telnet.property("diagnosticMessage") == "The Telnet server is enabled."
     controller.close()
 
 

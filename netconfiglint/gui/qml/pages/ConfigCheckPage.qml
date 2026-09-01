@@ -18,13 +18,16 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Text { text: i18n.catalog["page.check"]; color: Colors.textPrimary; font: Typography.display }
+            SelectableText {
+                text: i18n.catalog["page.check"]
+                color: Colors.textPrimary
+                font: Typography.display
+            }
             Item { Layout.fillWidth: true }
-            Text {
+            SelectableText {
                 text: root.controller.fileName
                 color: Colors.textSecondary
                 font: Typography.caption
-                elide: Text.ElideMiddle
             }
         }
         ConfigToolbar {
@@ -40,34 +43,51 @@ Item {
             onModeSelected: value => root.controller.mode = value
             onVendorSelected: value => root.controller.vendor = value
         }
-        DeviceInfoCard {
-            Layout.fillWidth: true
-            detection: root.controller.detection
-        }
         SplitView {
             Layout.fillWidth: true
             Layout.fillHeight: true
             orientation: root.width < 900 ? Qt.Vertical : Qt.Horizontal
 
-            ConfigEditor {
-                id: configEditor
+            SplitView {
                 SplitView.fillWidth: true
                 SplitView.fillHeight: true
                 SplitView.preferredWidth: 680
                 SplitView.minimumWidth: 380
                 SplitView.minimumHeight: 250
-                text: root.controller.sourceText
-                onTextEdited: value => {
-                    if (root.controller.sourceText !== value) root.controller.sourceText = value
+                orientation: Qt.Vertical
+
+                ConfigEditor {
+                    id: configEditor
+                    SplitView.fillWidth: true
+                    SplitView.fillHeight: true
+                    SplitView.preferredHeight: 430
+                    SplitView.minimumHeight: 220
+                    title: i18n.catalog["editor.configuration"]
+                    subtitle: i18n.catalog["editor.configuration.detail"]
+                    placeholderText: i18n.catalog["editor.configuration.placeholder"]
+                    text: root.controller.sourceText
+                    onTextEdited: value => {
+                        if (root.controller.sourceText !== value) root.controller.sourceText = value
+                    }
+                }
+                ConfigEditor {
+                    id: temporaryEditor
+                    SplitView.fillWidth: true
+                    SplitView.fillHeight: true
+                    SplitView.preferredHeight: 250
+                    SplitView.minimumHeight: 170
+                    title: i18n.catalog["editor.temporary"]
+                    subtitle: i18n.catalog["editor.temporary.detail"]
+                    placeholderText: i18n.catalog["editor.temporary.placeholder"]
                 }
             }
             AnalysisPanel {
-                SplitView.fillWidth: true
                 SplitView.fillHeight: true
                 SplitView.preferredWidth: 440
                 SplitView.minimumWidth: 340
                 SplitView.minimumHeight: 220
                 diagnosticsModel: root.controller.diagnosticsModel
+                detection: root.controller.detection
                 summary: root.controller.summary
                 onIssueActivated: row => root.controller.requestJump(row)
             }
@@ -78,14 +98,16 @@ Item {
             padding: Spacing.sm
             RowLayout {
                 anchors.fill: parent
-                Text {
+                SelectableText {
                     text: root.controller.busy ? "Analyzing locally…" : root.controller.statusMessage
+                    wrapMode: TextEdit.NoWrap
                     color: root.controller.busy ? Colors.primary : Colors.textSecondary
                     font: Typography.caption
                 }
                 Item { Layout.fillWidth: true }
-                Text {
+                SelectableText {
                     text: i18n.catalog["status.local"]
+                    wrapMode: TextEdit.NoWrap
                     color: Colors.textSecondary
                     font: Typography.caption
                 }

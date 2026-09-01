@@ -9,7 +9,7 @@ Rectangle {
     signal pageSelected(int index)
     color: Colors.surface
     border.color: Colors.outlineVariant
-    implicitWidth: expanded ? 224 : 72
+    implicitWidth: expanded ? 240 : 72
 
     Behavior on implicitWidth { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
@@ -45,7 +45,6 @@ Rectangle {
             model: [
                 { label: i18n.catalog["nav.check"], icon: "check.svg" },
                 { label: i18n.catalog["nav.history"], icon: "history.svg" },
-                { label: i18n.catalog["nav.rules"], icon: "rules.svg" },
                 { label: i18n.catalog["nav.settings"], icon: "settings.svg" },
                 { label: i18n.catalog["nav.about"], icon: "about.svg" }
             ]

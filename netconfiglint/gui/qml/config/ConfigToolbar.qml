@@ -16,7 +16,17 @@ AppCard {
     signal exportRequested()
     signal modeSelected(string value)
     signal vendorSelected(string value)
-    implicitHeight: 68
+    implicitHeight: 72
+
+    function modeLabel() {
+        if (mode === "snippet") return i18n.catalog["mode.snippet"]
+        if (mode === "snapshot") return i18n.catalog["mode.snapshot"]
+        return i18n.catalog["mode.full"]
+    }
+
+    function vendorLabel() {
+        return vendor === "huawei" ? i18n.catalog["vendor.huawei"] : i18n.catalog["vendor.auto"]
+    }
 
     RowLayout {
         anchors.fill: parent
@@ -33,32 +43,56 @@ AppCard {
         AppButton { text: i18n.catalog["toolbar.clear"]; enabled: !root.busy; onClicked: root.clearRequested() }
         AppButton { text: i18n.catalog["toolbar.export"]; onClicked: root.exportRequested() }
         Item { Layout.fillWidth: true }
-        Text { text: i18n.catalog["toolbar.mode"]; color: Colors.textSecondary; font: Typography.caption }
-        ComboBox {
-            id: modeBox
-            model: [
-                { label: i18n.catalog["mode.snippet"], value: "snippet" },
-                { label: i18n.catalog["mode.full"], value: "full" },
-                { label: i18n.catalog["mode.snapshot"], value: "snapshot" }
-            ]
-            textRole: "label"
-            valueRole: "value"
-            currentIndex: root.mode === "snippet" ? 0 : root.mode === "snapshot" ? 2 : 1
-            onActivated: root.modeSelected(currentValue)
-            Layout.preferredWidth: 118
+        SelectionField {
+            Layout.preferredWidth: 150
+            Layout.minimumWidth: 140
+            label: i18n.catalog["toolbar.mode"]
+            valueText: root.modeLabel()
+            onClicked: modeDialog.open()
         }
-        Text { text: i18n.catalog["toolbar.vendor"]; color: Colors.textSecondary; font: Typography.caption }
-        ComboBox {
-            id: vendorBox
-            model: [
-                { label: i18n.catalog["vendor.auto"], value: "auto" },
-                { label: i18n.catalog["vendor.huawei"], value: "huawei" }
-            ]
-            textRole: "label"
-            valueRole: "value"
-            currentIndex: root.vendor === "huawei" ? 1 : 0
-            onActivated: root.vendorSelected(currentValue)
-            Layout.preferredWidth: 110
+        SelectionField {
+            Layout.preferredWidth: 150
+            Layout.minimumWidth: 140
+            label: i18n.catalog["toolbar.vendor"]
+            valueText: root.vendorLabel()
+            onClicked: vendorDialog.open()
         }
+    }
+
+    SelectionDialog {
+        id: modeDialog
+        title: i18n.catalog["mode.choose"]
+        selectedValue: root.mode
+        options: [
+            {
+                label: i18n.catalog["mode.snippet"], value: "snippet",
+                description: i18n.catalog["mode.snippet.detail"]
+            },
+            {
+                label: i18n.catalog["mode.full"], value: "full",
+                description: i18n.catalog["mode.full.detail"]
+            },
+            {
+                label: i18n.catalog["mode.snapshot"], value: "snapshot",
+                description: i18n.catalog["mode.snapshot.detail"]
+            }
+        ]
+        onValueSelected: value => root.modeSelected(value)
+    }
+    SelectionDialog {
+        id: vendorDialog
+        title: i18n.catalog["vendor.choose"]
+        selectedValue: root.vendor
+        options: [
+            {
+                label: i18n.catalog["vendor.auto"], value: "auto",
+                description: i18n.catalog["vendor.auto.detail"]
+            },
+            {
+                label: i18n.catalog["vendor.huawei"], value: "huawei",
+                description: i18n.catalog["vendor.huawei.detail"]
+            }
+        ]
+        onValueSelected: value => root.vendorSelected(value)
     }
 }

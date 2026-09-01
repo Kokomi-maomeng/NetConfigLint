@@ -11,22 +11,22 @@ ColumnLayout {
         Layout.alignment: Qt.AlignHCenter
         width: 44; height: 44; radius: 22
         color: Colors.primaryContainer
-        Text { anchors.centerIn: parent; text: "—"; color: Colors.primary; font: Typography.title }
+        SelectableText { anchors.centerIn: parent; text: "—"; color: Colors.primary; font: Typography.title }
     }
-    Text {
+    SelectableText {
         Layout.alignment: Qt.AlignHCenter
         text: parent.title
         color: Colors.textPrimary
         font: Typography.subtitle
     }
-    Text {
+    SelectableText {
         Layout.alignment: Qt.AlignHCenter
         Layout.maximumWidth: 360
         text: parent.description
         color: Colors.textSecondary
         font: Typography.body
         horizontalAlignment: Text.AlignHCenter
-        wrapMode: Text.Wrap
+        wrapMode: TextEdit.Wrap
     }
     Item { Layout.fillHeight: true }
 }

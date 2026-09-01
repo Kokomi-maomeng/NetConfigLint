@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import ipaddress
+import re
+
 from netconfiglint.core.analyzer import AnalysisMode
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
@@ -119,6 +122,58 @@ class OperationalInterfaceDownRule:
                     f"Snapshot state is physical={status.physical_state}, protocol={status.protocol_state}.",
                     "Check link, optics/cabling, peer state, VLAN/L3 configuration, and device logs.",
                     Confidence.VERIFIED,
+                )
+            )
+        return tuple(result)
+
+
+class InvalidInterfaceAddressRule:
+    metadata = RuleMetadata("HUA-IF-005", "Invalid interface IPv4 address", Severity.ERROR, "Huawei")
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        result = []
+        for interface in context.config.interfaces.values():
+            for address, mask, source in interface.ip_addresses:
+                try:
+                    if mask is None and "/" not in address:
+                        raise ValueError
+                    ipaddress.IPv4Interface(address if "/" in address else f"{address}/{mask}")
+                except ValueError:
+                    result.append(
+                        Diagnostic(
+                            Severity.ERROR,
+                            self.metadata.rule_id,
+                            source,
+                            interface.name,
+                            "The interface IPv4 address or mask is invalid.",
+                            "The address and mask cannot be normalized as an IPv4 interface.",
+                            "Correct the IPv4 address and dotted-decimal mask or prefix length.",
+                            Confidence.VERIFIED,
+                        )
+                    )
+        return tuple(result)
+
+
+class MissingVlanifVlanRule:
+    metadata = RuleMetadata("HUA-IF-006", "VLANIF without VLAN", Severity.ERROR, "Huawei")
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        result = []
+        for interface in context.config.interfaces.values():
+            match = re.fullmatch(r"vlanif\s*(\d+)", interface.name, re.IGNORECASE)
+            if match is None or int(match.group(1)) in {*context.config.vlans, 1}:
+                continue
+            vlan_id = int(match.group(1))
+            result.append(
+                missing_reference_diagnostic(
+                    context,
+                    rule_id=self.metadata.rule_id,
+                    source=interface.source,
+                    object_name=interface.name,
+                    full_message=f"VLANIF {vlan_id} exists but VLAN {vlan_id} is not defined.",
+                    snippet_message=f"VLAN {vlan_id} was not found in the snippet.",
+                    explanation="Huawei requires the VLAN to exist before its VLANIF interface is used.",
+                    suggested_fix=f"Create VLAN {vlan_id} or remove/correct the VLANIF interface.",
                 )
             )
         return tuple(result)
