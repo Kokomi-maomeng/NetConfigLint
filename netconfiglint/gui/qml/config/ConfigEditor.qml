@@ -8,6 +8,7 @@ AppCard {
     id: root
     property alias text: editor.text
     property alias editor: editor
+    property string editorObjectName: "configEditorTextArea"
     property string title: i18n.catalog["editor.configuration"]
     property string subtitle: ""
     property string placeholderText: ""
@@ -52,88 +53,117 @@ AppCard {
         }
     }
 
+    function measuredTextWidth() {
+        var lines = editor.text.split("\n")
+        var widest = 0
+        for (var i = 0; i < lines.length; ++i) {
+            var units = 0
+            for (var j = 0; j < lines[i].length; ++j) {
+                var character = lines[i].charAt(j)
+                units += character === "\t" ? 4 : (character.charCodeAt(0) > 255 ? 1 : 0.62)
+            }
+            widest = Math.max(widest, units * Typography.monospace.pixelSize)
+        }
+        return widest
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
+
         Rectangle {
+            id: editorHeader
+            objectName: root.editorObjectName + "Header"
             Layout.fillWidth: true
-            Layout.preferredHeight: 54
+            Layout.preferredHeight: headerContent.implicitHeight + Spacing.sm * 2
             color: Colors.surfaceContainer
-            radius: Spacing.radiusCard
-            RowLayout {
+            topLeftRadius: Spacing.radiusCard
+            topRightRadius: Spacing.radiusCard
+            clip: true
+
+            ColumnLayout {
+                id: headerContent
                 anchors.fill: parent
-                anchors.leftMargin: Spacing.md
-                anchors.rightMargin: Spacing.md
-                ColumnLayout {
-                    spacing: 0
+                anchors.margins: Spacing.sm
+                spacing: Spacing.xs
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Spacing.sm
                     SelectableText {
+                        Layout.fillWidth: true
                         text: root.title
                         color: Colors.textPrimary
                         font: Typography.subtitle
+                        wrapMode: TextEdit.NoWrap
+                        clip: true
                     }
                     SelectableText {
-                        visible: root.subtitle.length > 0
-                        text: root.subtitle
+                        text: i18n.catalog["editor.line"] + " " + root.currentLine
+                              + " / " + Math.max(1, editor.lineCount)
                         color: Colors.textSecondary
                         font: Typography.caption
+                        wrapMode: TextEdit.NoWrap
                     }
                 }
+
                 SelectableText {
-                    text: i18n.catalog["editor.line"] + " " + root.currentLine + " / " + Math.max(1, editor.lineCount)
+                    Layout.fillWidth: true
+                    visible: root.subtitle.length > 0
+                    text: root.subtitle
                     color: Colors.textSecondary
                     font: Typography.caption
+                    wrapMode: TextEdit.NoWrap
+                    clip: true
                 }
-                Item { Layout.fillWidth: true }
-                AppTextField {
-                    id: searchField
-                    visible: false
-                    Layout.preferredWidth: 220
-                    placeholderText: i18n.catalog["editor.find"]
-                    onAccepted: root.findNext()
-                }
-                AppButton {
+
+                RowLayout {
+                    Layout.fillWidth: true
                     visible: searchField.visible
-                    text: i18n.catalog["editor.next"]
-                    onClicked: root.findNext()
+                    spacing: Spacing.xs
+                    AppTextField {
+                        id: searchField
+                        visible: false
+                        Layout.fillWidth: true
+                        placeholderText: i18n.catalog["editor.find"]
+                        onAccepted: root.findNext()
+                    }
+                    AppButton {
+                        text: i18n.catalog["editor.next"]
+                        onClicked: root.findNext()
+                    }
                 }
             }
         }
-        ScrollView {
-            id: scrollView
+
+        Item {
+            id: editorBody
+            objectName: root.editorObjectName + "Viewport"
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            ScrollBar.horizontal: AppScrollBar { }
-            ScrollBar.vertical: AppScrollBar { }
 
-            Row {
-                height: Math.max(scrollView.availableHeight, editor.contentHeight + Spacing.md * 2)
-                Rectangle {
-                    width: Math.max(48, lineNumbers.implicitWidth + Spacing.md)
-                    height: parent.height
-                    color: Colors.surfaceContainer
-                    Text {
-                        id: lineNumbers
-                        anchors.top: parent.top
-                        anchors.topMargin: Spacing.md
-                        anchors.right: parent.right
-                        anchors.rightMargin: Spacing.sm
-                        text: root.lineNumberText()
-                        color: Colors.textSecondary
-                        font: Typography.monospace
-                        horizontalAlignment: Text.AlignRight
-                    }
-                }
+            ScrollView {
+                id: scrollView
+                objectName: root.editorObjectName + "ScrollView"
+                anchors.fill: parent
+                clip: true
+                ScrollBar.horizontal: AppScrollBar { }
+                ScrollBar.vertical: AppScrollBar { }
+
                 TextArea {
                     id: editor
-                    width: Math.max(scrollView.availableWidth - 48, contentWidth + Spacing.xl)
-                    height: Math.max(scrollView.availableHeight, contentHeight + Spacing.md * 2)
-                    leftPadding: Spacing.md
+                    objectName: root.editorObjectName
+                    width: Math.max(scrollView.availableWidth,
+                                    root.measuredTextWidth() + leftPadding + rightPadding)
+                    height: Math.max(scrollView.availableHeight,
+                                     editor.lineCount * Typography.monospace.pixelSize * 1.35
+                                     + topPadding + bottomPadding)
+                    leftPadding: lineNumberGutter.width + Spacing.md
                     rightPadding: Spacing.md
                     topPadding: Spacing.md
                     bottomPadding: Spacing.md
                     wrapMode: TextEdit.NoWrap
-                    placeholderText: root.placeholderText
                     selectByMouse: true
                     persistentSelection: true
                     color: Colors.textPrimary
@@ -145,11 +175,51 @@ AppCard {
                     onCursorPositionChanged: root.updateCurrentLine()
                 }
             }
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: lineNumberGutter.width + Spacing.md
+                anchors.right: parent.right
+                anchors.rightMargin: Spacing.md
+                anchors.top: parent.top
+                anchors.topMargin: Spacing.md
+                visible: editor.length === 0 && !editor.activeFocus
+                text: root.placeholderText
+                color: Colors.textSecondary
+                font: Typography.monospace
+                elide: Text.ElideRight
+                clip: true
+                z: 3
+            }
+
+            Rectangle {
+                id: lineNumberGutter
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: Math.max(52, lineNumbers.implicitWidth + Spacing.md)
+                color: Colors.surfaceContainer
+                border.color: Colors.outlineVariant
+                border.width: 1
+                clip: true
+                z: 2
+
+                Text {
+                    id: lineNumbers
+                    x: Spacing.xs
+                    y: editor.topPadding - scrollView.contentItem.contentY
+                    width: lineNumberGutter.width - Spacing.md
+                    text: root.lineNumberText()
+                    color: Colors.textSecondary
+                    font: Typography.monospace
+                    horizontalAlignment: Text.AlignRight
+                }
+            }
         }
     }
 
     Shortcut {
-        sequence: StandardKey.Find
+        sequences: [StandardKey.Find]
         onActivated: {
             searchField.visible = true
             searchField.forceActiveFocus()
@@ -170,6 +240,7 @@ AppCard {
         title: i18n.catalog["editor.goto"]
         contentItem: AppTextField {
             id: lineField
+            implicitHeight: 44
             placeholderText: i18n.catalog["editor.line_number"]
             inputMethodHints: Qt.ImhDigitsOnly
             onAccepted: { root.jumpToLine(parseInt(text)); jumpDialog.close() }

@@ -6,12 +6,31 @@ Dialog {
     id: control
     modal: true
     anchors.centerIn: Overlay.overlay
-    padding: Spacing.lg
+    width: Math.min(560, Overlay.overlay.width - Spacing.lg * 2)
+    padding: Spacing.md
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
     Overlay.modal: Rectangle { color: Colors.scrim }
+    header: Rectangle {
+        implicitHeight: 64
+        color: Colors.surfaceContainerHigh
+        topLeftRadius: Spacing.radiusLarge
+        topRightRadius: Spacing.radiusLarge
+        SelectableText {
+            anchors.fill: parent
+            anchors.leftMargin: Spacing.lg
+            anchors.rightMargin: Spacing.lg
+            verticalAlignment: TextEdit.AlignVCenter
+            wrapMode: TextEdit.NoWrap
+            clip: true
+            text: control.title
+            color: Colors.textPrimary
+            font: Typography.title
+        }
+    }
     background: Rectangle {
-        color: Colors.surface
+        color: Colors.surfaceContainer
         border.color: Colors.outlineVariant
+        border.width: 1
         radius: Spacing.radiusLarge
     }
     enter: Transition {

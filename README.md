@@ -1,4 +1,4 @@
-# NetConfigLint v1.2
+# NetConfigLint v1.3
 
 > A fast, offline, extensible static analyzer for network device configurations.
 
@@ -11,7 +11,7 @@ vendor-supported validation and lab testing.
 
 ## Supported scope
 
-The v1.2 Huawei VRP implementation includes:
+The v1.3 Huawei VRP implementation includes:
 
 - conservative vendor and operating-system detection in the desktop interface;
 - an auditable profile catalog whose facts link to official Huawei documents;
@@ -85,6 +85,9 @@ The QML-first PySide6 desktop application provides:
   Ctrl+F, Ctrl+G, incremental Huawei syntax highlighting, and selectable text;
 - detected vendor/OS inside the diagnostic card, severity filters, expandable issues, and
   source-line navigation;
+- a left-to-right analyzed configuration, diagnostics, and temporary-editor workspace with two
+  visible mouse-draggable split handles;
+- click-to-filter ERROR/WARNING/INFO/UNKNOWN severity chips that toggle back to the full result;
 - optional privacy-minimized local history stored in a dedicated `history` directory beside the
   portable executable, with an explicit clear action;
 - asynchronous analysis so large configuration input does not block the GUI thread.
@@ -197,7 +200,7 @@ checking the final dependency closure.
 .\scripts\build_installer.ps1 -SkipAppBuild
 ```
 
-The portable command creates `release/NetConfigLint-1.2.0-windows-x64-portable.zip`. Extract the
+The portable command creates `release/NetConfigLint-1.3.0-windows-x64-portable.zip`. Extract the
 single top-level folder and start `NetConfigLint.exe`; the Nuitka build uses the Windows GUI
 subsystem and therefore does not open a console window.
 
@@ -248,8 +251,9 @@ See [Huawei validation notes](docs/huawei-validation.md), [status](docs/status.m
 
 ## Roadmap
 
-- **v1.2**: 50 Huawei rules, production-sample aggregate validation, modern card-based GUI,
-  temporary editor, selectable text, portable history, and no-console Windows ZIP.
+- **v1.3**: three-column draggable workspace, severity-chip filtering, repaired editors and
+  dialogs, unified larger typography, portable history, and no-console Windows ZIP.
+- **v1.4**: Huawei configuration reference graph and expanded policy/IPv6 semantics.
 - **v1.5**: H3C Comware vendor package using the shared core.
 - **v2.0**: Juniper Junos support.
 - **Future**: VS Code integration, configuration diff, topology/dependency graph, Batfish

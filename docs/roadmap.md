@@ -11,9 +11,20 @@ This roadmap orders work by evidence quality and reusable architecture, not by r
 4. Kept source/QML tests on Windows, Linux, and macOS.
 
 Remaining localization, snapshot-evidence, and signed provenance work moves forward without
-weakening v1.2's conservative Unknown behavior.
+weakening the conservative Unknown behavior.
 
-## v1.3 — Huawei configuration graph
+## v1.3 — delivered desktop layout and readability repair
+
+1. Reordered the main workspace into three left-to-right resizable cards.
+2. Replaced the diagnostic dropdown with four toggleable severity chips.
+3. Rebuilt mode/vendor dialogs and removed the cramped trailing arrows.
+4. Corrected editor gutters, header allocation, placeholder rendering, scrolling, and long-line
+   sizing in analyzed and temporary editors.
+5. Normalized the complete application typography scale and added runtime QML geometry,
+   filtering, dialog, and editor regressions.
+6. Produced a no-console Windows x64 portable ZIP and retained three-platform source/QML CI.
+
+## v1.4 — Huawei configuration graph
 
 1. Normalize route-targets, community filters, AS-path filters, policy nodes, and redistribution.
 2. Add OSPFv3/interface cost/passive behavior and more IPv6 consumers.

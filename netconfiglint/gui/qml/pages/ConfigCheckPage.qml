@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
@@ -14,7 +15,7 @@ Item {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Spacing.md
-        spacing: Spacing.sm
+        spacing: Spacing.md
 
         RowLayout {
             Layout.fillWidth: true
@@ -25,9 +26,13 @@ Item {
             }
             Item { Layout.fillWidth: true }
             SelectableText {
+                Layout.maximumWidth: Math.max(160, root.width * 0.34)
                 text: root.controller.fileName
                 color: Colors.textSecondary
                 font: Typography.caption
+                wrapMode: TextEdit.NoWrap
+                horizontalAlignment: TextEdit.AlignRight
+                clip: true
             }
         }
         ConfigToolbar {
@@ -44,52 +49,62 @@ Item {
             onVendorSelected: value => root.controller.vendor = value
         }
         SplitView {
+            id: workspaceSplit
+            objectName: "workspaceSplitView"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            orientation: root.width < 900 ? Qt.Vertical : Qt.Horizontal
-
-            SplitView {
-                SplitView.fillWidth: true
-                SplitView.fillHeight: true
-                SplitView.preferredWidth: 680
-                SplitView.minimumWidth: 380
-                SplitView.minimumHeight: 250
-                orientation: Qt.Vertical
-
-                ConfigEditor {
-                    id: configEditor
-                    SplitView.fillWidth: true
-                    SplitView.fillHeight: true
-                    SplitView.preferredHeight: 430
-                    SplitView.minimumHeight: 220
-                    title: i18n.catalog["editor.configuration"]
-                    subtitle: i18n.catalog["editor.configuration.detail"]
-                    placeholderText: i18n.catalog["editor.configuration.placeholder"]
-                    text: root.controller.sourceText
-                    onTextEdited: value => {
-                        if (root.controller.sourceText !== value) root.controller.sourceText = value
-                    }
+            orientation: Qt.Horizontal
+            handle: Item {
+                implicitWidth: Spacing.md
+                implicitHeight: Spacing.md
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: workspaceSplit.orientation === Qt.Horizontal ? 3 : Math.min(parent.width, 96)
+                    height: workspaceSplit.orientation === Qt.Horizontal ? Math.min(parent.height - Spacing.lg, 96) : 3
+                    radius: 2
+                    color: parent.SplitHandle.pressed ? Colors.primary
+                           : (parent.SplitHandle.hovered ? Colors.outline : Colors.outlineVariant)
+                    Behavior on color { ColorAnimation { duration: 120 } }
                 }
-                ConfigEditor {
-                    id: temporaryEditor
-                    SplitView.fillWidth: true
-                    SplitView.fillHeight: true
-                    SplitView.preferredHeight: 250
-                    SplitView.minimumHeight: 170
-                    title: i18n.catalog["editor.temporary"]
-                    subtitle: i18n.catalog["editor.temporary.detail"]
-                    placeholderText: i18n.catalog["editor.temporary.placeholder"]
+            }
+
+            ConfigEditor {
+                id: configEditor
+                objectName: "configurationEditor"
+                editorObjectName: "configurationTextArea"
+                SplitView.fillHeight: true
+                SplitView.preferredWidth: 300
+                SplitView.minimumWidth: 250
+                title: i18n.catalog["editor.configuration"]
+                subtitle: i18n.catalog["editor.configuration.detail"]
+                placeholderText: i18n.catalog["editor.configuration.placeholder"]
+                text: root.controller.sourceText
+                onTextEdited: value => {
+                    if (root.controller.sourceText !== value) root.controller.sourceText = value
                 }
             }
             AnalysisPanel {
+                id: analysisPanel
+                objectName: "analysisPanel"
+                SplitView.fillWidth: true
                 SplitView.fillHeight: true
-                SplitView.preferredWidth: 440
-                SplitView.minimumWidth: 340
-                SplitView.minimumHeight: 220
+                SplitView.preferredWidth: 400
+                SplitView.minimumWidth: 280
                 diagnosticsModel: root.controller.diagnosticsModel
                 detection: root.controller.detection
                 summary: root.controller.summary
                 onIssueActivated: row => root.controller.requestJump(row)
+            }
+            ConfigEditor {
+                id: temporaryEditor
+                objectName: "temporaryEditor"
+                editorObjectName: "temporaryTextArea"
+                SplitView.fillHeight: true
+                SplitView.preferredWidth: 300
+                SplitView.minimumWidth: 250
+                title: i18n.catalog["editor.temporary"]
+                subtitle: i18n.catalog["editor.temporary.detail"]
+                placeholderText: i18n.catalog["editor.temporary.placeholder"]
             }
         }
         AppCard {

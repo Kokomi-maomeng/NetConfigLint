@@ -5,7 +5,7 @@ import theme 1.0
 Button {
     id: control
     property bool prominent: false
-    implicitHeight: 38
+    implicitHeight: 42
     leftPadding: Spacing.md
     rightPadding: Spacing.md
     font: Typography.label

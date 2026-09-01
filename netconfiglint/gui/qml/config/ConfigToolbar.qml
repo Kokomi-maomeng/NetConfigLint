@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import theme 1.0
 import "../components"
@@ -16,7 +15,7 @@ AppCard {
     signal exportRequested()
     signal modeSelected(string value)
     signal vendorSelected(string value)
-    implicitHeight: 72
+    implicitHeight: 84
 
     function modeLabel() {
         if (mode === "snippet") return i18n.catalog["mode.snippet"]
@@ -30,7 +29,7 @@ AppCard {
 
     RowLayout {
         anchors.fill: parent
-        spacing: Spacing.xs
+        spacing: Spacing.sm
 
         AppButton { text: i18n.catalog["toolbar.open"]; onClicked: root.openRequested() }
         AppButton { text: i18n.catalog["toolbar.paste"]; onClicked: root.pasteRequested() }
@@ -44,15 +43,19 @@ AppCard {
         AppButton { text: i18n.catalog["toolbar.export"]; onClicked: root.exportRequested() }
         Item { Layout.fillWidth: true }
         SelectionField {
-            Layout.preferredWidth: 150
-            Layout.minimumWidth: 140
+            id: modeField
+            objectName: "modeSelectionField"
+            Layout.preferredWidth: 174
+            Layout.minimumWidth: 160
             label: i18n.catalog["toolbar.mode"]
             valueText: root.modeLabel()
             onClicked: modeDialog.open()
         }
         SelectionField {
-            Layout.preferredWidth: 150
-            Layout.minimumWidth: 140
+            id: vendorField
+            objectName: "vendorSelectionField"
+            Layout.preferredWidth: 174
+            Layout.minimumWidth: 160
             label: i18n.catalog["toolbar.vendor"]
             valueText: root.vendorLabel()
             onClicked: vendorDialog.open()
@@ -61,6 +64,8 @@ AppCard {
 
     SelectionDialog {
         id: modeDialog
+        objectName: "modeSelectionDialog"
+        optionObjectPrefix: "modeOption-"
         title: i18n.catalog["mode.choose"]
         selectedValue: root.mode
         options: [
@@ -81,6 +86,8 @@ AppCard {
     }
     SelectionDialog {
         id: vendorDialog
+        objectName: "vendorSelectionDialog"
+        optionObjectPrefix: "vendorOption-"
         title: i18n.catalog["vendor.choose"]
         selectedValue: root.vendor
         options: [

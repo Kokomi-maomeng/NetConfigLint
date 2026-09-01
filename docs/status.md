@@ -1,4 +1,4 @@
-# v1.2 implementation status
+# v1.3 implementation status
 
 ## Stable architecture
 
@@ -10,7 +10,7 @@
 - QML-first PySide6 GUI, package-relative resources, bilingual shell, opt-in private history,
   and synthetic-only test fixtures remain enforced.
 
-## v1.2 delivered scope
+## v1.3 delivered scope
 
 - 50 mode-aware Huawei rules with paired valid/invalid/expected synthetic fixtures.
 - Added hybrid/PVID/VLANIF, IPv4, static-route VPN, BGP remote-AS, IS-IS, ACL, redistribution,
@@ -25,6 +25,16 @@
 - Windows standalone build uses the GUI subsystem, creates a no-console portable ZIP, and stores
   optional history beside the executable in a dedicated directory.
 - Source/QML tests run on Windows, Linux, and macOS in GitHub Actions.
+- Reordered the workspace into three horizontal, independently resizable cards: analyzed
+  configuration on the left, diagnostics in the middle, and temporary editing on the right.
+- Replaced the diagnostics dropdown with four clickable severity chips; selecting the active
+  chip again restores the complete result set, including a correct filtered-empty state.
+- Removed mode/vendor trailing arrows, rebuilt their dialogs with consistent opaque surfaces,
+  and constrained all option text within the window.
+- Rebuilt editor scrolling, gutters, headers, placeholder rendering, and long-line measurement so
+  both editors remain readable after resizing and still support horizontal/vertical scrolling.
+- Increased and normalized display, title, subtitle, body, label, caption, and monospace type
+  scales across the complete desktop application.
 
 ## Conservative boundaries
 

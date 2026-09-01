@@ -7,33 +7,27 @@ Button {
     id: control
     property string label: ""
     property string valueText: ""
-    implicitWidth: 150
-    implicitHeight: 48
+    implicitWidth: 174
+    implicitHeight: 52
     hoverEnabled: true
+    clip: true
     Accessible.name: label + ": " + valueText
 
-    contentItem: RowLayout {
-        spacing: Spacing.sm
-        ColumnLayout {
+    contentItem: ColumnLayout {
+        spacing: 1
+        Text {
             Layout.fillWidth: true
-            spacing: 1
-            Text {
-                text: control.label
-                color: Colors.textSecondary
-                font: Typography.caption
-            }
-            Text {
-                Layout.fillWidth: true
-                text: control.valueText
-                color: Colors.textPrimary
-                font: Typography.label
-                elide: Text.ElideRight
-            }
+            text: control.label
+            color: Colors.textSecondary
+            font: Typography.caption
+            elide: Text.ElideRight
         }
         Text {
-            text: "⌄"
-            color: Colors.primary
-            font: Typography.subtitle
+            Layout.fillWidth: true
+            text: control.valueText
+            color: Colors.textPrimary
+            font: Typography.label
+            elide: Text.ElideRight
         }
     }
     background: Rectangle {

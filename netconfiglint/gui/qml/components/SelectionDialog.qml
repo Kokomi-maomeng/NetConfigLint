@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -7,19 +8,20 @@ AppDialog {
     id: root
     property var options: []
     property string selectedValue: ""
+    property string optionObjectPrefix: "selectionOption-"
     signal valueSelected(string value)
-    width: Math.min(520, parent ? parent.width - Spacing.xl * 2 : 520)
 
     contentItem: ColumnLayout {
-        spacing: Spacing.sm
+        spacing: Spacing.md
         Repeater {
             model: root.options
             delegate: Button {
                 id: optionButton
                 required property var modelData
+                objectName: root.optionObjectPrefix + modelData.value
                 Accessible.name: modelData.label + ". " + (modelData.description || "")
                 Layout.fillWidth: true
-                implicitHeight: optionContent.implicitHeight + Spacing.md * 2
+                implicitHeight: Math.max(86, optionContent.implicitHeight + Spacing.md * 2)
                 hoverEnabled: true
                 onClicked: {
                     root.valueSelected(optionButton.modelData.value)
@@ -45,9 +47,10 @@ AppDialog {
                 background: Rectangle {
                     radius: Spacing.radiusLarge
                     color: optionButton.modelData.value === root.selectedValue
-                           ? Colors.primaryContainer
+                           ? Qt.alpha(Colors.primaryContainer, 0.88)
                            : (optionButton.hovered ? Colors.surfaceContainerHigh : Colors.surfaceContainer)
                     border.color: optionButton.modelData.value === root.selectedValue ? Colors.primary : Colors.outlineVariant
+                    border.width: optionButton.modelData.value === root.selectedValue ? 2 : 1
                     Behavior on color { ColorAnimation { duration: 130 } }
                 }
             }

@@ -1,5 +1,5 @@
+pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import theme 1.0
 import "../components"
@@ -9,20 +9,30 @@ AppCard {
     property var diagnosticsModel
     property var detection: ({ "vendor": "Unknown", "os": "Unknown" })
     property var summary: ({ "ERROR": 0, "WARNING": 0, "INFO": 0, "UNKNOWN": 0 })
+    property string severityFilter: "ALL"
     signal issueActivated(int row)
     padding: 0
+
+    function totalCount() {
+        return (summary.ERROR || 0) + (summary.WARNING || 0)
+                + (summary.INFO || 0) + (summary.UNKNOWN || 0)
+    }
+
+    function filteredCount() {
+        return severityFilter === "ALL" ? totalCount() : (summary[severityFilter] || 0)
+    }
 
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 96
+            Layout.preferredHeight: 126
             color: Colors.surfaceContainer
             radius: Spacing.radiusCard
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: Spacing.sm
+                anchors.margins: Spacing.md
                 spacing: Spacing.xs
                 RowLayout {
                     Layout.fillWidth: true
@@ -32,49 +42,67 @@ AppCard {
                         font: Typography.subtitle
                     }
                     Item { Layout.fillWidth: true }
-                    ComboBox {
-                        id: filterBox
-                        model: [
-                            { label: i18n.catalog["analysis.all"], value: "ALL" },
-                            { label: i18n.catalog["analysis.error"], value: "ERROR" },
-                            { label: i18n.catalog["analysis.warning"], value: "WARNING" },
-                            { label: i18n.catalog["analysis.info"], value: "INFO" },
-                            { label: i18n.catalog["analysis.unknown"], value: "UNKNOWN" }
-                        ]
-                        textRole: "label"
-                        valueRole: "value"
-                        Layout.preferredWidth: 116
+                    SelectableText {
+                        text: root.severityFilter === "ALL"
+                              ? i18n.catalog["analysis.showing_all"]
+                              : i18n.catalog["analysis.filtering"] + " " + root.severityFilter
+                        color: root.severityFilter === "ALL" ? Colors.textSecondary : Colors.primary
+                        font: Typography.caption
                     }
                 }
-                RowLayout {
+                GridLayout {
                     Layout.fillWidth: true
-                    spacing: Spacing.sm
+                    columns: 2
+                    columnSpacing: Spacing.sm
+                    rowSpacing: Spacing.xxs
                     SelectableText {
-                        text: i18n.catalog["device.detected_vendor"] + ": "
-                              + (root.detection.vendor || "Unknown")
+                        text: i18n.catalog["device.detected_vendor"]
+                        color: Colors.textSecondary
+                        font: Typography.caption
+                    }
+                    SelectableText {
+                        Layout.fillWidth: true
+                        text: root.detection.vendor || "Unknown"
                         color: Colors.textPrimary
                         font: Typography.label
+                        wrapMode: TextEdit.NoWrap
+                        clip: true
                     }
-                    Rectangle { width: 1; Layout.fillHeight: true; color: Colors.outlineVariant }
                     SelectableText {
-                        text: i18n.catalog["device.os"] + ": " + (root.detection.os || "Unknown")
+                        text: i18n.catalog["device.os"]
                         color: Colors.textSecondary
-                        font: Typography.body
+                        font: Typography.caption
                     }
-                    Item { Layout.fillWidth: true }
+                    SelectableText {
+                        Layout.fillWidth: true
+                        text: root.detection.os || "Unknown"
+                        color: Colors.textPrimary
+                        font: Typography.label
+                        wrapMode: TextEdit.NoWrap
+                        clip: true
+                    }
                 }
             }
         }
-        RowLayout {
+        GridLayout {
+            id: severityFilters
             Layout.fillWidth: true
             Layout.margins: Spacing.sm
-            spacing: Spacing.xs
+            Layout.preferredHeight: columns === 4 ? 36 : 80
+            columns: root.width >= 430 ? 4 : 2
+            columnSpacing: Spacing.xs
+            rowSpacing: Spacing.xs
             Repeater {
                 model: ["ERROR", "WARNING", "INFO", "UNKNOWN"]
                 delegate: StatusBadge {
                     required property string modelData
+                    objectName: "severityFilter-" + modelData
+                    Layout.fillWidth: true
                     label: modelData + " " + (root.summary[modelData] || 0)
                     statusColor: Colors.severity(modelData)
+                    interactive: true
+                    selected: root.severityFilter === modelData
+                    onClicked: root.severityFilter = root.severityFilter === modelData ? "ALL" : modelData
                 }
             }
         }
@@ -88,14 +116,18 @@ AppCard {
                 anchors.rightMargin: Spacing.sm
                 anchors.bottomMargin: Spacing.sm
                 model: root.diagnosticsModel
-                severityFilter: filterBox.currentValue
+                severityFilter: root.severityFilter
                 onIssueActivated: row => root.issueActivated(row)
             }
             EmptyState {
+                objectName: "analysisEmptyState"
                 anchors.fill: parent
-                visible: issueList.count === 0
-                title: i18n.catalog["analysis.empty"]
-                description: i18n.catalog["analysis.empty_detail"]
+                visible: root.filteredCount() === 0
+                title: root.totalCount() === 0
+                       ? i18n.catalog["analysis.empty"] : i18n.catalog["analysis.filter_empty"]
+                description: root.totalCount() === 0
+                             ? i18n.catalog["analysis.empty_detail"]
+                             : i18n.catalog["analysis.filter_empty_detail"]
             }
         }
     }
