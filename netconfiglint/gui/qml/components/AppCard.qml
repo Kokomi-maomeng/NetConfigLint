@@ -9,6 +9,8 @@ Rectangle {
     border.color: Colors.outlineVariant
     border.width: 1
     radius: Spacing.radiusCard
+    Behavior on color { ColorAnimation { duration: 160 } }
+    Behavior on border.color { ColorAnimation { duration: 160 } }
     implicitWidth: content.implicitWidth + padding * 2
     implicitHeight: content.implicitHeight + padding * 2
 

@@ -6,14 +6,14 @@ import "../components"
 
 AppCard {
     id: root
-    property string severity: "INFO"
-    property string ruleId: ""
-    property int line: 1
-    property string objectName: ""
-    property string message: ""
-    property string explanation: ""
-    property string suggestedFix: ""
-    property string confidence: "GENERIC"
+    objectName: "diagnosticIssueCard"
+    property string severityValue: "INFO"
+    property string ruleIdentifier: ""
+    property int sourceLine: 1
+    property string targetName: ""
+    property string diagnosticMessage: ""
+    property string diagnosticExplanation: ""
+    property string diagnosticFix: ""
     property bool expanded: false
     signal jumpRequested()
     padding: Spacing.md
@@ -25,12 +25,7 @@ AppCard {
         anchors.bottom: parent.bottom
         width: 4
         radius: 2
-        color: Colors.severity(root.severity)
-    }
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.jumpRequested()
+        color: Colors.severity(root.severityValue)
     }
     ColumnLayout {
         id: cardContent
@@ -39,44 +34,59 @@ AppCard {
         spacing: Spacing.xs
         RowLayout {
             Layout.fillWidth: true
-            StatusBadge { label: root.severity }
-            Text { text: root.ruleId; color: Colors.textSecondary; font: Typography.caption }
+            StatusBadge { label: root.severityValue }
+            SelectableText {
+                text: root.ruleIdentifier
+                color: Colors.textSecondary
+                font: Typography.caption
+            }
             Item { Layout.fillWidth: true }
-            Text { text: i18n.catalog["issue.line"] + " " + root.line; color: Colors.primary; font: Typography.label }
+            SelectableText {
+                text: i18n.catalog["issue.line"] + " " + root.sourceLine
+                color: Colors.primary
+                font: Typography.label
+            }
         }
-        Text {
+        SelectableText {
             Layout.fillWidth: true
-            text: root.message
+            text: root.diagnosticMessage
             color: Colors.textPrimary
             font: Typography.label
-            wrapMode: Text.Wrap
+            wrapMode: TextEdit.Wrap
         }
-        Text {
+        SelectableText {
             Layout.fillWidth: true
-            text: root.objectName + "  ·  " + root.confidence
+            text: root.targetName
             color: Colors.textSecondary
             font: Typography.caption
-            elide: Text.ElideRight
         }
         ColumnLayout {
             Layout.fillWidth: true
             visible: root.expanded
             spacing: Spacing.xs
-            Text { text: i18n.catalog["issue.explanation"]; color: Colors.textPrimary; font: Typography.label }
-            Text {
-                Layout.fillWidth: true
-                text: root.explanation
-                color: Colors.textSecondary
-                font: Typography.body
-                wrapMode: Text.Wrap
+            SelectableText {
+                text: i18n.catalog["issue.explanation"]
+                color: Colors.textPrimary
+                font: Typography.label
             }
-            Text { text: i18n.catalog["issue.fix"]; color: Colors.textPrimary; font: Typography.label }
-            Text {
+            SelectableText {
                 Layout.fillWidth: true
-                text: root.suggestedFix
+                text: root.diagnosticExplanation
                 color: Colors.textSecondary
                 font: Typography.body
-                wrapMode: Text.Wrap
+                wrapMode: TextEdit.Wrap
+            }
+            SelectableText {
+                text: i18n.catalog["issue.fix"]
+                color: Colors.textPrimary
+                font: Typography.label
+            }
+            SelectableText {
+                Layout.fillWidth: true
+                text: root.diagnosticFix
+                color: Colors.textSecondary
+                font: Typography.body
+                wrapMode: TextEdit.Wrap
             }
         }
         RowLayout {

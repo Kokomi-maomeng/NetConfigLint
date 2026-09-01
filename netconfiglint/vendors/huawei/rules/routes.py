@@ -4,6 +4,8 @@ import ipaddress
 
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
+from netconfiglint.vendors.huawei.rules.facts import all_commands
+from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
 
 
 def _route_network(destination: str, mask: str | None) -> ipaddress.IPv4Network | None:
@@ -66,4 +68,41 @@ class AbnormalNextHopRule:
                     Confidence.GENERIC,
                 )
             )
+        return tuple(result)
+
+
+class MissingStaticRouteVpnRule:
+    metadata = RuleMetadata("HUA-ROUTE-003", "Undefined static-route VPN", Severity.ERROR, "Huawei")
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        result = []
+        seen: set[tuple[int, str]] = set()
+        for text, source, block in all_commands(context.config):
+            tokens = text.split()
+            lowered = [token.lower() for token in tokens]
+            if lowered[:2] not in (["ip", "route-static"], ["ipv6", "route-static"]):
+                continue
+            for index, token in enumerate(lowered[:-1]):
+                if token != "vpn-instance":
+                    continue
+                vpn_instance = tokens[index + 1]
+                marker = (source.line, vpn_instance)
+                if marker in seen or vpn_instance in context.config.vpn_instances:
+                    continue
+                seen.add(marker)
+                result.append(
+                    missing_reference_diagnostic(
+                        context,
+                        rule_id=self.metadata.rule_id,
+                        source=source,
+                        object_name=block.header,
+                        full_message=f"Static route references undefined VPN instance {vpn_instance}.",
+                        snippet_message=f"VPN instance {vpn_instance} was not found in the snippet.",
+                        explanation=(
+                            "The route source or next-table scope names a VPN instance absent "
+                            "from the supplied configuration."
+                        ),
+                        suggested_fix=f"Define VPN instance {vpn_instance} or correct the route scope.",
+                    )
+                )
         return tuple(result)

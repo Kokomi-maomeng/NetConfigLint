@@ -145,3 +145,25 @@ class MissingBgpPeerGroupRule:
             for peer in context.config.bgp.peers.values()
             if peer.group is not None and peer.group not in context.config.bgp.groups
         )
+
+
+class MissingBgpPeerRemoteAsRule:
+    metadata = RuleMetadata("HUA-BGP-005", "BGP peer without remote AS", Severity.ERROR, "Huawei")
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        if context.config.bgp is None or context.mode.value == "snippet":
+            return ()
+        return tuple(
+            Diagnostic(
+                Severity.ERROR,
+                self.metadata.rule_id,
+                peer.source,
+                peer.address,
+                "BGP peer has neither a remote AS nor a peer-group binding.",
+                "The supplied full configuration does not establish how the peer inherits its remote AS.",
+                "Configure the peer AS number or bind the peer to a defined group with a remote AS.",
+                Confidence.VERIFIED,
+            )
+            for peer in context.config.bgp.peers.values()
+            if peer.remote_as is None and peer.group is None
+        )

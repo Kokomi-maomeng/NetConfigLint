@@ -9,7 +9,18 @@
     {"id": "hua-ipv6-static", "title": "ipv6 route-static vpn-instance", "url": "https://info.support.huawei.com/hedex/api/pages/EDOC1100277644/AEM10221/03/resources/command/yunshan/ADDIPV6VPNROUTE%28STATICRTOM%29.html", "document_id": "EDOC1100277644", "accessed": "2026-08-31"},
     {"id": "hua-ospf-interface", "title": "S7700 V200R021C10 ospf enable", "url": "https://support.huawei.com/enterprise/en/doc/EDOC1100248440/1696cc5b/ospf-enable", "document_id": "EDOC1100248440", "accessed": "2026-08-31"},
     {"id": "hua-acl-policy", "title": "Configuring an ACL6-based Traffic Classifier", "url": "https://info.support.huawei.com/hedex/api/pages/EDOC1100334321/AEM1020X/05/resources/dc/dc_cfg_ACL_0089.html", "document_id": "EDOC1100334321", "accessed": "2026-08-31"},
-    {"id": "hua-cloudengine-catalog", "title": "Huawei CloudEngine support document catalog", "url": "https://support.huawei.com/enterprise/en/data-center-switches/ce9800-pid-252837181", "document_id": "Huawei Support Catalog", "accessed": "2026-08-31"}
+    {"id": "hua-cloudengine-catalog", "title": "Huawei CloudEngine support document catalog", "url": "https://support.huawei.com/enterprise/en/data-center-switches/ce9800-pid-252837181", "document_id": "Huawei Support Catalog", "accessed": "2026-08-31"},
+    {"id": "hua-vlan-hybrid", "title": "port hybrid pvid vlan", "url": "https://support.huawei.com/enterprise/zh/doc/EDOC1100064377/1327376", "document_id": "EDOC1100064377", "accessed": "2026-09-01"},
+    {"id": "hua-vxlan-commands", "title": "VXLAN Configuration Commands", "url": "https://support.huawei.com/enterprise/en/doc/EDOC1100459384/10e85233/vxlan-configuration-commands", "document_id": "EDOC1100459384", "accessed": "2026-09-01"},
+    {"id": "hua-static-vpn", "title": "ip route-static vpn-instance", "url": "https://info.support.huawei.com/hedex/api/pages/EDOC1100331435/AEM10132/04/resources/dc/ip_route-static_vpn-instance.html", "document_id": "EDOC1100331435", "accessed": "2026-09-01"},
+    {"id": "hua-isis-commands", "title": "IS-IS Configuration Commands", "url": "https://info.support.huawei.com/enterprise/en/doc/EDOC1100381010/4e0b2b50/is-is-configuration-commands", "document_id": "EDOC1100381010", "accessed": "2026-09-01"},
+    {"id": "hua-stp-configuration", "title": "STP/RSTP/MSTP Configuration", "url": "https://support.huawei.com/enterprise/en/doc/EDOC1100466171/c9a6630d/stp-rstp-mstp-configuration", "document_id": "EDOC1100466171", "accessed": "2026-09-01"},
+    {"id": "hua-ssh-security", "title": "Configuring the SSH Server Function and Related Parameters", "url": "https://support.huawei.com/enterprise/en/doc/EDOC1100290937/379d8aea/configuring-the-ssh-server-function-and-related-parameters", "document_id": "EDOC1100290937", "accessed": "2026-09-01"},
+    {"id": "hua-stelnet-example", "title": "Example for Configuring STelnet Login", "url": "https://info.support.huawei.com/enterprise/en/doc/EDOC1100411465/4bda9dd6/example-for-configuring-stelnet-login-for-ipv4-users-local-authentication", "document_id": "EDOC1100411465", "accessed": "2026-09-01"},
+    {"id": "hua-snmpv3", "title": "Configuring SNMPv3 USM Communication", "url": "https://support.huawei.com/enterprise/en/doc/EDOC1100468733/f596198f/configuring-a-device-to-communicate-with-an-nms-through-snmpv3-usm-user", "document_id": "EDOC1100468733", "accessed": "2026-09-01"},
+    {"id": "hua-ntp-auth", "title": "Fundamentals of NTP Access Control", "url": "https://support.huawei.com/enterprise/en/doc/EDOC1100380861/75f06349/fundamentals-of-ntp-access-control", "document_id": "EDOC1100380861", "accessed": "2026-09-01"},
+    {"id": "hua-acl-configuration", "title": "Configuring an ACL", "url": "https://info.support.huawei.com/enterprise/en/doc/EDOC1100411634/3b8682c3/configuring-an-acl", "document_id": "EDOC1100411634", "accessed": "2026-09-01"},
+    {"id": "hua-ftp-risk", "title": "Uploading or Downloading a Feature Package", "url": "https://support.huawei.com/enterprise/en/doc/EDOC1100262564/1bf40fcc/uploading-or-downloading-a-feature-package-to-a-device", "document_id": "EDOC1100262564", "accessed": "2026-09-01"}
   ],
   "profiles": [
     {
@@ -22,7 +33,17 @@
         {"feature": "bgp.peer_group", "syntax": "peer { group-name | ipv4-address | ipv6-address } as-number", "confidence": "DOCUMENTED", "source_ids": ["hua-bgp-group"]},
         {"feature": "route.ipv6_static", "syntax": "ipv6 route-static", "confidence": "DOCUMENTED", "source_ids": ["hua-ipv6-static"]},
         {"feature": "ospf.interface_enable", "syntax": "ospf enable [ process-id ] area area-id", "confidence": "DOCUMENTED", "source_ids": ["hua-ospf-interface"]},
-        {"feature": "acl.traffic_policy", "syntax": "traffic classifier / traffic policy", "confidence": "DOCUMENTED", "source_ids": ["hua-acl-policy"]}
+        {"feature": "acl.traffic_policy", "syntax": "traffic classifier / traffic policy", "confidence": "DOCUMENTED", "source_ids": ["hua-acl-policy"]},
+        {"feature": "vlan.hybrid", "syntax": "port hybrid { pvid | tagged | untagged } vlan", "confidence": "DOCUMENTED", "source_ids": ["hua-vlan-hybrid"]},
+        {"feature": "vxlan.bridge_domain_vni", "syntax": "bridge-domain / vxlan vni / vni", "confidence": "DOCUMENTED", "source_ids": ["hua-vxlan-commands"]},
+        {"feature": "route.ipv4_static_vpn", "syntax": "ip route-static vpn-instance", "confidence": "DOCUMENTED", "source_ids": ["hua-static-vpn"]},
+        {"feature": "isis.process_interface_net", "syntax": "isis / isis enable / network-entity", "confidence": "DOCUMENTED", "source_ids": ["hua-isis-commands"]},
+        {"feature": "stp.edge_protection", "syntax": "stp edged-port / stp bpdu-protection", "confidence": "DOCUMENTED", "source_ids": ["hua-stp-configuration"]},
+        {"feature": "management.ssh", "syntax": "ssh server-source / protocol inbound ssh", "confidence": "DOCUMENTED", "source_ids": ["hua-ssh-security", "hua-stelnet-example"]},
+        {"feature": "management.snmpv3", "syntax": "snmp-agent usm-user v3", "confidence": "DOCUMENTED", "source_ids": ["hua-snmpv3"]},
+        {"feature": "management.ntp_auth", "syntax": "ntp-service authentication enable", "confidence": "DOCUMENTED", "source_ids": ["hua-ntp-auth"]},
+        {"feature": "acl.rules", "syntax": "acl / rule", "confidence": "DOCUMENTED", "source_ids": ["hua-acl-configuration"]},
+        {"feature": "management.ftp_risk", "syntax": "ftp server enable", "confidence": "DOCUMENTED", "source_ids": ["hua-ftp-risk"]}
       ]
     },
     {"id": "cloudengine-v200r024", "platform_family": "CloudEngine", "model_patterns": ["^CE(?:5|6|8|9)\\d{3}"], "version_patterns": ["^V200R024C"], "inherits": ["huawei-vrp-base"], "features": [], "source_ids": ["hua-cloudengine-catalog", "hua-interface-brief"]},

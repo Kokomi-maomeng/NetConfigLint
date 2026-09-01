@@ -11,15 +11,27 @@ Item {
         anchors.fill: parent
         anchors.margins: Spacing.lg
         spacing: Spacing.md
-        Text { text: i18n.catalog["page.settings"]; color: Colors.textPrimary; font: Typography.display }
+        SelectableText {
+            text: i18n.catalog["page.settings"]
+            color: Colors.textPrimary
+            font: Typography.display
+        }
         AppCard {
             Layout.fillWidth: true
             implicitHeight: 160
             ColumnLayout {
                 anchors.fill: parent
-                Text { text: i18n.catalog["settings.appearance"]; color: Colors.textPrimary; font: Typography.subtitle }
+                SelectableText {
+                    text: i18n.catalog["settings.appearance"]
+                    color: Colors.textPrimary
+                    font: Typography.subtitle
+                }
                 RowLayout {
-                    Text { text: i18n.catalog["settings.theme"]; color: Colors.textSecondary; font: Typography.body }
+                    SelectableText {
+                        text: i18n.catalog["settings.theme"]
+                        color: Colors.textSecondary
+                        font: Typography.body
+                    }
                     Item { Layout.fillWidth: true }
                     ComboBox {
                         model: [i18n.catalog["settings.system"], i18n.catalog["settings.light"], i18n.catalog["settings.dark"]]
@@ -29,7 +41,11 @@ Item {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: i18n.catalog["settings.language"]; color: Colors.textSecondary; font: Typography.body }
+                    SelectableText {
+                        text: i18n.catalog["settings.language"]
+                        color: Colors.textSecondary
+                        font: Typography.body
+                    }
                     Item { Layout.fillWidth: true }
                     ComboBox {
                         model: i18n.availableLanguages
@@ -46,8 +62,12 @@ Item {
             implicitHeight: 180
             ColumnLayout {
                 anchors.fill: parent
-                Text { text: i18n.catalog["settings.privacy"]; color: Colors.textPrimary; font: Typography.subtitle }
-                Text {
+                SelectableText {
+                    text: i18n.catalog["settings.privacy"]
+                    color: Colors.textPrimary
+                    font: Typography.subtitle
+                }
+                SelectableText {
                     Layout.fillWidth: true
                     text: i18n.catalog["settings.privacy_detail"]
                     color: Colors.textSecondary
@@ -58,8 +78,12 @@ Item {
                     Layout.fillWidth: true
                     ColumnLayout {
                         Layout.fillWidth: true
-                        Text { text: i18n.catalog["settings.history"]; color: Colors.textPrimary; font: Typography.body }
-                        Text {
+                        SelectableText {
+                            text: i18n.catalog["settings.history"]
+                            color: Colors.textPrimary
+                            font: Typography.body
+                        }
+                        SelectableText {
                             Layout.fillWidth: true
                             text: i18n.catalog["settings.history_detail"]
                             color: Colors.textSecondary

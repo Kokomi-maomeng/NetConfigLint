@@ -10,6 +10,8 @@ QtObject {
     readonly property color surface: Theme.dark ? "#111318" : "#F9F9FC"
     readonly property color surfaceVariant: Theme.dark ? "#42474F" : "#E1E2E8"
     readonly property color surfaceContainer: Theme.dark ? "#1D2026" : "#EEEFF4"
+    readonly property color surfaceContainerHigh: Theme.dark ? "#282B32" : "#E5E7ED"
+    readonly property color surfaceContainerHighest: Theme.dark ? "#33363D" : "#DCDEE5"
     readonly property color background: Theme.dark ? "#0F1115" : "#F5F6FA"
     readonly property color outline: Theme.dark ? "#8C9199" : "#74777F"
     readonly property color outlineVariant: Theme.dark ? "#42474F" : "#C4C6CF"
@@ -21,6 +23,7 @@ QtObject {
     readonly property color textPrimary: Theme.dark ? "#E3E2E6" : "#1A1C20"
     readonly property color textSecondary: Theme.dark ? "#C3C6CF" : "#44474E"
     readonly property color editorBackground: Theme.dark ? "#15171C" : "#FFFFFF"
+    readonly property color scrim: Theme.dark ? "#B3000000" : "#66000000"
 
     function severity(value) {
         if (value === "ERROR") return error

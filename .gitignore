@@ -10,6 +10,7 @@ build/
 dist/
 deployment/
 release/
+history/
 *.spec
 !/pysidedeploy.spec
 *.log

@@ -2,6 +2,7 @@ from pathlib import Path
 
 from netconfiglint import analyze
 from netconfiglint.gui.models import HistoryStore
+from netconfiglint.gui.models.history import default_history_path
 
 
 def test_history_is_opt_in_and_excludes_configuration_content(tmp_path: Path, qapp: object) -> None:
@@ -24,3 +25,10 @@ def test_history_store_recovers_from_invalid_json(tmp_path: Path, qapp: object) 
     path = tmp_path / "history.json"
     path.write_text("not json", encoding="utf-8")
     assert HistoryStore(path, enabled=True, persist_settings=False).entries == []
+
+
+def test_source_history_uses_dedicated_project_folder(qapp: object) -> None:
+    path = default_history_path()
+    assert path.name == "history.json"
+    assert path.parent.name == "history"
+    assert path.parent.parent == Path(__file__).resolve().parents[2]

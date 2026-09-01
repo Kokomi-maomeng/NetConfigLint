@@ -54,7 +54,7 @@ unchanged. Vendor-specific command knowledge must not leak into GUI code.
 
 ## Parser strategy
 
-The Huawei beta parser is a conservative line-oriented block parser. It recognizes a
+The Huawei parser is a conservative line-oriented block parser. It recognizes a
 bounded set of documented configuration shapes and preserves every source line. Unknown
 commands remain available as raw commands and do not cause parse failure. This is not a VRP
 CLI emulator. Grammar/profile scaffolding supports future command trees, shortest-unique-

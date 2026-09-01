@@ -12,7 +12,6 @@ from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from netconfiglint import analyze
 from netconfiglint.core.analyzer import AnalysisResult
 from netconfiglint.gui.models import DiagnosticListModel, HistoryListModel, HistoryStore
-from netconfiglint.vendors.huawei.rules import HUAWEI_RULES
 
 Analyzer = Callable[[str, str, str], AnalysisResult]
 
@@ -61,16 +60,7 @@ class AnalysisController(QObject):
 
     @staticmethod
     def _empty_detection() -> dict[str, Any]:
-        return {
-            "vendor": "Unknown",
-            "os": "Unknown",
-            "platform_family": "Unknown",
-            "model": "Unknown",
-            "version": "Unknown",
-            "confidence": 0.0,
-            "profile_id": "unresolved",
-            "profile_confidence": "GENERIC",
-        }
+        return {"vendor": "Unknown", "os": "Unknown"}
 
     def _get_source_text(self) -> str:
         return self._source_text
@@ -146,19 +136,6 @@ class AnalysisController(QObject):
             self.historyEnabledChanged.emit()
 
     historyEnabled = Property(bool, _get_history_enabled, _set_history_enabled, notify=historyEnabledChanged)
-
-    def _get_rule_catalog(self) -> list[dict[str, str]]:
-        return [
-            {
-                "ruleId": rule.metadata.rule_id,
-                "title": rule.metadata.title,
-                "severity": rule.metadata.default_severity.value,
-                "vendor": rule.metadata.vendor,
-            }
-            for rule in HUAWEI_RULES
-        ]
-
-    ruleCatalog = Property("QVariantList", _get_rule_catalog, constant=True)  # type: ignore[arg-type]
 
     def _set_busy(self, value: bool) -> None:
         if value != self._busy:
@@ -246,7 +223,7 @@ class AnalysisController(QObject):
             self._apply_error("Analyzer returned an invalid result")
             return
         self._diagnostics.replace(result.diagnostics)
-        self._detection = result.detection.to_dict()
+        self._detection = {"vendor": result.detection.vendor, "os": result.detection.os}
         counts = Counter(item.severity.value for item in result.diagnostics)
         self._summary = {key: counts[key] for key in self._summary}
         try:

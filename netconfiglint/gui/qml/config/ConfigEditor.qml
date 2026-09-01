@@ -8,6 +8,9 @@ AppCard {
     id: root
     property alias text: editor.text
     property alias editor: editor
+    property string title: i18n.catalog["editor.configuration"]
+    property string subtitle: ""
+    property string placeholderText: ""
     property int currentLine: 1
     signal textEdited(string value)
     padding: 0
@@ -54,15 +57,28 @@ AppCard {
         spacing: 0
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 44
+            Layout.preferredHeight: 54
             color: Colors.surfaceContainer
             radius: Spacing.radiusCard
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: Spacing.md
                 anchors.rightMargin: Spacing.md
-                Text { text: i18n.catalog["editor.configuration"]; color: Colors.textPrimary; font: Typography.subtitle }
-                Text {
+                ColumnLayout {
+                    spacing: 0
+                    SelectableText {
+                        text: root.title
+                        color: Colors.textPrimary
+                        font: Typography.subtitle
+                    }
+                    SelectableText {
+                        visible: root.subtitle.length > 0
+                        text: root.subtitle
+                        color: Colors.textSecondary
+                        font: Typography.caption
+                    }
+                }
+                SelectableText {
                     text: i18n.catalog["editor.line"] + " " + root.currentLine + " / " + Math.max(1, editor.lineCount)
                     color: Colors.textSecondary
                     font: Typography.caption
@@ -87,8 +103,8 @@ AppCard {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            ScrollBar.horizontal.policy: ScrollBar.AsNeeded
-            ScrollBar.vertical.policy: ScrollBar.AsNeeded
+            ScrollBar.horizontal: AppScrollBar { }
+            ScrollBar.vertical: AppScrollBar { }
 
             Row {
                 height: Math.max(scrollView.availableHeight, editor.contentHeight + Spacing.md * 2)
@@ -117,6 +133,7 @@ AppCard {
                     topPadding: Spacing.md
                     bottomPadding: Spacing.md
                     wrapMode: TextEdit.NoWrap
+                    placeholderText: root.placeholderText
                     selectByMouse: true
                     persistentSelection: true
                     color: Colors.textPrimary

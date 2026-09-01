@@ -1,6 +1,6 @@
 # Huawei VRP validation notes
 
-v1.1 Beta separates documented command facts from parser heuristics. The machine-readable
+v1.2 separates documented command facts from parser heuristics. The machine-readable
 catalog is `netconfiglint/vendors/huawei/profiles/catalog.json`; every documented fact references
 an official Huawei source record with URL, document ID, and access date. It stores only the
 minimum structured facts needed by NetConfigLint, not copies of vendor documentation.
@@ -13,6 +13,9 @@ minimum structured facts needed by NetConfigLint, not copies of vendor documenta
 - `display ip interface brief` exposes physical/protocol interface state.
 - BGP peer groups, IPv6 static routes, interface `ospf enable`, and ACL6-based traffic-policy
   constructs exist in the cited Huawei documentation.
+- Hybrid tagged/untagged/PVID VLANs, VPN static routes, IS-IS process/NET bindings,
+  bridge-domain/VNI bindings, STP edge protection, SSH-only management, SNMPv3, NTP
+  authentication, and ACL rule forms are linked to additional official Huawei sources.
 - CloudEngine V200R024/V300R024 and S7700 V200R021 overlays are selected only when explicit
   platform/model/version evidence matches catalog patterns.
 
@@ -22,7 +25,8 @@ These facts do not prove that every syntax variant is available on every Huawei 
 
 - Huawei detection uses VRP banners and a bounded set of Huawei-style signatures.
 - A model is reported only when an explicit model-shaped token is found; otherwise it is Unknown.
-- VLAN ranges accept `N to M` within 1–4094; service-specific VLAN consumers are incomplete.
+- VLAN ranges accept `N to M` within 1–4094; access, trunk, hybrid, PVID, VLANIF, and selected
+  service consumers are recognized.
 - Interface link-type checks cover clear access/trunk/hybrid conflicts only.
 - Eth-Trunk references normalize the `Eth-Trunk<ID>` form.
 - IPv4/IPv6 static-route parsing covers common destination/prefix plus next-hop forms. Advanced
@@ -39,9 +43,25 @@ These facts do not prove that every syntax variant is available on every Huawei 
 - “Unused” means unused by recognized consumers, not globally proven unused.
 - Sensitive detection is keyword-based and never returns the matched secret text.
 
+## Production-derived aggregate validation
+
+A user-supplied archive containing 40 substantive Huawei configuration exports was read directly
+from ZIP entries and never extracted into the repository. The validator deliberately reports only
+aggregate counters, never archive names, configuration lines, device names, addresses, object
+names, credentials, or diagnostic prose.
+
+The v1.2 validation run analyzed all 40 configurations with zero parser failures. Every
+configuration produced more than one diagnostic; diagnostic counts ranged from 5 to 22 with a
+median of 6.5. Aggregate severities were 43 ERROR, 175 WARNING, and 107 INFO. These results prove
+that the analysis pipeline is active across a diverse sample; they do not prove that every result
+is a true positive or that every Huawei command has a semantic rule.
+
+The reproducible aggregate-only helper is `scripts/validate_huawei_archive.py`. Production data is
+not included in the project or release package.
+
 ## Device/document validation still required
 
-1. `port trunk allow-pass vlan`, hybrid/PVID, and `vlan batch` variants across named releases.
+1. `port trunk allow-pass vlan`, hybrid/PVID, and `vlan batch` platform/release variants.
 2. Eth-Trunk membership and naming across CloudEngine, S-series, and router families.
 3. IPv4/IPv6 static-route outbound-interface, VPN/topology, BFD/track, preference, tag, and
    discard-route variants.

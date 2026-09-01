@@ -2,19 +2,16 @@
 
 This roadmap orders work by evidence quality and reusable architecture, not by rule count.
 
-## v1.2 — evidence and localization hardening
+## v1.2 — delivered
 
-1. Move rule messages, explanations, and suggested fixes into typed English/Chinese catalogs.
-2. Introduce an explicit snapshot container with command, device, capture-time, and section
-   boundaries; reject truncated evidence conservatively.
-3. Model route active/inactive state, preference, recursive next hop, VPN table, and multipath.
-4. Add BGP address-family activation and group inheritance resolution with source provenance.
-5. Add reproducible release attestations, SBOM/license inventory, and certificate-backed signing
-   on an isolated Windows release runner.
+1. Expanded the Huawei analyzer from 26 to 50 fixture-backed rules.
+2. Added generic source-mapped blocks and privacy-safe production-derived aggregate validation.
+3. Rebuilt the QML workspace around Material cards, dialogs, selectable text, a temporary editor,
+   portable history, and a no-console Windows ZIP.
+4. Kept source/QML tests on Windows, Linux, and macOS.
 
-Exit criteria: all diagnostic fields bilingual, snapshot truncation tests, profile-source schema
-validation, signed-artifact verification when credentials are configured, and no performance
-regression beyond an agreed baseline.
+Remaining localization, snapshot-evidence, and signed provenance work moves forward without
+weakening v1.2's conservative Unknown behavior.
 
 ## v1.3 — Huawei configuration graph
 
@@ -23,6 +20,9 @@ regression beyond an agreed baseline.
 3. Build an internal reference graph shared by unused/missing/cycle rules and future visualization.
 4. Add configuration-diff API with stable object identities and source-aware changes.
 5. Expand official profiles by platform/release only after source review and synthetic fixtures.
+6. Move rule messages, explanations, and suggested fixes into typed English/Chinese catalogs.
+7. Introduce explicit snapshot command/capture boundaries and reject truncated evidence
+   conservatively.
 
 Exit criteria: graph consistency tests, no rule rescans raw source when normalized data exists,
 and documented false-positive budgets for every new rule family.

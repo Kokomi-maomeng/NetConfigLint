@@ -34,7 +34,7 @@ class DiagnosticListModel(QAbstractListModel):
         DiagnosticRole.RULE_ID: b"ruleId",
         DiagnosticRole.LINE: b"line",
         DiagnosticRole.END_LINE: b"endLine",
-        DiagnosticRole.OBJECT_NAME: b"objectName",
+        DiagnosticRole.OBJECT_NAME: b"targetObject",
         DiagnosticRole.MESSAGE: b"message",
         DiagnosticRole.EXPLANATION: b"explanation",
         DiagnosticRole.SUGGESTED_FIX: b"suggestedFix",

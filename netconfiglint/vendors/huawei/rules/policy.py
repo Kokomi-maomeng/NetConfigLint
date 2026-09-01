@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import re
+
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
+from netconfiglint.vendors.huawei.rules.facts import all_commands
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
+
+_ROUTE_POLICY_REFERENCE = re.compile(r"\broute-policy\s+(\S+)", re.IGNORECASE)
 
 
 class MissingBgpRoutePolicyRule:
@@ -110,6 +115,11 @@ class UnusedRoutePolicyRule:
                 used.update(name for name, _ in (*peer.import_policies, *peer.export_policies))
             for group in context.config.bgp.groups.values():
                 used.update(name for name, _ in (*group.import_policies, *group.export_policies))
+        for text, _source, _block in all_commands(context.config):
+            if text.lower().startswith("route-policy "):
+                continue
+            if (match := _ROUTE_POLICY_REFERENCE.search(text)) is not None:
+                used.add(match.group(1))
         return tuple(
             Diagnostic(
                 Severity.INFO,
@@ -118,7 +128,7 @@ class UnusedRoutePolicyRule:
                 policy.name,
                 f"Route-policy {policy.name} has no supported reference.",
                 "No BGP peer reference was found. Unsupported redistribution or other references "
-                "may still exist in commands outside the beta parser coverage.",
+                "may still exist in commands outside the supported parser coverage.",
                 "Confirm all uses before removing the route-policy.",
                 Confidence.GENERIC,
             )

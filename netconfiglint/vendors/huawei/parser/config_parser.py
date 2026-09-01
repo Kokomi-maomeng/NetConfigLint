@@ -1,4 +1,4 @@
-"""Huawei VRP beta parser.
+"""Huawei VRP configuration parser.
 
 The parser is intentionally bounded. It normalizes supported constructs and retains unknown
 lines instead of guessing at unsupported command semantics.
@@ -18,6 +18,8 @@ from netconfiglint.core.model import (
     BGPGroup,
     BGPPeer,
     BGPProcess,
+    ConfigBlock,
+    ConfigCommand,
     DeviceConfig,
     Interface,
     IPv6StaticRoute,
@@ -45,6 +47,7 @@ class HuaweiConfigParser:
         lines = lex_lines(source)
         self._active_ospf_area = {}
         config = DeviceConfig(vendor=detection.vendor, source_lines=tuple(line.raw for line in lines))
+        config.blocks = self._index_blocks(lines)
         config.metadata["profile_id"] = detection.profile_id
         context: tuple[str, object] | None = None
 
@@ -70,6 +73,26 @@ class HuaweiConfigParser:
         if mode == AnalysisMode.SNAPSHOT:
             config.snapshot = HuaweiSnapshotParser().parse(source)
         return config
+
+    @staticmethod
+    def _index_blocks(lines: tuple[SourceLine, ...]) -> list[ConfigBlock]:
+        """Build a lossless-enough block index for rules outside the normalized core model."""
+        blocks: list[ConfigBlock] = []
+        active: ConfigBlock | None = None
+        for line in lines:
+            text = line.text
+            if not text or text.lower() == "return":
+                continue
+            if text == "#":
+                active = None
+                continue
+            if not line.raw[:1].isspace():
+                active = ConfigBlock(text, SourceRange(line.number))
+                blocks.append(active)
+                continue
+            if active is not None:
+                active.commands.append(ConfigCommand(text, SourceRange(line.number)))
+        return blocks
 
     def _start_block(self, config: DeviceConfig, line: SourceLine) -> tuple[str, object] | None:
         if line.raw[:1].isspace():
@@ -183,14 +206,30 @@ class HuaweiConfigParser:
         elif lower.startswith("port default vlan ") and len(tokens) >= 4 and tokens[3].isdigit():
             interface.access_vlan = int(tokens[3])
             interface.command_sources["access_vlan"] = source
+        elif (
+            lower.startswith(("port trunk pvid vlan ", "port hybrid pvid vlan "))
+            and len(tokens) >= 5
+            and tokens[4].isdigit()
+        ):
+            interface.pvid_vlan = int(tokens[4])
+            interface.command_sources["pvid_vlan"] = source
         elif lower.startswith("port trunk allow-pass vlan "):
             interface.allowed_vlans.update(self._expand_vlans(tokens[4:]))
             interface.command_sources["allowed_vlans"] = source
+        elif lower.startswith("port hybrid tagged vlan "):
+            interface.hybrid_tagged_vlans.update(self._expand_vlans(tokens[4:]))
+            interface.command_sources["hybrid_tagged_vlans"] = source
+        elif lower.startswith("port hybrid untagged vlan "):
+            interface.hybrid_untagged_vlans.update(self._expand_vlans(tokens[4:]))
+            interface.command_sources["hybrid_untagged_vlans"] = source
         elif lower.startswith("ip address ") and len(tokens) >= 3:
-            interface.ip_addresses.append((tokens[2], tokens[3] if len(tokens) >= 4 else None, source))
+            if tokens[2].lower() not in {"dhcp-alloc", "negotiated", "ppp-negotiate", "unnumbered"}:
+                interface.ip_addresses.append((tokens[2], tokens[3] if len(tokens) >= 4 else None, source))
             interface.command_sources["ip_address"] = source
         elif lower.startswith("ipv6 address ") and len(tokens) >= 3:
-            interface.ipv6_addresses.append((tokens[2], tokens[3] if len(tokens) >= 4 else None, source))
+            if tokens[2].lower() != "auto":
+                prefix = tokens[3] if len(tokens) >= 4 and tokens[3].isdigit() else None
+                interface.ipv6_addresses.append((tokens[2], prefix, source))
             interface.command_sources["ipv6_address"] = source
         elif lower.startswith("ospf enable ") and "area" in tuple(token.lower() for token in tokens):
             area_index = tuple(token.lower() for token in tokens).index("area")
