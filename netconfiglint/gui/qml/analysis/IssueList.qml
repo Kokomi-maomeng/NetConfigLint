@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import theme 1.0
@@ -5,6 +6,7 @@ import "../components"
 
 ListView {
     id: root
+    objectName: "diagnosticIssueList"
     property string severityFilter: "ALL"
     signal issueActivated(int row)
     clip: true

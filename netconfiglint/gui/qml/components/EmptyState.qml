@@ -9,7 +9,9 @@ ColumnLayout {
     Item { Layout.fillHeight: true }
     Rectangle {
         Layout.alignment: Qt.AlignHCenter
-        width: 44; height: 44; radius: 22
+        Layout.preferredWidth: 44
+        Layout.preferredHeight: 44
+        radius: 22
         color: Colors.primaryContainer
         SelectableText { anchors.centerIn: parent; text: "—"; color: Colors.primary; font: Typography.title }
     }
@@ -21,6 +23,9 @@ ColumnLayout {
     }
     SelectableText {
         Layout.alignment: Qt.AlignHCenter
+        Layout.fillWidth: true
+        Layout.leftMargin: Spacing.md
+        Layout.rightMargin: Spacing.md
         Layout.maximumWidth: 360
         text: parent.description
         color: Colors.textSecondary
