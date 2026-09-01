@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '1.1.0-beta.1',
-    [string]$NumericVersion = '1.1.0.1',
+    [string]$Version = '1.2.0',
+    [string]$NumericVersion = '1.2.0.0',
     [string]$CertificateThumbprint = '',
     [switch]$SkipAppBuild
 )

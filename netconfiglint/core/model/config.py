@@ -25,6 +25,23 @@ class Vlan:
     source: SourceRange
 
 
+@dataclass(frozen=True, slots=True)
+class ConfigCommand:
+    """A source-mapped command inside a vendor configuration block."""
+
+    text: str
+    source: SourceRange
+
+
+@dataclass(slots=True)
+class ConfigBlock:
+    """A generic configuration block retained for vendor rules not yet normalized."""
+
+    header: str
+    source: SourceRange
+    commands: list[ConfigCommand] = field(default_factory=list)
+
+
 @dataclass(slots=True)
 class Interface:
     name: str
@@ -32,7 +49,10 @@ class Interface:
     description: str = ""
     link_type: str | None = None
     access_vlan: int | None = None
+    pvid_vlan: int | None = None
     allowed_vlans: set[int] = field(default_factory=set)
+    hybrid_tagged_vlans: set[int] = field(default_factory=set)
+    hybrid_untagged_vlans: set[int] = field(default_factory=set)
     ip_addresses: list[tuple[str, str | None, SourceRange]] = field(default_factory=list)
     ipv6_addresses: list[tuple[str, str | None, SourceRange]] = field(default_factory=list)
     ospf_bindings: list[tuple[str, str, SourceRange]] = field(default_factory=list)
@@ -208,6 +228,7 @@ class SnapshotEvidence:
 class DeviceConfig:
     vendor: str
     source_lines: tuple[str, ...]
+    blocks: list[ConfigBlock] = field(default_factory=list)
     vlans: dict[int, Vlan] = field(default_factory=dict)
     interfaces: dict[str, Interface] = field(default_factory=dict)
     static_routes: list[StaticRoute] = field(default_factory=list)

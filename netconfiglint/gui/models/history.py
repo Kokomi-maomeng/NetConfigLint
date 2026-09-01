@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import IntEnum
@@ -10,10 +11,10 @@ from typing import Any, ClassVar
 from PySide6.QtCore import (
     QAbstractListModel,
     QByteArray,
+    QCoreApplication,
     QModelIndex,
     QPersistentModelIndex,
     QSettings,
-    QStandardPaths,
     Qt,
 )
 
@@ -22,13 +23,22 @@ from netconfiglint.core.analyzer import AnalysisResult
 _INVALID_INDEX = QModelIndex()
 
 
+def default_history_path() -> Path:
+    """Keep portable-build history beside the program in a dedicated folder."""
+    executable = Path(sys.executable).resolve()
+    if executable.stem.lower() in {"netconfiglint", "deploy_main"}:
+        root = Path(QCoreApplication.applicationDirPath()).resolve()
+    else:
+        root = Path(__file__).resolve().parents[3]
+    return root / "history" / "history.json"
+
+
 @dataclass(frozen=True, slots=True)
 class HistoryEntry:
     entry_id: str
     timestamp: str
     mode: str
     vendor: str
-    platform: str
     diagnostic_count: int
     source_line_count: int
     summary: dict[str, int]
@@ -45,7 +55,6 @@ class HistoryEntry:
             timestamp=timestamp,
             mode=result.mode.value,
             vendor=result.detection.vendor,
-            platform=result.detection.platform_family,
             diagnostic_count=len(result.diagnostics),
             source_line_count=result.source_line_count,
             summary=summary,
@@ -62,8 +71,7 @@ class HistoryStore:
         persist_settings: bool = True,
         limit: int = 100,
     ) -> None:
-        data_root = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation))
-        self.path = path or data_root / "history.json"
+        self.path = path or default_history_path()
         self.limit = limit
         self._persist_settings = persist_settings
         configured = QSettings().value("privacy/historyEnabled", False, type=bool)
@@ -81,7 +89,6 @@ class HistoryStore:
                     timestamp=item["timestamp"],
                     mode=item["mode"],
                     vendor=item["vendor"],
-                    platform=item["platform"],
                     diagnostic_count=int(item["diagnostic_count"]),
                     source_line_count=int(item["source_line_count"]),
                     summary={str(key): int(value) for key, value in item["summary"].items()},
@@ -121,11 +128,10 @@ class HistoryRole(IntEnum):
     TIMESTAMP = Qt.ItemDataRole.UserRole + 1
     MODE = Qt.ItemDataRole.UserRole + 2
     VENDOR = Qt.ItemDataRole.UserRole + 3
-    PLATFORM = Qt.ItemDataRole.UserRole + 4
-    DIAGNOSTIC_COUNT = Qt.ItemDataRole.UserRole + 5
-    SOURCE_LINE_COUNT = Qt.ItemDataRole.UserRole + 6
-    SUMMARY = Qt.ItemDataRole.UserRole + 7
-    RULE_IDS = Qt.ItemDataRole.UserRole + 8
+    DIAGNOSTIC_COUNT = Qt.ItemDataRole.UserRole + 4
+    SOURCE_LINE_COUNT = Qt.ItemDataRole.UserRole + 5
+    SUMMARY = Qt.ItemDataRole.UserRole + 6
+    RULE_IDS = Qt.ItemDataRole.UserRole + 7
 
 
 class HistoryListModel(QAbstractListModel):
@@ -133,7 +139,6 @@ class HistoryListModel(QAbstractListModel):
         HistoryRole.TIMESTAMP: b"timestamp",
         HistoryRole.MODE: b"mode",
         HistoryRole.VENDOR: b"vendor",
-        HistoryRole.PLATFORM: b"platform",
         HistoryRole.DIAGNOSTIC_COUNT: b"diagnosticCount",
         HistoryRole.SOURCE_LINE_COUNT: b"sourceLineCount",
         HistoryRole.SUMMARY: b"summary",
@@ -162,7 +167,6 @@ class HistoryListModel(QAbstractListModel):
             HistoryRole.TIMESTAMP: item.timestamp,
             HistoryRole.MODE: item.mode,
             HistoryRole.VENDOR: item.vendor,
-            HistoryRole.PLATFORM: item.platform,
             HistoryRole.DIAGNOSTIC_COUNT: item.diagnostic_count,
             HistoryRole.SOURCE_LINE_COUNT: item.source_line_count,
             HistoryRole.SUMMARY: item.summary,

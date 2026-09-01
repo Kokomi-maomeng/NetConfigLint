@@ -19,6 +19,10 @@ ApplicationWindow {
     Material.theme: Theme.dark ? Material.Dark : Material.Light
     Material.accent: Colors.primary
     property int currentPage: 0
+    onCurrentPageChanged: {
+        pageStack.opacity = 0
+        pageTransition.restart()
+    }
 
     RowLayout {
         anchors.fill: parent
@@ -26,17 +30,17 @@ ApplicationWindow {
         NavigationRail {
             id: navigation
             Layout.fillHeight: true
-            Layout.preferredWidth: window.width < 1080 ? 72 : 224
+            Layout.preferredWidth: window.width < 1080 ? 72 : 240
             currentIndex: window.currentPage
             onPageSelected: index => window.currentPage = index
         }
         StackLayout {
+            id: pageStack
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: window.currentPage
             ConfigCheckPage { controller: analysisController }
             HistoryPage { controller: analysisController }
-            RuleLibraryPage { controller: analysisController }
             SettingsPage { controller: analysisController }
             AboutPage { }
         }
@@ -51,5 +55,14 @@ ApplicationWindow {
     Connections {
         target: analysisController
         function onToastRequested(message) { toast.show(message) }
+    }
+    NumberAnimation {
+        id: pageTransition
+        target: pageStack
+        property: "opacity"
+        from: 0
+        to: 1
+        duration: 190
+        easing.type: Easing.OutCubic
     }
 }

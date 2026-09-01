@@ -62,7 +62,7 @@ if (-not $DryRun) {
         if ($LASTEXITCODE -ne 0) { throw 'Could not prune the broad Qt deployment payload.' }
 
         $resolver = Join-Path $projectRoot 'scripts\resolve_windows_dlls.py'
-        $sitePackages = & $python -c "import site; print(site.getsitepackages()[0])"
+        $sitePackages = & $python -c "import pathlib, site; print(next(path for path in map(pathlib.Path, site.getsitepackages()) if (path / 'PySide6').is_dir()))"
         & $python $resolver $distribution.FullName $sitePackages
         if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the standalone DLL dependency closure.' }
 

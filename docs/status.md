@@ -1,48 +1,41 @@
-# v1.1 Beta implementation status
+# v1.2 implementation status
 
 ## Stable architecture
 
-- `analyze(source, mode, vendor) -> AnalysisResult` integration boundary.
-- Vendor-neutral configuration, operational evidence, source range, diagnostic, severity, and
-  confidence models.
-- Detector/parser/rule protocols, registry boundaries, and unique-ID rule engine.
-- Shared result consumption by CLI, GUI, and future integrations.
-- QML-first GUI using QObject, Property, Signal, Slot, and QAbstractListModel.
-- Package-relative QML, translation, profile, and SVG resource loading.
-- Synthetic-fixture, local-only processing, and no-production-data contribution policy.
-- Base/platform/model/version profile inheritance with auditable source references.
+- `analyze(source, mode, vendor) -> AnalysisResult` remains the shared CLI/GUI/API boundary.
+- Vendor-neutral source ranges, normalized configuration objects, diagnostics, modes, and
+  operational evidence remain isolated from Huawei-specific parsing and rules.
+- Every non-empty Huawei configuration block is retained with line provenance; supported
+  constructs additionally populate typed models.
+- QML-first PySide6 GUI, package-relative resources, bilingual shell, opt-in private history,
+  and synthetic-only test fixtures remain enforced.
 
-## Beta implementation
+## v1.2 delivered scope
 
-- Huawei VRP bounded line/block parser plus recognized operational snapshot sections.
-- 26 mode-aware Huawei rules, each with valid and invalid synthetic fixtures.
-- IPv4/IPv6 RIB exact-prefix evidence, BGP peer state, and interface state parsing.
-- IPv6 static/address checks, BGP groups, interface OSPF, ACL6 and traffic-policy references.
-- CLI text/JSON rendering and documented exit codes.
-- Material-inspired bilingual desktop shell, editor, diagnostics, themes, async analysis,
-  incremental highlighting, and optional privacy-minimized history.
-- Synthetic large-configuration regression benchmark.
-- Recursive Windows PE dependency closure and Inno Setup installer workflow.
+- 50 mode-aware Huawei rules with paired valid/invalid/expected synthetic fixtures.
+- Added hybrid/PVID/VLANIF, IPv4, static-route VPN, BGP remote-AS, IS-IS, ACL, redistribution,
+  VXLAN/EVPN, STP, SSH/Telnet/FTP/SNMP/NTP, plaintext-password, and VTY checks.
+- Privacy-safe aggregate validation against 40 locally supplied production-derived Huawei
+  configuration exports: all parsed, all returned multiple diagnostics, and no configuration
+  text, entry names, addresses, or diagnostic prose was emitted by the validator.
+- Material card-based configuration workspace, custom mode/vendor choice cards, analyzed and
+  temporary editors, syntax highlighting in both, selectable diagnostic/about/history text,
+  adaptive history empty state, and animated navigation/dialogs.
+- Rule-library page and device platform/model/version/profile/confidence display removed.
+- Windows standalone build uses the GUI subsystem, creates a no-console portable ZIP, and stores
+  optional history beside the executable in a dedicated directory.
+- Source/QML tests run on Windows, Linux, and macOS in GitHub Actions.
 
-## Experimental / TODO
+## Conservative boundaries
 
-- Exact Huawei command availability outside the documented catalog facts.
-- Complete snapshot output variants and explicit section/container schema.
-- Active/inactive route selection, recursive next-hop resolution, and hardware FIB evidence.
-- Complete BGP group inheritance and address-family activation semantics.
-- Complete OSPF/OSPFv3, ACL/QoS/policy consumer graph, and IPv6 command coverage.
-- Localized rule messages; v1.1 translates the GUI shell and controls.
-- Trusted Windows signing; the build supports it but needs an external certificate/private key
-  and Windows SDK SignTool.
-- Linux/macOS packaged artifact tests; CI validates source/QML execution on all three platforms.
+- This is a broad static analyzer, not a VRP emulator or a proof that a configuration will work
+  on a particular chassis, release, patch, or live topology.
+- Advanced command variants without enough evidence remain retained but unasserted.
+- Operational snapshot parsing covers supported RIB, BGP-peer, and interface layouts only.
+- Exact forwarding, recursive resolution, full BGP inheritance, full QoS consumer graphs,
+  OSPFv3, advanced EVPN, and all platform-specific feature availability remain incomplete.
+- Windows binaries are unsigned unless an external Authenticode certificate is supplied; the
+  portable ZIP includes a hash but Windows may still show an unrecognized-publisher warning.
 
-## H3C reuse boundary
-
-Directly reusable: public analyzer/result contract, modes, operational-evidence containers,
-diagnostics/confidence, source mapping, normalized models, rule engine, CLI formatters, GUI
-controller/list models/QML, translation/history infrastructure, fixture patterns, benchmark,
-and CI.
-
-H3C-specific additions: detector signatures, Comware parser/grammar, operational-output parser,
-platform/version profiles, command overlays, vendor rule registry, and synthetic fixtures. Shared
-models may gain optional vendor-neutral fields, but Comware knowledge must not enter GUI code.
+See [Huawei validation notes](huawei-validation.md), [Huawei source map](huawei-rule-sources.md),
+and the [roadmap](roadmap.md).
