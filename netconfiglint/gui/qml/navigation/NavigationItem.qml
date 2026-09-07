@@ -1,39 +1,42 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
+import QtQuick.Controls.impl
 import theme 1.0
-
 Button {
     id: control
     property url iconSource
     property bool selected: false
     property bool expanded: true
     implicitHeight: 48
+    topInset: 0
+    bottomInset: 0
+    leftPadding: 16
+    rightPadding: 16
     hoverEnabled: true
-
-    contentItem: RowLayout {
-        spacing: Spacing.sm
-        Image {
-            source: control.iconSource
-            sourceSize.width: 22
-            sourceSize.height: 22
-            opacity: control.selected ? 1 : 0.72
-        }
-        Text {
-            Layout.fillWidth: true
-            visible: control.expanded
-            text: control.text
-            color: control.selected ? Colors.primary : Colors.textPrimary
-            font: Typography.label
-            elide: Text.ElideRight
-        }
+    font: Typography.label
+    icon.source: iconSource
+    icon.width: 22
+    icon.height: 22
+    icon.color: selected ? Colors.primary : Colors.textSecondary
+    display: expanded ? AbstractButton.TextBesideIcon : AbstractButton.IconOnly
+    palette.buttonText: selected ? Colors.primary : Colors.textSecondary
+    contentItem: IconLabel {
+        icon: control.icon
+        text: control.text
+        font: control.font
+        display: control.display
+        spacing: 14
+        alignment: control.expanded ? Qt.AlignLeft : Qt.AlignHCenter
+        color: control.selected ? Colors.primary : Colors.textSecondary
     }
     background: Rectangle {
-        color: control.selected ? Colors.primaryContainer
-                                : (control.hovered ? Colors.surfaceContainer : "transparent")
-        radius: Spacing.radiusLarge
-        Behavior on color { ColorAnimation { duration: 120 } }
+        color: control.selected ? Colors.primaryContainer : (control.hovered ? Colors.surfaceContainerHigh : "transparent")
+        radius: 24
+        border.color: control.activeFocus ? Colors.primary : "transparent"
+        Behavior on color { ColorAnimation { duration: 180 } }
     }
+    scale: down ? 0.97 : 1
+    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
     ToolTip.visible: hovered && !expanded
     ToolTip.text: text
     ToolTip.delay: 400

@@ -5,7 +5,7 @@ def test_detects_huawei_without_guessing_model() -> None:
     result = HuaweiDetector().detect("sysname LAB\ninterface GigabitEthernet1/0/1\n port link-type trunk")
 
     assert result.vendor == "Huawei"
-    assert result.os == "VRP"
+    assert "os" not in result.to_dict()
     assert result.model == "Unknown"
     assert result.confidence >= 0.5
 

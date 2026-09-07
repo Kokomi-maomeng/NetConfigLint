@@ -79,3 +79,7 @@ class DiagnosticListModel(QAbstractListModel):
 
     def item_at(self, row: int) -> Diagnostic | None:
         return self._items[row] if 0 <= row < len(self._items) else None
+
+    @property
+    def items(self) -> tuple[Diagnostic, ...]:
+        return self._items

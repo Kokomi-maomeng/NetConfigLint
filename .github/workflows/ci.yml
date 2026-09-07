@@ -41,6 +41,14 @@ jobs:
         run: python -m pytest
       - name: CLI startup
         run: python -m netconfiglint --version
+      - name: QML window, fonts, dialogs and export smoke
+        run: python -m netconfiglint.gui.app.main --smoke-test build/ci-gui-smoke
+      - name: Upload synthetic GUI acceptance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-smoke-${{ matrix.os }}
+          path: build/ci-gui-smoke
       - name: Windows deployment dry run
         if: runner.os == 'Windows'
         shell: pwsh

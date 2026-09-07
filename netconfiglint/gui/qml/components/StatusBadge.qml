@@ -18,7 +18,7 @@ Rectangle {
     activeFocusOnTab: interactive
     Accessible.role: interactive ? Accessible.Button : Accessible.StaticText
     Accessible.name: label
-    Accessible.description: interactive ? "Diagnostic severity filter" : ""
+    Accessible.description: interactive ? i18n.catalog["analysis.severity_filter"] : ""
 
     Text {
         id: badgeText

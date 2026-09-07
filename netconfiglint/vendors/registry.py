@@ -17,7 +17,6 @@ from netconfiglint.vendors.huawei.rules import HUAWEI_RULES
 class VendorPlugin:
     key: str
     vendor_name: str
-    os_name: str
     aliases: tuple[str, ...]
     detector: VendorDetector
     parser: ConfigParser
@@ -28,7 +27,6 @@ class VendorPlugin:
     def forced_detection(self) -> VendorDetection:
         return VendorDetection(
             vendor=self.vendor_name,
-            os=self.os_name,
             platform_family="Unknown",
             model="Unknown",
             version="Unknown",
@@ -43,7 +41,6 @@ VENDOR_PLUGINS: tuple[VendorPlugin, ...] = (
     VendorPlugin(
         key="huawei",
         vendor_name="Huawei",
-        os_name="VRP",
         aliases=("huawei", "vrp"),
         detector=HuaweiDetector(),
         parser=HuaweiConfigParser(),

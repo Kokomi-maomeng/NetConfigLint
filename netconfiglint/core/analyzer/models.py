@@ -18,7 +18,6 @@ class AnalysisMode(StrEnum):
 @dataclass(frozen=True, slots=True)
 class VendorDetection:
     vendor: str
-    os: str
     platform_family: str
     model: str
     version: str

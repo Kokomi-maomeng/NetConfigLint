@@ -37,8 +37,7 @@ Item {
                 title: root.controller.historyEnabled
                        ? i18n.catalog["history.empty"] : i18n.catalog["history.disabled"]
                 description: root.controller.historyEnabled
-                             ? i18n.catalog["history.empty_detail"]
-                             : i18n.catalog["history.disabled_detail"]
+                             ? "" : ""
             }
         }
         ListView {
@@ -65,7 +64,7 @@ Item {
                         Layout.fillWidth: true
                         SelectableText { text: timestamp; color: Colors.textPrimary; font: Typography.label }
                         SelectableText {
-                            text: vendor + " · " + mode
+                            text: vendor + " 路 " + mode
                             color: Colors.textSecondary
                             font: Typography.body
                         }

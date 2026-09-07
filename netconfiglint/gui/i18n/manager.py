@@ -71,3 +71,9 @@ class TranslationController(QObject):
     @Slot(str, result=str)
     def text(self, key: str) -> str:
         return self._catalogs[self._language].get(key, self._catalogs["en"].get(key, key))
+
+    @Slot(str, result=str)
+    def diagnostic(self, value: str) -> str:
+        from netconfiglint.gui.i18n.diagnostics import translate_diagnostic
+
+        return translate_diagnostic(value) if self._language == "zh_CN" else value

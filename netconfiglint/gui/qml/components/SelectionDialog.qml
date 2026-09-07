@@ -21,8 +21,10 @@ AppDialog {
                 objectName: root.optionObjectPrefix + modelData.value
                 Accessible.name: modelData.label + ". " + (modelData.description || "")
                 Layout.fillWidth: true
-                implicitHeight: Math.max(86, optionContent.implicitHeight + Spacing.md * 2)
+                implicitHeight: Math.max(52, optionContent.implicitHeight + Spacing.sm * 2)
                 hoverEnabled: true
+                topInset: 0
+                bottomInset: 0
                 onClicked: {
                     root.valueSelected(optionButton.modelData.value)
                     root.close()
@@ -39,6 +41,7 @@ AppDialog {
                     Text {
                         Layout.fillWidth: true
                         text: optionButton.modelData.description || ""
+                        visible: text.length > 0
                         color: Colors.textSecondary
                         font: Typography.body
                         wrapMode: Text.Wrap

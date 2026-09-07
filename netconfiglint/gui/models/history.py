@@ -107,14 +107,19 @@ class HistoryStore:
     def append(self, result: AnalysisResult) -> None:
         if not self.enabled:
             return
+        previous = list(self.entries)
         self.entries.insert(0, HistoryEntry.from_result(result))
         del self.entries[self.limit :]
-        self._write()
+        try:
+            self._write()
+        except OSError:
+            self.entries = previous
+            raise
 
     def clear(self) -> None:
-        self.entries.clear()
         if self.path.exists():
             self.path.unlink()
+        self.entries.clear()
 
     def _write(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,120 +1,97 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import theme 1.0
 import "../components"
-
 AppCard {
     id: root
     property var diagnosticsModel
-    property var detection: ({ "vendor": "Unknown", "os": "Unknown" })
-    property var summary: ({ "ERROR": 0, "WARNING": 0, "INFO": 0, "UNKNOWN": 0 })
+    property var detection: ({ vendor: "Unknown" })
+    property var summary: ({ ERROR: 0, WARNING: 0, INFO: 0, UNKNOWN: 0 })
     property string severityFilter: "ALL"
+    property string statusKey: ""
+    property bool resultCurrent: false
+    property bool busy: false
     signal issueActivated(int row)
+    signal dragStarted()
+    signal dragMoved(real sceneX)
+    signal dragFinished(real sceneX)
+    signal stepRequested(int direction)
     padding: 0
-
-    function totalCount() {
-        return (summary.ERROR || 0) + (summary.WARNING || 0)
-                + (summary.INFO || 0) + (summary.UNKNOWN || 0)
-    }
-
-    function filteredCount() {
-        return severityFilter === "ALL" ? totalCount() : (summary[severityFilter] || 0)
-    }
-
+    onResultCurrentChanged: severityFilter = "ALL"
+    function totalCount() { return (summary.ERROR || 0) + (summary.WARNING || 0) + (summary.INFO || 0) + (summary.UNKNOWN || 0) }
+    function filteredCount() { return severityFilter === "ALL" ? totalCount() : (summary[severityFilter] || 0) }
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
-        Rectangle {
+        CardHeader {
+            objectName: "diagnosticsHeader"
             Layout.fillWidth: true
-            Layout.preferredHeight: 126
-            color: Colors.surfaceContainer
-            radius: Spacing.radiusCard
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: Spacing.md
-                spacing: Spacing.xs
-                RowLayout {
+            Layout.preferredHeight: 60
+            title: i18n.catalog["analysis.diagnostics"]
+            onDragStarted: root.dragStarted()
+            onDragMoved: sceneX => root.dragMoved(sceneX)
+            onDragFinished: sceneX => root.dragFinished(sceneX)
+            onStepRequested: direction => root.stepRequested(direction)
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.margins: 12
+            spacing: 8
+            SelectableText {
+                objectName: "analysisStatus"
+                Layout.fillWidth: true
+                visible: root.statusKey.length > 0
+                text: i18n.catalog[root.statusKey] || ""
+                color: root.statusKey === "analysis.failed" || root.statusKey === "analysis.unsupported" ? Colors.error : Colors.primary
+                font: Typography.caption
+            }
+            ProgressBar { Layout.fillWidth: true; visible: root.busy; indeterminate: root.busy }
+            RowLayout {
+                Layout.fillWidth: true
+                visible: root.resultCurrent
+                SelectableText { text: i18n.catalog["device.detected_vendor"]; color: Colors.textSecondary; font: Typography.caption }
+                SelectableText {
                     Layout.fillWidth: true
-                    SelectableText {
-                        text: i18n.catalog["analysis.diagnostics"]
-                        color: Colors.textPrimary
-                        font: Typography.subtitle
-                    }
-                    Item { Layout.fillWidth: true }
-                    SelectableText {
-                        text: root.severityFilter === "ALL"
-                              ? i18n.catalog["analysis.showing_all"]
-                              : i18n.catalog["analysis.filtering"] + " " + root.severityFilter
-                        color: root.severityFilter === "ALL" ? Colors.textSecondary : Colors.primary
-                        font: Typography.caption
-                    }
+                    text: i18n.catalog["vendor." + String(root.detection.vendor).toLowerCase()] || root.detection.vendor || i18n.catalog["analysis.unknown"]
+                    font: Typography.label
                 }
-                GridLayout {
-                    Layout.fillWidth: true
-                    columns: 2
-                    columnSpacing: Spacing.sm
-                    rowSpacing: Spacing.xxs
-                    SelectableText {
-                        text: i18n.catalog["device.detected_vendor"]
-                        color: Colors.textSecondary
-                        font: Typography.caption
-                    }
-                    SelectableText {
+            }
+            GridLayout {
+                Layout.fillWidth: true
+                columns: root.width >= 470 ? 4 : 2
+                columnSpacing: 6
+                rowSpacing: 6
+                Repeater {
+                    model: ["ERROR", "WARNING", "INFO", "UNKNOWN"]
+                    delegate: StatusBadge {
+                        required property string modelData
+                        objectName: "severityFilter-" + modelData
                         Layout.fillWidth: true
-                        text: root.detection.vendor || "Unknown"
-                        color: Colors.textPrimary
-                        font: Typography.label
-                        wrapMode: TextEdit.NoWrap
-                        clip: true
-                    }
-                    SelectableText {
-                        text: i18n.catalog["device.os"]
-                        color: Colors.textSecondary
-                        font: Typography.caption
-                    }
-                    SelectableText {
-                        Layout.fillWidth: true
-                        text: root.detection.os || "Unknown"
-                        color: Colors.textPrimary
-                        font: Typography.label
-                        wrapMode: TextEdit.NoWrap
-                        clip: true
+                        label: i18n.catalog["analysis." + modelData.toLowerCase()] + " " + (root.summary[modelData] || 0)
+                        statusColor: Colors.severity(modelData)
+                        interactive: true
+                        selected: root.severityFilter === modelData
+                        onClicked: root.severityFilter = root.severityFilter === modelData ? "ALL" : modelData
                     }
                 }
             }
-        }
-        GridLayout {
-            id: severityFilters
-            Layout.fillWidth: true
-            Layout.margins: Spacing.sm
-            Layout.preferredHeight: columns === 4 ? 36 : 80
-            columns: root.width >= 430 ? 4 : 2
-            columnSpacing: Spacing.xs
-            rowSpacing: Spacing.xs
-            Repeater {
-                model: ["ERROR", "WARNING", "INFO", "UNKNOWN"]
-                delegate: StatusBadge {
-                    required property string modelData
-                    objectName: "severityFilter-" + modelData
-                    Layout.fillWidth: true
-                    label: modelData + " " + (root.summary[modelData] || 0)
-                    statusColor: Colors.severity(modelData)
-                    interactive: true
-                    selected: root.severityFilter === modelData
-                    onClicked: root.severityFilter = root.severityFilter === modelData ? "ALL" : modelData
-                }
+            SelectableText {
+                objectName: "activeSeverityFilter"
+                Layout.fillWidth: true
+                visible: root.severityFilter !== "ALL"
+                text: i18n.catalog["analysis.filtering"] + " " + (i18n.catalog["analysis." + root.severityFilter.toLowerCase()] || "")
+                color: Colors.primary
+                font: Typography.caption
             }
         }
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             IssueList {
-                id: issueList
                 anchors.fill: parent
-                anchors.leftMargin: Spacing.sm
-                anchors.rightMargin: Spacing.sm
-                anchors.bottomMargin: Spacing.sm
+                anchors.margins: 12
                 model: root.diagnosticsModel
                 severityFilter: root.severityFilter
                 onIssueActivated: row => root.issueActivated(row)
@@ -123,11 +100,7 @@ AppCard {
                 objectName: "analysisEmptyState"
                 anchors.fill: parent
                 visible: root.filteredCount() === 0
-                title: root.totalCount() === 0
-                       ? i18n.catalog["analysis.empty"] : i18n.catalog["analysis.filter_empty"]
-                description: root.totalCount() === 0
-                             ? i18n.catalog["analysis.empty_detail"]
-                             : i18n.catalog["analysis.filter_empty_detail"]
+                title: root.totalCount() > 0 ? i18n.catalog["analysis.filter_empty"] : (root.resultCurrent ? i18n.catalog["analysis.no_issues"] : "")
             }
         }
     }

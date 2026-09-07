@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -11,7 +10,10 @@ from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 
 from netconfiglint import analyze
 from netconfiglint.core.analyzer import AnalysisResult
+from netconfiglint.gui.exporting import render_report
+from netconfiglint.gui.i18n import TranslationController
 from netconfiglint.gui.models import DiagnosticListModel, HistoryListModel, HistoryStore
+from netconfiglint.vendors import registry
 
 Analyzer = Callable[[str, str, str], AnalysisResult]
 
@@ -26,6 +28,7 @@ class AnalysisController(QObject):
     summaryChanged = Signal()
     fileNameChanged = Signal()
     historyEnabledChanged = Signal()
+    resultCurrentChanged = Signal()
     analysisFinished = Signal()
     analysisFailed = Signal(str)
     jumpToLine = Signal(int, int)
@@ -48,8 +51,14 @@ class AnalysisController(QObject):
         self._mode = "full"
         self._vendor = "auto"
         self._busy = False
-        self._status_message = "Ready"
-        self._file_name = "Untitled configuration"
+        self._status_message = ""
+        self._file_name = ""
+        self._revision = 0
+        self._running_revision = -1
+        self._result_current = False
+        self._export_payload: str | None = None
+        self._closing = False
+        self.translator = TranslationController(persist_settings=False)
         self._detection: dict[str, Any] = self._empty_detection()
         self._summary: dict[str, int] = {key: 0 for key in ("ERROR", "WARNING", "INFO", "UNKNOWN")}
         self._diagnostics = DiagnosticListModel()
@@ -60,7 +69,34 @@ class AnalysisController(QObject):
 
     @staticmethod
     def _empty_detection() -> dict[str, Any]:
-        return {"vendor": "Unknown", "os": "Unknown"}
+        return {"vendor": "Unknown"}
+
+    def _invalidate(self) -> None:
+        self._revision += 1
+        had_result = self._result_current
+        self._result_current = False
+        self._diagnostics.replace(())
+        self._detection = self._empty_detection()
+        self._summary = {key: 0 for key in self._summary}
+        self.resultCurrentChanged.emit()
+        self.detectionChanged.emit()
+        self.summaryChanged.emit()
+        if not self._source_text.strip():
+            self._set_status("")
+        elif had_result or self._status_message in {"analysis.failed", "analysis.unsupported"}:
+            self._set_status("analysis.changed")
+
+    def _get_result_current(self) -> bool:
+        return self._result_current
+
+    resultCurrent = Property(bool, _get_result_current, notify=resultCurrentChanged)
+
+    def _get_vendor_options(self) -> list[dict[str, str]]:
+        return [{"value": "auto", "label": "auto"}] + [
+            {"value": plugin.key, "label": plugin.vendor_name} for plugin in registry.VENDOR_PLUGINS
+        ]
+
+    vendorOptions = Property("QVariantList", _get_vendor_options, constant=True)  # type: ignore[arg-type]
 
     def _get_source_text(self) -> str:
         return self._source_text
@@ -68,6 +104,7 @@ class AnalysisController(QObject):
     def _set_source_text(self, value: str) -> None:
         if value != self._source_text:
             self._source_text = value
+            self._invalidate()
             self.sourceTextChanged.emit()
 
     sourceText = Property(str, _get_source_text, _set_source_text, notify=sourceTextChanged)
@@ -78,6 +115,7 @@ class AnalysisController(QObject):
     def _set_mode(self, value: str) -> None:
         if value in {"snippet", "full", "snapshot"} and value != self._mode:
             self._mode = value
+            self._invalidate()
             self.modeChanged.emit()
 
     mode = Property(str, _get_mode, _set_mode, notify=modeChanged)
@@ -86,8 +124,9 @@ class AnalysisController(QObject):
         return self._vendor
 
     def _set_vendor(self, value: str) -> None:
-        if value in {"auto", "huawei"} and value != self._vendor:
+        if value in {"auto", *(p.key for p in registry.VENDOR_PLUGINS)} and value != self._vendor:
             self._vendor = value
+            self._invalidate()
             self.vendorChanged.emit()
 
     vendor = Property(str, _get_vendor, _set_vendor, notify=vendorChanged)
@@ -155,11 +194,11 @@ class AnalysisController(QObject):
         self._diagnostics.replace(())
         self._detection = self._empty_detection()
         self._summary = {key: 0 for key in self._summary}
-        self._file_name = "Untitled configuration"
+        self._file_name = ""
         self.fileNameChanged.emit()
         self.detectionChanged.emit()
         self.summaryChanged.emit()
-        self._set_status("Ready")
+        self._set_status("")
 
     @Slot(str)
     def loadFile(self, value: str) -> None:
@@ -168,37 +207,57 @@ class AnalysisController(QObject):
             self._set_source_text(path.read_text(encoding="utf-8-sig"))
             self._file_name = path.name
             self.fileNameChanged.emit()
-            self._set_status(f"Loaded {path.name}")
-        except (OSError, UnicodeError) as exc:
-            self._apply_error(f"Could not open file: {exc}")
+        except (OSError, UnicodeError):
+            self.toastRequested.emit("file.open_error")
+
+    @Slot(str, str, bool, result=bool)
+    def prepareExport(self, scope: str, format: str, diagnostics_first: bool) -> bool:
+        self._export_payload = None
+        if not self._source_text.strip() or (scope != "configuration" and not self._result_current):
+            return False
+        try:
+            items = self._diagnostics.items
+            self._export_payload = render_report(
+                self._source_text,
+                items,
+                scope=scope,
+                format=format,
+                diagnostics_first=diagnostics_first,
+                mode=self._mode,
+                vendor=self._detection["vendor"],
+                text=self.translator.text,
+                translate=self.translator.diagnostic,
+            )
+        except ValueError:
+            return False
+        return True
+
+    @Slot()
+    def cancelExport(self) -> None:
+        self._export_payload = None
 
     @Slot(str)
     def exportReport(self, value: str) -> None:
+        if self._export_payload is None:
+            return
         try:
             path = Path(QUrl(value).toLocalFile() if value.startswith("file:") else value)
-            payload = {
-                "file": self._file_name,
-                "mode": self._mode,
-                "detection": self._detection,
-                "diagnostics": [
-                    self._diagnostics.item_at(row).to_dict()  # type: ignore[union-attr]
-                    for row in range(self._diagnostics.rowCount())
-                ],
-            }
-            path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-            self.toastRequested.emit(f"Report exported to {path.name}")
-        except OSError as exc:
-            self._apply_error(f"Could not export report: {exc}")
+            path.write_text(self._export_payload, encoding="utf-8", newline="")
+            self.toastRequested.emit("export.saved")
+        except OSError:
+            self.toastRequested.emit("export.error")
+        finally:
+            self.cancelExport()
 
     @Slot()
     def analyzeConfig(self) -> None:
         if self._busy:
             return
         if not self._source_text.strip():
-            self._apply_error("Paste or open a configuration before analyzing.")
             return
+        self._running_revision = self._revision
         self._set_busy(True)
-        self._set_status("Analyzing locally…")
+        self._set_status("analysis.running")
         if not self._async_enabled:
             self._run_synchronously()
             return
@@ -212,6 +271,8 @@ class AnalysisController(QObject):
             self._apply_error(str(exc))
 
     def _worker_done(self, future: Future[AnalysisResult]) -> None:
+        if self._closing:
+            return
         try:
             self._workerSucceeded.emit(future.result())
         except Exception as exc:  # analyzer boundary: surfaced without source text
@@ -220,29 +281,43 @@ class AnalysisController(QObject):
     @Slot(object)
     def _apply_result(self, result: object) -> None:
         if not isinstance(result, AnalysisResult):
-            self._apply_error("Analyzer returned an invalid result")
+            self._apply_error("invalid_result")
+            return
+        if self._running_revision != self._revision:
+            self._set_busy(False)
+            self._set_status("analysis.changed" if self._source_text.strip() else "")
             return
         self._diagnostics.replace(result.diagnostics)
-        self._detection = {"vendor": result.detection.vendor, "os": result.detection.os}
+        self._detection = {"vendor": result.detection.vendor}
+        self._result_current = True
+        self.resultCurrentChanged.emit()
         counts = Counter(item.severity.value for item in result.diagnostics)
         self._summary = {key: counts[key] for key in self._summary}
         try:
             self._history_store.append(result)
             self._history_model.replace(self._history_store.entries)
         except OSError:
-            self.toastRequested.emit("Could not write local history")
+            self.toastRequested.emit("history.write_error")
         self.detectionChanged.emit()
         self.summaryChanged.emit()
         self._set_busy(False)
-        self._set_status(f"Completed in {result.elapsed_ms:.1f} ms")
+        self._set_status("analysis.completed")
         self.analysisFinished.emit()
 
     @Slot(str)
     def _apply_error(self, message: str) -> None:
         self._set_busy(False)
-        self._set_status("Analysis error")
-        self.analysisFailed.emit(message)
-        self.toastRequested.emit(message)
+        if self._running_revision != self._revision:
+            self._set_status("analysis.changed" if self._source_text.strip() else "")
+            return
+        self._invalidate()
+        key = (
+            "analysis.unsupported"
+            if "Could not identify a supported vendor" in message
+            else "analysis.failed"
+        )
+        self._set_status(key)
+        self.analysisFailed.emit(key)
 
     @Slot(int)
     def requestJump(self, row: int) -> None:
@@ -255,9 +330,10 @@ class AnalysisController(QObject):
         try:
             self._history_store.clear()
             self._history_model.replace([])
-            self.toastRequested.emit("Local analysis history cleared")
+            self.toastRequested.emit("history.cleared")
         except OSError:
-            self.toastRequested.emit("Could not clear local history")
+            self.toastRequested.emit("history.clear_error")
 
     def close(self) -> None:
+        self._closing = True
         self._executor.shutdown(wait=False, cancel_futures=True)

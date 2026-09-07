@@ -1,2 +1,4 @@
 * text=auto eol=lf
 *.ps1 text eol=crlf
+# Preserve upstream font license text, including its original line-end spaces.
+netconfiglint/resources/fonts/*-OFL.txt whitespace=-blank-at-eol

@@ -18,10 +18,10 @@ def test_controller_calls_shared_analyzer_and_updates_models(qapp: object) -> No
     controller.analyzeConfig()
 
     assert controller.detection["vendor"] == "Huawei"
-    assert set(controller.detection) == {"vendor", "os"}
+    assert set(controller.detection) == {"vendor"}
     assert controller.summary["ERROR"] == 1
     assert controller.diagnosticsModel.rowCount() == 1
-    assert controller.statusMessage.startswith("Completed")
+    assert controller.statusMessage == "analysis.completed"
     controller.close()
 
 

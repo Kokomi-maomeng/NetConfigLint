@@ -1,4 +1,4 @@
-# v1.3 implementation status
+# v1.4 implementation status
 
 ## Stable architecture
 
@@ -10,7 +10,7 @@
 - QML-first PySide6 GUI, package-relative resources, bilingual shell, opt-in private history,
   and synthetic-only test fixtures remain enforced.
 
-## v1.3 delivered scope
+## Earlier delivered scope
 
 - 50 mode-aware Huawei rules with paired valid/invalid/expected synthetic fixtures.
 - Added hybrid/PVID/VLANIF, IPv4, static-route VPN, BGP remote-AS, IS-IS, ACL, redistribution,
@@ -49,3 +49,10 @@
 
 See [Huawei validation notes](huawei-validation.md), [Huawei source map](huawei-rule-sources.md),
 and the [roadmap](roadmap.md).
+
+
+## v1.4 delivered scope
+
+See [v1.4 release notes](release-v1.4.0.md) and [acceptance evidence](v1.4-acceptance.md).
+The parser/rule boundaries above remain conservative. Desktop OS detection has been removed;
+vendor choices are derived from the same plugin registry used by the shared analyzer.

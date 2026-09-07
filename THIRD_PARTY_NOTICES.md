@@ -10,3 +10,15 @@ NetConfigLint is distributed under the Apache License 2.0. The Windows portable 
 The corresponding project and license links are available in the application's About page. No
 Huawei documentation, production configuration, credentials, or private data is redistributed in
 the package.
+
+
+## Bundled fonts and design reference
+
+Roboto and Noto Sans SC are redistributed under the SIL Open Font License 1.1.
+The complete notices accompany the font files in `netconfiglint/resources/fonts/`.
+Upstream sources: [Roboto](https://github.com/google/fonts/tree/main/ofl/roboto) and
+[Noto Sans SC](https://github.com/google/fonts/tree/main/ofl/notosanssc).
+
+The v1.4 desktop follows the visual tokens of
+[Material-Design-CastoriceUI](https://github.com/Kokomi-maomeng/Material-Design-CastoriceUI).
+The desktop controls are implemented in QML; no server configuration or operational data is included.

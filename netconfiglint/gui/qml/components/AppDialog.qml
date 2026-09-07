@@ -5,9 +5,11 @@ import theme 1.0
 Dialog {
     id: control
     modal: true
+    popupType: Popup.Item
+    font: Typography.body
     anchors.centerIn: Overlay.overlay
     width: Math.min(560, Overlay.overlay.width - Spacing.lg * 2)
-    padding: Spacing.md
+    padding: Spacing.lg
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
     Overlay.modal: Rectangle { color: Colors.scrim }
     header: Rectangle {
