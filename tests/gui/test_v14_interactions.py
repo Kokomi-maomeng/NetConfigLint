@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from itertools import pairwise
 
 import pytest
-from PySide6.QtCore import QCoreApplication, QMetaObject, QObject, QPoint, QPointF, Qt
+from PySide6.QtCore import QCoreApplication, QElapsedTimer, QMetaObject, QObject, QPoint, QPointF, Qt
 from PySide6.QtGui import QColor, QContextMenuEvent, QWheelEvent
 from PySide6.QtQml import QQmlExpression, qmlContext
 from PySide6.QtQuick import QQuickItem, QQuickWindow
@@ -29,6 +29,14 @@ def center(item: QQuickItem) -> QPoint:
 def click(window: QQuickWindow, name: str) -> None:
     QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=center(find(window, name)))
     QTest.qWait(320)
+
+
+def wait_until(predicate: Callable[[], bool]) -> None:
+    timer = QElapsedTimer()
+    timer.start()
+    while not predicate() and timer.elapsed() < 3000:
+        QTest.qWait(20)
+    assert predicate(), "UI did not settle into its expected state"
 
 
 @pytest.fixture
@@ -82,16 +90,19 @@ def test_compact_sidebar_expands_over_workspace_and_dismisses(gui: tuple) -> Non
     QTest.qWait(350)
     rail = find(window, "navigationRail")
     editor = find(window, "configurationEditor")
+    wait_until(lambda: rail.width() == 80 and rail.parentItem().width() == 80)
     editor_position = editor.mapToScene(QPointF(0, 0))
     assert rail.width() == 80
     click(window, "sidebarToggle")
+    wait_until(lambda: rail.width() == 260)
     assert rail.width() == 260
     assert editor.mapToScene(QPointF(0, 0)) == editor_position
     QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=QPoint(940, 100))
-    QTest.qWait(350)
+    wait_until(lambda: rail.width() == 80)
     assert rail.width() == 80
     click(window, "sidebarToggle")
     click(window, "navigation-2")
+    wait_until(lambda: rail.width() == 80)
     assert window.property("currentPage") == 2
     assert rail.width() == 80
 
