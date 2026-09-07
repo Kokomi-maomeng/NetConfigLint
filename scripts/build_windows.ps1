@@ -7,6 +7,22 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
 
+# Nuitka can retain obsolete data files in an existing standalone directory.
+# Rebuild that generated payload so removed QML cannot reappear in a release.
+if (-not $DryRun) {
+    $distRoot = Join-Path $projectRoot 'dist'
+    if (Test-Path -LiteralPath $distRoot) {
+        $resolvedDistRoot = (Resolve-Path -LiteralPath $distRoot).Path
+        foreach ($generatedDir in (Get-ChildItem -LiteralPath $resolvedDistRoot -Directory -Filter '*.dist')) {
+            $resolvedGeneratedDir = (Resolve-Path -LiteralPath $generatedDir.FullName).Path
+            if (-not $resolvedGeneratedDir.StartsWith($resolvedDistRoot + [IO.Path]::DirectorySeparatorChar)) {
+                throw 'Refusing to clean a distribution outside dist.'
+            }
+            Remove-Item -LiteralPath $resolvedGeneratedDir -Recurse -Force
+        }
+    }
+}
+
 $python = Join-Path $projectRoot '.venv\Scripts\python.exe'
 $deploy = Join-Path $projectRoot '.venv\Scripts\pyside6-deploy.exe'
 if (-not (Test-Path -LiteralPath $python)) {
