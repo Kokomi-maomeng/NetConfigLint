@@ -70,3 +70,12 @@ plugin registration interface.
 Dependency/topology visualization, Batfish-assisted validation, configuration migration, and
 digital-twin features should consume normalized models and explicit evidence. They must remain
 optional and local-first; remote processing requires a separate, explicit privacy design.
+
+
+## v1.4 — Material desktop and export workflow
+
+- CastoriceUI typography/palettes, collapsible sidebar and modal settings.
+- Persisted panel title, theme, visibility and order; isolated scratch editor.
+- Localized editor menus, wheel zoom, dynamic gutters and selection cleanup.
+- Source/diagnostic JSON, Markdown and text exports with explicit scope and ordering.
+- Freshness-safe background analysis and localized diagnostic prose.

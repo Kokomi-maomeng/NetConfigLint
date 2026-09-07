@@ -1,103 +1,133 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import theme 1.0
 import "../components"
-
-Item {
+AppDialog {
     id: root
     property var controller
-    ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: Spacing.lg
-        spacing: Spacing.md
-        SelectableText {
-            text: i18n.catalog["page.settings"]
-            color: Colors.textPrimary
-            font: Typography.display
-        }
-        AppCard {
-            Layout.fillWidth: true
-            implicitHeight: 160
-            ColumnLayout {
-                anchors.fill: parent
-                SelectableText {
-                    text: i18n.catalog["settings.appearance"]
-                    color: Colors.textPrimary
-                    font: Typography.subtitle
-                }
-                RowLayout {
-                    SelectableText {
-                        text: i18n.catalog["settings.theme"]
-                        color: Colors.textSecondary
-                        font: Typography.body
-                    }
-                    Item { Layout.fillWidth: true }
-                    ComboBox {
-                        model: [i18n.catalog["settings.system"], i18n.catalog["settings.light"], i18n.catalog["settings.dark"]]
-                        currentIndex: Theme.mode
-                        onActivated: Theme.mode = currentIndex
-                    }
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    SelectableText {
-                        text: i18n.catalog["settings.language"]
-                        color: Colors.textSecondary
-                        font: Typography.body
-                    }
-                    Item { Layout.fillWidth: true }
-                    ComboBox {
-                        model: i18n.availableLanguages
-                        textRole: "label"
-                        valueRole: "code"
-                        currentIndex: i18n.language === "zh_CN" ? 1 : 0
-                        onActivated: i18n.language = currentValue
-                    }
+    title: i18n.catalog["page.settings"]
+    width: Math.min(640, Overlay.overlay.width - 48)
+    height: Math.min(760, Overlay.overlay.height - 48)
+    onOpened: titleField.text = preferences.values.panelTitle
+    contentItem: ScrollView {
+        id: settingsScroll
+        clip: true
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        ScrollBar.vertical: AppScrollBar { }
+        ColumnLayout {
+            width: settingsScroll.availableWidth
+            spacing: 20
+            SelectableText { text: i18n.catalog["settings.general"]; font: Typography.subtitle }
+            RowLayout {
+                Layout.fillWidth: true
+                SelectableText { text: i18n.catalog["settings.language"]; Layout.fillWidth: true }
+                SelectionField {
+                    label: i18n.catalog["settings.language"]
+                    valueText: i18n.language === "zh_CN" ? "简体中文" : "English"
+                    onClicked: languageDialog.open()
                 }
             }
-        }
-        AppCard {
-            Layout.fillWidth: true
-            implicitHeight: 180
             ColumnLayout {
-                anchors.fill: parent
-                SelectableText {
-                    text: i18n.catalog["settings.privacy"]
-                    color: Colors.textPrimary
-                    font: Typography.subtitle
-                }
-                SelectableText {
-                    Layout.fillWidth: true
-                    text: i18n.catalog["settings.privacy_detail"]
-                    color: Colors.textSecondary
-                    font: Typography.body
-                    wrapMode: Text.Wrap
-                }
+                Layout.fillWidth: true
+                SelectableText { text: i18n.catalog["settings.panel_title"] }
                 RowLayout {
                     Layout.fillWidth: true
-                    ColumnLayout {
+                    AppTextField {
+                        id: titleField
+                        objectName: "panelTitleField"
                         Layout.fillWidth: true
-                        SelectableText {
-                            text: i18n.catalog["settings.history"]
-                            color: Colors.textPrimary
-                            font: Typography.body
-                        }
-                        SelectableText {
-                            Layout.fillWidth: true
-                            text: i18n.catalog["settings.history_detail"]
-                            color: Colors.textSecondary
-                            font: Typography.caption
-                            wrapMode: Text.Wrap
-                        }
+                        maximumLength: 40
+                        onAccepted: preferences.setValue("panelTitle", text)
                     }
-                    Switch {
-                        checked: root.controller.historyEnabled
-                        onToggled: root.controller.historyEnabled = checked
+                    AppButton {
+                        text: i18n.catalog["common.save"]
+                        enabled: titleField.text.trim().length > 0
+                        onClicked: preferences.setValue("panelTitle", titleField.text)
                     }
                 }
             }
+            Rectangle { Layout.fillWidth: true; height: 1; color: Colors.outlineVariant }
+            SelectableText { text: i18n.catalog["settings.appearance"]; font: Typography.subtitle }
+            RowLayout {
+                Layout.fillWidth: true
+                SelectableText { text: i18n.catalog["settings.theme"]; Layout.fillWidth: true }
+                SelectionField {
+                    label: i18n.catalog["settings.theme"]
+                    valueText: i18n.catalog[["settings.system", "settings.light", "settings.dark"][Theme.mode]]
+                    onClicked: themeDialog.open()
+                }
+            }
+            SelectableText { text: i18n.catalog["settings.color"] }
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 5
+                columnSpacing: 6
+                rowSpacing: 10
+                Repeater {
+                    model: ["violet", "blue", "green", "rose", "amber", "teal", "cyan", "indigo", "coral", "slate"]
+                    delegate: Button {
+                        id: colorButton
+                        required property string modelData
+                        objectName: "themeColor-" + modelData
+                        Layout.fillWidth: true
+                        implicitHeight: 70
+                        hoverEnabled: true
+                        Accessible.name: i18n.catalog["color." + modelData]
+                        onClicked: preferences.setValue("themeColor", modelData)
+                        background: Rectangle {
+                            radius: 16
+                            color: colorButton.hovered ? Colors.surfaceContainerHigh : Colors.surface
+                            border.color: Theme.accent === colorButton.modelData ? Colors.primary : Colors.outlineVariant
+                            border.width: Theme.accent === colorButton.modelData ? 2 : 1
+                        }
+                        contentItem: ColumnLayout {
+                            spacing: 4
+                            Rectangle {
+                                Layout.alignment: Qt.AlignHCenter
+                                width: 24; height: 24; radius: 12
+                                color: Colors.palettes[colorButton.modelData][Theme.dark ? 2 : 0]
+                            }
+                            Text {
+                                Layout.alignment: Qt.AlignHCenter
+                                text: i18n.catalog["color." + colorButton.modelData]
+                                font: Typography.caption
+                                color: Colors.textPrimary
+                            }
+                        }
+                    }
+                }
+            }
+            Rectangle { Layout.fillWidth: true; height: 1; color: Colors.outlineVariant }
+            RowLayout {
+                Layout.fillWidth: true
+                SelectableText { text: i18n.catalog["settings.history"]; Layout.fillWidth: true }
+                Switch {
+                    objectName: "historySwitch"
+                    checked: root.controller.historyEnabled
+                    onToggled: root.controller.historyEnabled = checked
+                }
+            }
         }
-        Item { Layout.fillHeight: true }
+    }
+    footer: DialogButtonBox {
+        AppButton { text: i18n.catalog["common.done"]; DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole }
+        onAccepted: root.close()
+        background: Item { }
+    }
+    SelectionDialog {
+        id: languageDialog
+        title: i18n.catalog["settings.language"]
+        selectedValue: i18n.language
+        options: [{label:"English",value:"en"},{label:"简体中文",value:"zh_CN"}]
+        onValueSelected: value => i18n.language = value
+    }
+    SelectionDialog {
+        id: themeDialog
+        title: i18n.catalog["settings.theme"]
+        selectedValue: String(Theme.mode)
+        options: [{label:i18n.catalog["settings.system"],value:"0"}, {label:i18n.catalog["settings.light"],value:"1"}, {label:i18n.catalog["settings.dark"],value:"2"}]
+        onValueSelected: value => preferences.setValue("themeMode", Number(value))
     }
 }

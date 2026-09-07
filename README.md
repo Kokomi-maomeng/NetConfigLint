@@ -1,4 +1,4 @@
-# NetConfigLint v1.3
+# NetConfigLint v1.4
 
 > A fast, offline, extensible static analyzer for network device configurations.
 
@@ -9,11 +9,36 @@ source-linked diagnostics to the CLI and QML desktop application through one sha
 It is not a complete VRP emulator, network simulator, migration engine, or replacement for
 vendor-supported validation and lab testing.
 
+## Desktop v1.4
+
+The desktop adopts the Material 3 typography, palettes, rounded navigation, cards, and motion
+of [Material-Design-CastoriceUI](https://github.com/Kokomi-maomeng/Material-Design-CastoriceUI).
+Roboto and Noto Sans SC are bundled for offline use. Platform font rasterizers still differ.
+
+- Open and Export sit together; Mode and Vendor show their current values; Analyze is on the right.
+- Settings opens from the bottom-left sidebar. Customize the panel title, language, system/light/dark
+  appearance, and ten theme colors. About remains a separate page with link cards.
+- Use View to hide or restore each workspace card. Drag the dotted header grip to reorder the three
+  cards, or focus the grip and use arrow keys. Drag separators to resize cards. Hiding/reordering
+  retains text and editor zoom; panel visibility/order and appearance persist between launches.
+- Ctrl+mouse wheel zooms the active editor. Its localized context menu includes Restore default text
+  size after zooming. Line-number gutters grow with the digit count. Ctrl+F and Ctrl+G act only in
+  the focused editor. The scratch editor is never analyzed or included in exports/history.
+- Empty input disables Analyze. Editing source or changing mode/vendor invalidates old diagnostics;
+  results from an outdated background analysis are discarded. Status appears within Diagnostics.
+- Export configuration plus diagnostics, configuration only, or diagnostics only as JSON, Markdown,
+  or text. Full exports put complete source first by default. Diagnostics-first exports annotate code
+  lines with severity counts. Confirmation opens the native save flow; Cancel/outside click aborts.
+  Reports containing diagnostics require a current analysis and always include all severities.
+- Diagnostic prose follows the selected language; commands, source text, identifiers, addresses,
+  and object names retain their original values. The OS detection field was removed from GUI,
+  CLI output, vendor plugins, and the API model in v1.4.
+
 ## Supported scope
 
-The v1.3 Huawei VRP implementation includes:
+The v1.4 Huawei VRP implementation includes:
 
-- conservative vendor and operating-system detection in the desktop interface;
+- registry-driven vendor detection in the desktop interface;
 - an auditable profile catalog whose facts link to official Huawei documents;
 - VLAN, interface, Eth-Trunk, IPv4/IPv6 static route, BGP peer/group/network, OSPF,
   IS-IS, ACL/ACL6, route-policy, prefix-list, traffic-policy, VPN-instance, STP, and
@@ -38,12 +63,12 @@ Local history is optional and disabled by default. When enabled it stores only t
 detected vendor, source line count, diagnostic counts, and Rule IDs. It does not store
 configuration text, filenames, object names, or network addresses.
 
-Exported reports can still disclose network design through ordinary diagnostics; review them
-before sharing.
+Explicit configuration/full exports contain the requested source text. Diagnostic reports can
+also disclose network design; review exported files before sharing.
 
 ## Install from source
 
-Requirements: Python 3.12 or newer; PySide6 is optional for CLI-only use.
+Requirements: Python 3.12 or newer; PySide6 6.9 or newer is optional for CLI-only use.
 
 ```powershell
 python -m venv .venv
@@ -200,7 +225,7 @@ checking the final dependency closure.
 .\scripts\build_installer.ps1 -SkipAppBuild
 ```
 
-The portable command creates `release/NetConfigLint-1.3.0-windows-x64-portable.zip`. Extract the
+The portable command creates `release/NetConfigLint-1.4.0-windows-x64-portable.zip`. Extract the
 single top-level folder and start `NetConfigLint.exe`; the Nuitka build uses the Windows GUI
 subsystem and therefore does not open a console window.
 
@@ -272,3 +297,13 @@ correctly on physical hardware.
 
 Always validate production network changes using vendor-supported procedures and appropriate lab
 or staging environments.
+
+
+For a synthetic-only GUI and export smoke run (also supported by the portable executable):
+
+```powershell
+.\NetConfigLint.exe --smoke-test .\acceptance-output
+```
+
+This opt-in check uses isolated settings, disables history, writes synthetic reports/screenshots,
+and exits with a machine-readable `smoke-result.json`. It does not read user configuration.

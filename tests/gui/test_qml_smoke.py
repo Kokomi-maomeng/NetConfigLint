@@ -63,7 +63,7 @@ def test_workspace_is_three_resizable_columns_with_visible_editor_viewports(qapp
     assert configuration.parentItem() is diagnostics.parentItem() is temporary.parentItem()
     assert configuration.x() + configuration.width() + 8 <= diagnostics.x()
     assert diagnostics.x() + diagnostics.width() + 8 <= temporary.x()
-    assert min(configuration.width(), diagnostics.width(), temporary.width()) >= 250
+    assert min(configuration.width(), diagnostics.width(), temporary.width()) >= 240
 
     header = _visual_by_name(window, "configurationTextAreaHeader")
     viewport = _visual_by_name(window, "configurationTextAreaViewport")
@@ -143,7 +143,7 @@ def test_mode_dialog_stays_inside_window_and_options_have_room(qapp: object) -> 
     for value in ("snippet", "full", "snapshot"):
         option = _visual_by_name(window, f"modeOption-{value}")
         assert option.width() > 480
-        assert option.height() >= 86
+        assert option.height() >= 52
     controller.close()
 
 

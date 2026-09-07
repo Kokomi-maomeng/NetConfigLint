@@ -53,7 +53,7 @@ def _write_text(result: object, stream: TextIO, *, color: bool) -> None:
     detection = result.detection
     stream.write(
         f"NetConfigLint {__version__}\n"
-        f"Vendor: {detection.vendor}  OS: {detection.os}  "
+        f"Vendor: {detection.vendor}  "
         f"Platform: {detection.platform_family}  Model: {detection.model}\n"
         f"Version: {detection.version}  Detection confidence: {detection.confidence:.2f}\n"
         f"Profile: {detection.profile_id}  Profile confidence: {detection.profile_confidence}\n"

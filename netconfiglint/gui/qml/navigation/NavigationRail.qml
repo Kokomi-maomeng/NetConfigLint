@@ -1,56 +1,65 @@
+pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import theme 1.0
-
+import "../components"
 Rectangle {
     id: root
     property int currentIndex: 0
-    property bool expanded: width >= 180
+    property bool compact: root.Window.width < 1180
+    property bool expandedInCompact: false
+    property bool expanded: preferences.values.sidebarExpanded && (!compact || expandedInCompact)
+    onCompactChanged: expandedInCompact = false
     signal pageSelected(int index)
-    color: Colors.surface
-    border.color: Colors.outlineVariant
-    implicitWidth: expanded ? 240 : 72
-
-    Behavior on implicitWidth { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-
+    signal settingsRequested()
+    color: Colors.surfaceContainerLow
+    clip: true
+    Behavior on Layout.preferredWidth { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
+    Rectangle { anchors.right: parent.right; height: parent.height; width: 1; color: Qt.alpha(Colors.outlineVariant, 0.55) }
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Spacing.sm
+        anchors.margins: 14
         spacing: Spacing.xs
-
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 56
+            Layout.preferredHeight: 60
             Rectangle {
-                width: 38; height: 38; radius: Spacing.radiusMedium
+                width: 42; height: 42; radius: 14
                 color: Colors.primary
-                Text {
-                    anchors.centerIn: parent
-                    text: "N"
-                    color: Colors.onPrimary
-                    font: Typography.title
-                }
+                Text { anchors.centerIn: parent; text: "N"; color: Colors.primaryForeground; font: Typography.title }
             }
             Text {
                 Layout.fillWidth: true
                 visible: root.expanded
-                text: "NetConfigLint"
+                text: preferences.values.panelTitle
                 color: Colors.textPrimary
                 font: Typography.subtitle
                 elide: Text.ElideRight
             }
         }
-
+        NavigationItem {
+            objectName: "sidebarToggle"
+            Layout.fillWidth: true
+            text: root.expanded ? i18n.catalog["nav.collapse"] : i18n.catalog["nav.expand"]
+            iconSource: Qt.resolvedUrl("../../../resources/icons/menu.svg")
+            expanded: root.expanded
+            onClicked: {
+                var nextExpanded = !root.expanded
+                root.expandedInCompact = nextExpanded
+                preferences.setValue("sidebarExpanded", nextExpanded)
+            }
+        }
         Repeater {
             model: [
                 { label: i18n.catalog["nav.check"], icon: "check.svg" },
                 { label: i18n.catalog["nav.history"], icon: "history.svg" },
-                { label: i18n.catalog["nav.settings"], icon: "settings.svg" },
                 { label: i18n.catalog["nav.about"], icon: "about.svg" }
             ]
             delegate: NavigationItem {
                 required property int index
                 required property var modelData
+                objectName: "navigation-" + index
                 Layout.fillWidth: true
                 text: modelData.label
                 iconSource: Qt.resolvedUrl("../../../resources/icons/" + modelData.icon)
@@ -60,13 +69,13 @@ Rectangle {
             }
         }
         Item { Layout.fillHeight: true }
-        Text {
+        NavigationItem {
+            objectName: "settingsButton"
             Layout.fillWidth: true
-            visible: root.expanded
-            text: i18n.catalog["nav.offline"]
-            color: Colors.success
-            font: Typography.caption
-            horizontalAlignment: Text.AlignHCenter
+            text: i18n.catalog["nav.settings"]
+            iconSource: Qt.resolvedUrl("../../../resources/icons/settings.svg")
+            expanded: root.expanded
+            onClicked: root.settingsRequested()
         }
     }
 }

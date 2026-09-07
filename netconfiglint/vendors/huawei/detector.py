@@ -52,7 +52,6 @@ class HuaweiDetector:
         version_match = re.search(r"\b(V\d{3}R\d{3}C\d{2}(?:SPC\d{3})?)\b", source, re.IGNORECASE)
         detection = VendorDetection(
             vendor="Huawei" if strong or signals else "Unknown",
-            os="VRP" if strong or signals else "Unknown",
             platform_family=platform,
             model=model,
             version=version_match.group(1).upper() if version_match else "Unknown",

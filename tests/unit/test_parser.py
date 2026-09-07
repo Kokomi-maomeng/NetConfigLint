@@ -3,7 +3,7 @@ import json
 from netconfiglint.core.analyzer import AnalysisMode, VendorDetection
 from netconfiglint.vendors.huawei.parser import HuaweiConfigParser
 
-DETECTION = VendorDetection("Huawei", "VRP", "Unknown", "Unknown", "Unknown", 0.9)
+DETECTION = VendorDetection("Huawei", "Unknown", "Unknown", "Unknown", 0.9)
 
 
 def test_parser_builds_normalized_model_and_line_mapping() -> None:

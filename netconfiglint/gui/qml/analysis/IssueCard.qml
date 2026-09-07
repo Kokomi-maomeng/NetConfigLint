@@ -33,29 +33,29 @@ AppCard {
         spacing: Spacing.xs
         RowLayout {
             Layout.fillWidth: true
-            StatusBadge { label: root.severityValue }
+            StatusBadge { label: i18n.catalog["analysis." + root.severityValue.toLowerCase()]; statusColor: Colors.severity(root.severityValue) }
             SelectableText {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 text: root.ruleIdentifier
                 color: Colors.textSecondary
                 font: Typography.caption
             }
-            Item { Layout.fillWidth: true }
-            SelectableText {
-                text: i18n.catalog["issue.line"] + " " + root.sourceLine
-                color: Colors.primary
-                font: Typography.label
-            }
         }
         SelectableText {
             Layout.fillWidth: true
-            text: root.diagnosticMessage
+            text: { var language = i18n.language; return i18n.diagnostic(root.diagnosticMessage) }
             color: Colors.textPrimary
             font: Typography.label
             wrapMode: TextEdit.Wrap
         }
         SelectableText {
             Layout.fillWidth: true
-            text: root.targetName
+            Layout.minimumWidth: 0
+            wrapMode: TextEdit.WrapAnywhere
+            text: root.ruleIdentifier.startsWith("HUA-SEC-") && root.targetName === "Management plane"
+                  ? i18n.catalog["object.management"]
+                  : (root.ruleIdentifier === "HUA-SEC-001" && root.targetName === "Configuration" ? i18n.catalog["object.configuration"] : root.targetName)
             color: Colors.textSecondary
             font: Typography.caption
         }
@@ -70,7 +70,7 @@ AppCard {
             }
             SelectableText {
                 Layout.fillWidth: true
-                text: root.diagnosticExplanation
+                text: { var language = i18n.language; return i18n.diagnostic(root.diagnosticExplanation) }
                 color: Colors.textSecondary
                 font: Typography.body
                 wrapMode: TextEdit.Wrap
@@ -82,7 +82,7 @@ AppCard {
             }
             SelectableText {
                 Layout.fillWidth: true
-                text: root.diagnosticFix
+                text: { var language = i18n.language; return i18n.diagnostic(root.diagnosticFix) }
                 color: Colors.textSecondary
                 font: Typography.body
                 wrapMode: TextEdit.Wrap
@@ -90,7 +90,7 @@ AppCard {
         }
         RowLayout {
             Layout.fillWidth: true
-            AppButton { text: i18n.catalog["issue.goto"]; onClicked: root.jumpRequested() }
+            AppButton { text: i18n.catalog["issue.line"] + " " + root.sourceLine + " ↗"; onClicked: root.jumpRequested() }
             Item { Layout.fillWidth: true }
             AppButton {
                 text: root.expanded ? i18n.catalog["issue.less"] : i18n.catalog["issue.details"]

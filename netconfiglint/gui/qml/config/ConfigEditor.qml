@@ -3,146 +3,85 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import theme 1.0
 import "../components"
-
 AppCard {
     id: root
     property alias text: editor.text
     property alias editor: editor
     property string editorObjectName: "configEditorTextArea"
     property string title: i18n.catalog["editor.configuration"]
-    property string subtitle: ""
-    property string placeholderText: ""
     property int currentLine: 1
+    property int editorFontSize: Typography.monospace.pixelSize
+    property bool zoomModified: false
     signal textEdited(string value)
+    signal dragStarted()
+    signal dragMoved(real sceneX)
+    signal dragFinished(real sceneX)
+    signal stepRequested(int direction)
     padding: 0
-
+    function resetZoom() { editorFontSize = Typography.monospace.pixelSize; zoomModified = false }
+    function zoom(delta) { editorFontSize = Math.max(9, Math.min(40, editorFontSize + delta)); zoomModified = true }
     function lineNumberText() {
-        var count = Math.max(1, editor.lineCount)
-        var result = ""
-        for (var i = 1; i <= count; ++i) result += i + (i < count ? "\n" : "")
-        return result
+        var result = []
+        for (var i = 1; i <= Math.max(1, editor.lineCount); ++i) result.push(i)
+        return result.join("\n")
     }
-
-    function updateCurrentLine() {
-        var prefix = editor.text.slice(0, editor.cursorPosition)
-        currentLine = prefix.split("\n").length
-    }
-
     function jumpToLine(line) {
-        var safeLine = Math.max(1, Math.min(line, editor.lineCount))
+        if (!isFinite(line)) return
+        var safeLine = Math.max(1, Math.min(Math.floor(line), editor.lineCount))
         var position = 0
         var lines = editor.text.split("\n")
         for (var i = 1; i < safeLine; ++i) position += lines[i - 1].length + 1
         editor.cursorPosition = position
         editor.forceActiveFocus()
-        root.updateCurrentLine()
         Qt.callLater(function() {
-            scrollView.contentItem.contentY = Math.max(0, editor.cursorRectangle.y - scrollView.height / 3)
+            scrollView.contentItem.contentY = Math.max(0, Math.min(scrollView.contentItem.contentHeight - scrollView.height, editor.cursorRectangle.y - scrollView.height / 3))
         })
     }
-
     function findNext() {
         var query = searchField.text
         if (!query.length) return
-        var start = Math.min(editor.cursorPosition + 1, editor.length)
+        var start = editor.selectionEnd > editor.selectionStart ? editor.selectionEnd : editor.cursorPosition
         var index = editor.text.toLowerCase().indexOf(query.toLowerCase(), start)
         if (index < 0) index = editor.text.toLowerCase().indexOf(query.toLowerCase())
-        if (index >= 0) {
-            editor.select(index, index + query.length)
-            editor.forceActiveFocus()
-        }
+        if (index >= 0) { editor.forceActiveFocus(); editor.select(index, index + query.length) }
     }
-
-    function measuredTextWidth() {
-        var lines = editor.text.split("\n")
-        var widest = 0
-        for (var i = 0; i < lines.length; ++i) {
-            var units = 0
-            for (var j = 0; j < lines[i].length; ++j) {
-                var character = lines[i].charAt(j)
-                units += character === "\t" ? 4 : (character.charCodeAt(0) > 255 ? 1 : 0.62)
-            }
-            widest = Math.max(widest, units * Typography.monospace.pixelSize)
-        }
-        return widest
-    }
-
+    FontMetrics { id: monoMetrics; font: editor.font }
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
-
-        Rectangle {
-            id: editorHeader
+        CardHeader {
             objectName: root.editorObjectName + "Header"
             Layout.fillWidth: true
-            Layout.preferredHeight: headerContent.implicitHeight + Spacing.sm * 2
-            color: Colors.surfaceContainer
-            topLeftRadius: Spacing.radiusCard
-            topRightRadius: Spacing.radiusCard
-            clip: true
-
-            ColumnLayout {
-                id: headerContent
-                anchors.fill: parent
-                anchors.margins: Spacing.sm
-                spacing: Spacing.xs
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: Spacing.sm
-                    SelectableText {
-                        Layout.fillWidth: true
-                        text: root.title
-                        color: Colors.textPrimary
-                        font: Typography.subtitle
-                        wrapMode: TextEdit.NoWrap
-                        clip: true
-                    }
-                    SelectableText {
-                        text: i18n.catalog["editor.line"] + " " + root.currentLine
-                              + " / " + Math.max(1, editor.lineCount)
-                        color: Colors.textSecondary
-                        font: Typography.caption
-                        wrapMode: TextEdit.NoWrap
-                    }
-                }
-
-                SelectableText {
-                    Layout.fillWidth: true
-                    visible: root.subtitle.length > 0
-                    text: root.subtitle
-                    color: Colors.textSecondary
-                    font: Typography.caption
-                    wrapMode: TextEdit.NoWrap
-                    clip: true
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: searchField.visible
-                    spacing: Spacing.xs
-                    AppTextField {
-                        id: searchField
-                        visible: false
-                        Layout.fillWidth: true
-                        placeholderText: i18n.catalog["editor.find"]
-                        onAccepted: root.findNext()
-                    }
-                    AppButton {
-                        text: i18n.catalog["editor.next"]
-                        onClicked: root.findNext()
-                    }
-                }
-            }
+            Layout.preferredHeight: 60
+            title: root.title
+            detail: root.currentLine + " / " + Math.max(1, editor.lineCount)
+            onDragStarted: root.dragStarted()
+            onDragMoved: sceneX => root.dragMoved(sceneX)
+            onDragFinished: sceneX => root.dragFinished(sceneX)
+            onStepRequested: direction => root.stepRequested(direction)
         }
-
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.margins: visible ? 8 : 0
+            visible: searchField.visible
+            AppTextField {
+                id: searchField
+                visible: false
+                Layout.fillWidth: true
+                placeholderText: i18n.catalog["editor.find"]
+                onAccepted: root.findNext()
+                Keys.onEscapePressed: { visible = false; editor.forceActiveFocus() }
+            }
+            AppButton { text: i18n.catalog["editor.next"]; onClicked: root.findNext() }
+            AppButton { text: "×"; Accessible.name: i18n.catalog["common.close"]; onClicked: { searchField.visible = false; editor.forceActiveFocus() } }
+        }
         Item {
             id: editorBody
             objectName: root.editorObjectName + "Viewport"
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.bottomMargin: 16
             clip: true
-
             ScrollView {
                 id: scrollView
                 objectName: root.editorObjectName + "ScrollView"
@@ -150,91 +89,68 @@ AppCard {
                 clip: true
                 ScrollBar.horizontal: AppScrollBar { }
                 ScrollBar.vertical: AppScrollBar { }
-
                 TextArea {
                     id: editor
+            WheelHandler {
+                target: null
+                acceptedModifiers: Qt.ControlModifier
+                onWheel: event => { if (event.angleDelta.y !== 0) root.zoom(event.angleDelta.y > 0 ? 1 : -1); event.accepted = true }
+            }
+
                     objectName: root.editorObjectName
-                    width: Math.max(scrollView.availableWidth,
-                                    root.measuredTextWidth() + leftPadding + rightPadding)
-                    height: Math.max(scrollView.availableHeight,
-                                     editor.lineCount * Typography.monospace.pixelSize * 1.35
-                                     + topPadding + bottomPadding)
-                    leftPadding: lineNumberGutter.width + Spacing.md
-                    rightPadding: Spacing.md
-                    topPadding: Spacing.md
-                    bottomPadding: Spacing.md
+                    width: Math.max(scrollView.availableWidth, implicitWidth)
+                    height: Math.max(scrollView.availableHeight, implicitHeight)
+                    leftPadding: lineNumberGutter.width + 8
+                    rightPadding: 16
+                    topPadding: 12
+                    bottomPadding: 12
                     wrapMode: TextEdit.NoWrap
+                    textFormat: TextEdit.PlainText
                     selectByMouse: true
-                    persistentSelection: true
+                    persistentSelection: Theme.selectionLocked
+                    renderType: Text.NativeRendering
                     color: Colors.textPrimary
                     selectionColor: Colors.primaryContainer
                     selectedTextColor: Colors.textPrimary
-                    font: Typography.monospace
-                    background: Rectangle { color: Colors.editorBackground }
+                    font: fontPalette.editorFont(root.editorFontSize)
+                    background: Item { }
+                    ContextMenu.menu: TextEditMenu { editor: root.editor; zoomTarget: root }
                     onTextChanged: root.textEdited(text)
-                    onCursorPositionChanged: root.updateCurrentLine()
+                    onCursorPositionChanged: root.currentLine = text.slice(0, cursorPosition).split("\n").length
                 }
             }
-
-            Text {
-                anchors.left: parent.left
-                anchors.leftMargin: lineNumberGutter.width + Spacing.md
-                anchors.right: parent.right
-                anchors.rightMargin: Spacing.md
-                anchors.top: parent.top
-                anchors.topMargin: Spacing.md
-                visible: editor.length === 0 && !editor.activeFocus
-                text: root.placeholderText
-                color: Colors.textSecondary
-                font: Typography.monospace
-                elide: Text.ElideRight
-                clip: true
-                z: 3
-            }
-
             Rectangle {
                 id: lineNumberGutter
+                objectName: root.editorObjectName + "Gutter"
                 anchors.left: parent.left
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                width: Math.max(52, lineNumbers.implicitWidth + Spacing.md)
-                color: Colors.surfaceContainer
-                border.color: Colors.outlineVariant
-                border.width: 1
+                width: Math.ceil(monoMetrics.advanceWidth(String(Math.max(1, editor.lineCount)))) + 12
+                color: Colors.surfaceContainerLow
                 clip: true
                 z: 2
-
+                Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: Qt.alpha(Colors.outlineVariant, 0.5) }
                 Text {
-                    id: lineNumbers
-                    x: Spacing.xs
+                    x: 6
                     y: editor.topPadding - scrollView.contentItem.contentY
-                    width: lineNumberGutter.width - Spacing.md
+                    width: lineNumberGutter.width - 12
                     text: root.lineNumberText()
                     color: Colors.textSecondary
-                    font: Typography.monospace
+                    font: editor.font
+                    renderType: Text.NativeRendering
                     horizontalAlignment: Text.AlignRight
                 }
             }
         }
     }
-
     Shortcut {
         sequences: [StandardKey.Find]
-        onActivated: {
-            searchField.visible = true
-            searchField.forceActiveFocus()
-            searchField.selectAll()
-        }
+        enabled: root.visible && (editor.activeFocus || searchField.activeFocus)
+        onActivated: { searchField.visible = true; searchField.forceActiveFocus(); searchField.selectAll() }
     }
-    Shortcut { sequence: "Ctrl+G"; onActivated: jumpDialog.open() }
-    Component.onCompleted: {
-        syntaxHighlighter.attach(editor.textDocument)
-        syntaxHighlighter.setDark(Theme.dark)
-    }
-    Connections {
-        target: Theme
-        function onDarkChanged() { syntaxHighlighter.setDark(Theme.dark) }
-    }
+    Shortcut { sequence: "Ctrl+G"; enabled: root.visible && editor.activeFocus; onActivated: jumpDialog.open() }
+    Component.onCompleted: { syntaxHighlighter.attach(editor.textDocument); syntaxHighlighter.setDark(Theme.dark) }
+    Connections { target: Theme; function onDarkChanged() { syntaxHighlighter.setDark(Theme.dark) } }
     AppDialog {
         id: jumpDialog
         title: i18n.catalog["editor.goto"]
@@ -242,8 +158,9 @@ AppCard {
             id: lineField
             implicitHeight: 44
             placeholderText: i18n.catalog["editor.line_number"]
+            validator: IntValidator { bottom: 1; top: editor.lineCount }
             inputMethodHints: Qt.ImhDigitsOnly
-            onAccepted: { root.jumpToLine(parseInt(text)); jumpDialog.close() }
+            onAccepted: if (acceptableInput) { root.jumpToLine(Number(text)); jumpDialog.close() }
         }
     }
 }

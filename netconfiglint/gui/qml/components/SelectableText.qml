@@ -6,14 +6,15 @@ TextEdit {
     property color linkColor: Colors.primary
     readOnly: true
     selectByMouse: true
-    persistentSelection: true
+    persistentSelection: false
+    renderType: Text.NativeRendering
     activeFocusOnPress: true
     color: Colors.textPrimary
     font: Typography.body
     selectionColor: Colors.primaryContainer
     selectedTextColor: Colors.textPrimary
     wrapMode: TextEdit.Wrap
-    textFormat: TextEdit.AutoText
+    textFormat: TextEdit.PlainText
     Keys.onPressed: event => {
         if (event.matches(StandardKey.Copy)) {
             control.copy()

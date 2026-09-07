@@ -1,105 +1,102 @@
+pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import theme 1.0
 import "../components"
-
 AppCard {
     id: root
-    property string mode: "full"
-    property string vendor: "auto"
-    property bool busy: false
+    property var controller
     signal openRequested()
-    signal pasteRequested()
     signal analyzeRequested()
-    signal clearRequested()
     signal exportRequested()
-    signal modeSelected(string value)
-    signal vendorSelected(string value)
-    implicitHeight: 84
-
-    function modeLabel() {
-        if (mode === "snippet") return i18n.catalog["mode.snippet"]
-        if (mode === "snapshot") return i18n.catalog["mode.snapshot"]
-        return i18n.catalog["mode.full"]
+    implicitHeight: toolbarFlow.implicitHeight + padding * 2
+    padding: 12
+    function vendorOptions() {
+        return controller.vendorOptions.map(function(option) {
+            return { value: option.value, label: i18n.catalog["vendor." + option.value] || option.label }
+        })
     }
-
     function vendorLabel() {
-        return vendor === "huawei" ? i18n.catalog["vendor.huawei"] : i18n.catalog["vendor.auto"]
+        var choices = vendorOptions()
+        for (var i = 0; i < choices.length; ++i) if (choices[i].value === controller.vendor) return choices[i].label
+        return controller.vendor
     }
-
     RowLayout {
+        id: toolbarFlow
         anchors.fill: parent
-        spacing: Spacing.sm
-
-        AppButton { text: i18n.catalog["toolbar.open"]; onClicked: root.openRequested() }
-        AppButton { text: i18n.catalog["toolbar.paste"]; onClicked: root.pasteRequested() }
-        AppButton {
-            text: root.busy ? i18n.catalog["toolbar.analyzing"] : i18n.catalog["toolbar.analyze"]
-            prominent: true
-            enabled: !root.busy
-            onClicked: root.analyzeRequested()
-        }
-        AppButton { text: i18n.catalog["toolbar.clear"]; enabled: !root.busy; onClicked: root.clearRequested() }
-        AppButton { text: i18n.catalog["toolbar.export"]; onClicked: root.exportRequested() }
-        Item { Layout.fillWidth: true }
+        spacing: 8
+        AppButton { objectName: "openButton"; text: i18n.catalog["toolbar.open"]; onClicked: root.openRequested() }
+        AppButton { objectName: "exportButton"; text: i18n.catalog["toolbar.export"]; enabled: root.controller.sourceText.trim().length > 0; onClicked: root.exportRequested() }
         SelectionField {
-            id: modeField
             objectName: "modeSelectionField"
-            Layout.preferredWidth: 174
-            Layout.minimumWidth: 160
             label: i18n.catalog["toolbar.mode"]
-            valueText: root.modeLabel()
+            valueText: i18n.catalog["mode." + root.controller.mode]
             onClicked: modeDialog.open()
         }
         SelectionField {
-            id: vendorField
             objectName: "vendorSelectionField"
-            Layout.preferredWidth: 174
-            Layout.minimumWidth: 160
             label: i18n.catalog["toolbar.vendor"]
             valueText: root.vendorLabel()
             onClicked: vendorDialog.open()
         }
+        AppButton {
+            id: panelsButton
+            objectName: "panelsButton"
+            text: i18n.catalog["panels.show"] + "  ⌄"
+            onClicked: panelsMenu.open()
+            AppMenu {
+                id: panelsMenu
+                y: panelsButton.height + 6
+                width: 240
+                Repeater {
+                    model: ["configuration", "diagnostics", "temporary"]
+                    delegate: MenuItem {
+                        required property string modelData
+                        objectName: "panelToggle-" + modelData
+                        text: i18n.catalog["panel." + modelData]
+                        checkable: true
+                        checked: preferences.values.panels.indexOf(modelData) >= 0
+                        onTriggered: {
+                            var visiblePanels = preferences.values.panels.slice()
+                            var index = visiblePanels.indexOf(modelData)
+                            if (index >= 0) visiblePanels.splice(index, 1)
+                            else visiblePanels.push(modelData)
+                            preferences.setValue("panels", visiblePanels)
+                        }
+                    }
+                }
+            }
+        }
+        Item { Layout.fillWidth: true }
+        AppButton {
+            objectName: "analyzeButton"
+            text: root.controller.busy ? i18n.catalog["toolbar.analyzing"] : i18n.catalog["toolbar.analyze"]
+            prominent: true
+            enabled: !root.controller.busy && root.controller.sourceText.trim().length > 0
+            onClicked: root.analyzeRequested()
+        }
     }
-
     SelectionDialog {
         id: modeDialog
         objectName: "modeSelectionDialog"
         optionObjectPrefix: "modeOption-"
         title: i18n.catalog["mode.choose"]
-        selectedValue: root.mode
+        selectedValue: root.controller.mode
         options: [
-            {
-                label: i18n.catalog["mode.snippet"], value: "snippet",
-                description: i18n.catalog["mode.snippet.detail"]
-            },
-            {
-                label: i18n.catalog["mode.full"], value: "full",
-                description: i18n.catalog["mode.full.detail"]
-            },
-            {
-                label: i18n.catalog["mode.snapshot"], value: "snapshot",
-                description: i18n.catalog["mode.snapshot.detail"]
-            }
+            { label: i18n.catalog["mode.snippet"], value: "snippet", description: i18n.catalog["mode.snippet.detail"] },
+            { label: i18n.catalog["mode.full"], value: "full", description: i18n.catalog["mode.full.detail"] },
+            { label: i18n.catalog["mode.snapshot"], value: "snapshot", description: i18n.catalog["mode.snapshot.detail"] }
         ]
-        onValueSelected: value => root.modeSelected(value)
+        onValueSelected: value => root.controller.mode = value
     }
     SelectionDialog {
         id: vendorDialog
         objectName: "vendorSelectionDialog"
         optionObjectPrefix: "vendorOption-"
         title: i18n.catalog["vendor.choose"]
-        selectedValue: root.vendor
-        options: [
-            {
-                label: i18n.catalog["vendor.auto"], value: "auto",
-                description: i18n.catalog["vendor.auto.detail"]
-            },
-            {
-                label: i18n.catalog["vendor.huawei"], value: "huawei",
-                description: i18n.catalog["vendor.huawei.detail"]
-            }
-        ]
-        onValueSelected: value => root.vendorSelected(value)
+        selectedValue: root.controller.vendor
+        options: root.vendorOptions()
+        onValueSelected: value => root.controller.vendor = value
     }
 }

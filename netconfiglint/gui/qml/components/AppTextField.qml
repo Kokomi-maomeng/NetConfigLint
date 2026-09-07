@@ -4,6 +4,7 @@ import theme 1.0
 
 TextField {
     id: control
+    ContextMenu.menu: TextEditMenu { editor: control }
     color: Colors.textPrimary
     placeholderTextColor: Colors.textSecondary
     selectionColor: Colors.primaryContainer

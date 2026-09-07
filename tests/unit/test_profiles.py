@@ -12,7 +12,7 @@ def test_profile_catalog_has_valid_official_evidence_links() -> None:
 
 def test_profile_resolution_is_conservative_without_explicit_evidence() -> None:
     database = ProfileDatabase()
-    generic = database.resolve(VendorDetection("Huawei", "VRP", "Unknown", "Unknown", "Unknown", 0.8))
+    generic = database.resolve(VendorDetection("Huawei", "Unknown", "Unknown", "Unknown", 0.8))
     assert generic.profile.profile_id == "huawei-vrp-base"
     assert generic.confidence == "GENERIC"
 

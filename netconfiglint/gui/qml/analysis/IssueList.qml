@@ -10,7 +10,7 @@ ListView {
     property string severityFilter: "ALL"
     signal issueActivated(int row)
     clip: true
-    spacing: Spacing.sm
+    spacing: 0
     boundsBehavior: Flickable.StopAtBounds
     ScrollBar.vertical: AppScrollBar { }
     delegate: Item {
@@ -25,10 +25,11 @@ ListView {
         required property string suggestedFix
         width: ListView.view.width - (ListView.view.ScrollBar.vertical.visible ? 14 : 2)
         visible: root.severityFilter === "ALL" || root.severityFilter === severity
-        height: visible ? issueCard.implicitHeight : 0
+        height: visible ? issueCard.implicitHeight + Spacing.sm : 0
         IssueCard {
             id: issueCard
             anchors.fill: parent
+            anchors.bottomMargin: Spacing.sm
             severityValue: issueRow.severity
             ruleIdentifier: issueRow.ruleId
             sourceLine: issueRow.line

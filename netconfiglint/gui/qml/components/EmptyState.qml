@@ -1,37 +1,29 @@
 import QtQuick
 import QtQuick.Layouts
 import theme 1.0
-
 ColumnLayout {
-    property string title: "Nothing here yet"
+    id: root
+    property string title: ""
     property string description: ""
     spacing: Spacing.xs
     Item { Layout.fillHeight: true }
-    Rectangle {
-        Layout.alignment: Qt.AlignHCenter
-        Layout.preferredWidth: 44
-        Layout.preferredHeight: 44
-        radius: 22
-        color: Colors.primaryContainer
-        SelectableText { anchors.centerIn: parent; text: "—"; color: Colors.primary; font: Typography.title }
-    }
     SelectableText {
-        Layout.alignment: Qt.AlignHCenter
-        text: parent.title
-        color: Colors.textPrimary
-        font: Typography.subtitle
-    }
-    SelectableText {
-        Layout.alignment: Qt.AlignHCenter
         Layout.fillWidth: true
-        Layout.leftMargin: Spacing.md
-        Layout.rightMargin: Spacing.md
-        Layout.maximumWidth: 360
-        text: parent.description
+        Layout.margins: Spacing.md
+        text: root.title
+        visible: text.length > 0
+        horizontalAlignment: Text.AlignHCenter
         color: Colors.textSecondary
         font: Typography.body
+    }
+    SelectableText {
+        Layout.fillWidth: true
+        Layout.margins: Spacing.md
+        text: root.description
+        visible: text.length > 0
+        color: Colors.textSecondary
+        font: Typography.caption
         horizontalAlignment: Text.AlignHCenter
-        wrapMode: TextEdit.Wrap
     }
     Item { Layout.fillHeight: true }
 }
