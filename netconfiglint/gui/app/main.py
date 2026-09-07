@@ -24,7 +24,8 @@ def qml_root() -> Path:
 
 
 def create_engine(controller: AnalysisController) -> QQmlApplicationEngine:
-    QQuickStyle.setStyle("Material")
+    if QQuickStyle.name() != "Material":
+        QQuickStyle.setStyle("Material")
     engine = QQmlApplicationEngine()
     i18n = TranslationController(engine)
     controller.translator = i18n

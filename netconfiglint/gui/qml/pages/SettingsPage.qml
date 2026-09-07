@@ -8,8 +8,8 @@ AppDialog {
     id: root
     property var controller
     title: i18n.catalog["page.settings"]
-    width: Math.min(640, Overlay.overlay.width - 48)
-    height: Math.min(760, Overlay.overlay.height - 48)
+    width: Overlay.overlay ? Math.min(640, Overlay.overlay.width - 48) : 640
+    height: Overlay.overlay ? Math.min(760, Overlay.overlay.height - 48) : 760
     onOpened: titleField.text = preferences.values.panelTitle
     contentItem: ScrollView {
         id: settingsScroll

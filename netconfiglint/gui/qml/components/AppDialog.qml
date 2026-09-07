@@ -8,7 +8,7 @@ Dialog {
     popupType: Popup.Item
     font: Typography.body
     anchors.centerIn: Overlay.overlay
-    width: Math.min(560, Overlay.overlay.width - Spacing.lg * 2)
+    width: Overlay.overlay ? Math.min(560, Overlay.overlay.width - Spacing.lg * 2) : 560
     padding: Spacing.lg
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
     Overlay.modal: Rectangle { color: Colors.scrim }
