@@ -1,4 +1,4 @@
-"""Small command tree scaffold with shortest-unique-prefix resolution."""
+"""Experimental command-tree API; not used to validate product configuration input."""
 
 from __future__ import annotations
 

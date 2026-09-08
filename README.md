@@ -268,7 +268,7 @@ licenses of their selected Python/Qt distribution and packaging toolchain.
 - BGP group inheritance, advanced EVPN, ACL/QoS/policy consumers, IPv6, OSPF/OSPFv3, and
   multi-process IS-IS semantics remain partial.
 - “Unused” means no consumer recognized by this parser; an unsupported feature may reference it.
-- Chinese localization does not yet include rule-generated diagnostic prose.
+- English and Simplified Chinese diagnostic prose are available; unsupported vendor semantics remain explicit.
 - Release binaries are unsigned unless a valid external code-signing identity is supplied.
 
 See [Huawei validation notes](docs/huawei-validation.md), [status](docs/status.md), and the

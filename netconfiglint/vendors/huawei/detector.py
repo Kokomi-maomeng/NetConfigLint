@@ -25,14 +25,34 @@ class HuaweiDetector:
     )
 
     def detect(self, source: str) -> VendorDetection:
+        # An explicit foreign banner outweighs syntax shared with VRP, including mixed captures.
+        foreign = re.search(
+            r"(?im)^\s*(?:H3C\b|HPE Comware\b|HP Comware\b|.*Comware Software|"
+            r"Cisco IOS\b|Junos:|Juniper Networks\b|Arista Networks\b)",
+            source,
+        )
+        if foreign:
+            return VendorDetection(
+                vendor="Unknown",
+                platform_family="Unknown",
+                model="Unknown",
+                version="Unknown",
+                confidence=0.0,
+                evidence=(
+                    "Explicit unsupported or mixed vendor banner; select the intended vendor manually",
+                ),
+            )
+        distinctive = bool(re.search(r"(?im)^\s*port (?:trunk allow-pass vlan|default vlan)\b", source))
         evidence: list[str] = []
         strong = sum(bool(pattern.search(source)) for pattern in self._strong)
         signals = sum(bool(pattern.search(source)) for pattern in self._signals)
+        if distinctive:
+            evidence.append("Huawei port VLAN syntax")
         if strong:
             evidence.append("VRP version banner")
         if signals:
-            evidence.append(f"{signals} Huawei-style configuration signatures")
-        confidence = min(0.99, 0.55 + strong * 0.30 + signals * 0.06) if strong or signals else 0.10
+            evidence.append(f"{signals} shared VRP-style signatures; vendor inferred, not confirmed")
+        confidence = min(0.99, (0.85 if strong else 0.35) + signals * 0.04) if strong or signals else 0.10
 
         platform = "Unknown"
         model = "Unknown"
@@ -51,7 +71,7 @@ class HuaweiDetector:
 
         version_match = re.search(r"\b(V\d{3}R\d{3}C\d{2}(?:SPC\d{3})?)\b", source, re.IGNORECASE)
         detection = VendorDetection(
-            vendor="Huawei" if strong or signals else "Unknown",
+            vendor="Huawei" if strong or distinctive else "Unknown",
             platform_family=platform,
             model=model,
             version=version_match.group(1).upper() if version_match else "Unknown",

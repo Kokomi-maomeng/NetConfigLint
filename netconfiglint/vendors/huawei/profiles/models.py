@@ -11,6 +11,8 @@ from netconfiglint.core.analyzer.models import VendorDetection
 
 @dataclass(frozen=True, slots=True)
 class ProfileOverlay:
+    """Experimental command overlay; separate from the active evidence catalog."""
+
     name: str
     commands: tuple[tuple[str, ...], ...] = ()
     removed_commands: tuple[tuple[str, ...], ...] = ()
@@ -18,6 +20,8 @@ class ProfileOverlay:
 
 @dataclass(slots=True)
 class CommandProfile:
+    """Experimental grammar API; no product compatibility guarantee is derived from it."""
+
     name: str
     base_commands: set[tuple[str, ...]] = field(default_factory=set)
     overlays: list[ProfileOverlay] = field(default_factory=list)

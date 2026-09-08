@@ -4,6 +4,7 @@ import re
 
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
+from netconfiglint.vendors.huawei.parser.acl_identity import acl_label, parse_acl_identity
 from netconfiglint.vendors.huawei.rules.facts import all_commands
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
 
@@ -75,11 +76,8 @@ class EmptyReferencedAclRule:
         tokens = header.split()
         if not tokens or tokens[0].lower() != "acl":
             return None
-        if len(tokens) >= 4 and tokens[1].lower() == "ipv6" and tokens[2].lower() in {"name", "number"}:
-            return tokens[3]
-        if len(tokens) >= 3 and tokens[1].lower() in {"name", "number"}:
-            return tokens[2]
-        return tokens[1] if len(tokens) >= 2 else None
+        identity = parse_acl_identity(tuple(tokens[1:]))
+        return identity.key if identity is not None else None
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         if context.mode.value == "snippet":
@@ -106,7 +104,7 @@ class EmptyReferencedAclRule:
                     self.metadata.rule_id,
                     source,
                     object_name,
-                    f"Referenced ACL {name} contains no rules.",
+                    f"Referenced ACL {acl_label(name)} contains no rules.",
                     "An empty ACL can deny expected traffic or leave a policy ineffective "
                     "depending on context.",
                     "Add the intended ACL rules or remove the stale reference after impact review.",

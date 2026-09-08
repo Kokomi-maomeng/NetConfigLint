@@ -4,6 +4,7 @@ import re
 
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
+from netconfiglint.vendors.huawei.parser.acl_identity import acl_label
 from netconfiglint.vendors.huawei.rules.facts import all_commands
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
 
@@ -93,10 +94,10 @@ class MissingAclRule:
                 rule_id=self.metadata.rule_id,
                 source=source,
                 object_name=object_name,
-                full_message=f"ACL {name} is referenced but not defined.",
-                snippet_message=f"ACL {name} was not found in the snippet.",
+                full_message=f"ACL {acl_label(name)} is referenced but not defined.",
+                snippet_message=f"ACL {acl_label(name)} was not found in the snippet.",
                 explanation="No matching ACL definition exists in the supplied full configuration.",
-                suggested_fix=f"Define ACL {name} or correct/remove the reference.",
+                suggested_fix=f"Define ACL {acl_label(name)} or correct/remove the reference.",
             )
             for name, object_name, source in references
             if name not in context.config.acls

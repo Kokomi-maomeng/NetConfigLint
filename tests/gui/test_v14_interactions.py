@@ -42,6 +42,7 @@ def wait_until(predicate: Callable[[], bool]) -> None:
 @pytest.fixture
 def gui(qapp: object) -> Iterator[tuple[QQuickWindow, AnalysisController, object]]:
     controller = AnalysisController(async_enabled=False)
+    controller.vendor = "huawei"
     engine = create_engine(controller)
     window = engine.rootObjects()[0]
     assert isinstance(window, QQuickWindow)

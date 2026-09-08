@@ -34,6 +34,7 @@ from netconfiglint.core.model import (
     Vlan,
     VpnInstance,
 )
+from netconfiglint.vendors.huawei.parser.acl_identity import parse_acl_identity
 from netconfiglint.vendors.huawei.parser.snapshot_parser import HuaweiSnapshotParser
 
 _SENSITIVE = re.compile(r"\b(password|cipher|community|pre-shared-key|secret|private-key)\b", re.IGNORECASE)
@@ -159,15 +160,12 @@ class HuaweiConfigParser:
             config.prefix_lists.setdefault(tokens[2], PrefixList(tokens[2], source))
             return True
         if lower.startswith("acl ") and len(tokens) >= 2:
-            if len(tokens) >= 4 and tokens[1].lower() == "ipv6" and tokens[2].lower() in {"name", "number"}:
-                name = tokens[3]
-            else:
-                name = (
-                    tokens[2] if len(tokens) >= 3 and tokens[1].lower() in {"name", "number"} else tokens[1]
-                )
-            config.acls.setdefault(name, ACL(name, source))
+            identity = parse_acl_identity(tokens[1:])
+            if identity is None:
+                return False
+            config.acls.setdefault(identity.key, ACL(identity.value, source, identity.family, identity.kind))
             return True
-        if lower.startswith("traffic-filter "):
+        if lower.startswith("traffic-filter ") and not line.raw[:1].isspace():
             self._record_acl_reference(config, line, object_name="global")
             return True
         if lower.startswith("sysname "):
@@ -324,9 +322,12 @@ class HuaweiConfigParser:
         if lower.startswith("if-match ip-prefix ") and len(tokens) >= 3:
             policy.prefix_references.append((tokens[2], source))
             return True
-        if lower.startswith("if-match acl ") and len(tokens) >= 3:
-            policy.acl_references.append((tokens[2], source))
-            return True
+        if lower.startswith(("if-match acl ", "if-match ipv6 acl ")):
+            offset = 3 if tokens[1].lower() == "ipv6" else 2
+            identity = parse_acl_identity(tokens[offset:], family="ipv6" if offset == 3 else "ipv4")
+            if identity is not None:
+                policy.acl_references.append((identity.key, source))
+                return True
         return False
 
     @staticmethod
@@ -334,12 +335,12 @@ class HuaweiConfigParser:
         tokens = line.tokens
         lower_tokens = tuple(token.lower() for token in tokens)
         source = SourceRange(line.number)
-        if lower_tokens[:2] == ("if-match", "acl") and len(tokens) >= 3:
-            classifier.acl_references.append((tokens[2], source))
-            return True
-        if lower_tokens[:3] == ("if-match", "ipv6", "acl") and len(tokens) >= 4:
-            classifier.acl_references.append((tokens[3], source))
-            return True
+        if lower_tokens[:2] == ("if-match", "acl") or lower_tokens[:3] == ("if-match", "ipv6", "acl"):
+            offset = 3 if lower_tokens[1] == "ipv6" else 2
+            identity = parse_acl_identity(tokens[offset:], family="ipv6" if offset == 3 else "ipv4")
+            if identity is not None:
+                classifier.acl_references.append((identity.key, source))
+                return True
         return False
 
     @staticmethod
@@ -428,9 +429,12 @@ class HuaweiConfigParser:
     @staticmethod
     def _record_acl_reference(config: DeviceConfig, line: SourceLine, object_name: str) -> None:
         tokens = line.tokens
-        for marker in ("acl", "name"):
-            if marker in tuple(token.lower() for token in tokens):
-                index = tuple(token.lower() for token in tokens).index(marker)
-                if index + 1 < len(tokens):
-                    config.acl_references.append((tokens[index + 1], object_name, SourceRange(line.number)))
-                return
+        lower = tuple(token.lower() for token in tokens)
+        if "acl" not in lower:
+            return
+        index = lower.index("acl")
+        identity = parse_acl_identity(
+            tokens[index + 1 :], family="ipv6" if "ipv6" in lower[:index] else "ipv4"
+        )
+        if identity is not None:
+            config.acl_references.append((identity.key, object_name, SourceRange(line.number)))

@@ -21,6 +21,7 @@ def _visual_by_name(window: QQuickWindow, name: str) -> QQuickItem:
 
 def test_main_qml_loads_offscreen(qapp: object) -> None:
     controller = AnalysisController(async_enabled=False)
+    controller.vendor = "huawei"
     engine = create_engine(controller)
     assert engine.rootObjects(), "Main.qml failed to create an ApplicationWindow"
     controller.close()
@@ -28,6 +29,7 @@ def test_main_qml_loads_offscreen(qapp: object) -> None:
 
 def test_diagnostic_delegate_maps_model_roles_to_visible_card(qapp: object) -> None:
     controller = AnalysisController(async_enabled=False)
+    controller.vendor = "huawei"
     engine = create_engine(controller)
     controller.sourceText = "sysname SYNTHETIC-LAB\ntelnet server enable\n"
     controller.analyzeConfig()
@@ -49,6 +51,7 @@ def test_diagnostic_delegate_maps_model_roles_to_visible_card(qapp: object) -> N
 
 def test_workspace_is_three_resizable_columns_with_visible_editor_viewports(qapp: object) -> None:
     controller = AnalysisController(async_enabled=False)
+    controller.vendor = "huawei"
     engine = create_engine(controller)
     window = engine.rootObjects()[0]
     assert isinstance(window, QQuickWindow)
@@ -82,6 +85,7 @@ def test_workspace_is_three_resizable_columns_with_visible_editor_viewports(qapp
 
 def test_severity_badges_replace_combobox_and_toggle_filter(qapp: object) -> None:
     controller = AnalysisController(async_enabled=False)
+    controller.vendor = "huawei"
     engine = create_engine(controller)
     controller.sourceText = "sysname SYNTHETIC-LAB\ntelnet server enable\n"
     controller.analyzeConfig()
@@ -112,7 +116,10 @@ def test_severity_badges_replace_combobox_and_toggle_filter(qapp: object) -> Non
     assert empty_state.isVisible()
     panel.setProperty("severityFilter", "WARNING")
     QCoreApplication.processEvents()
-    assert card.parentItem().isVisible()
+    QTest.qWait(100)
+    assert any(
+        item.objectName() == "diagnosticIssueCard" and item.isVisible() for item in _descendants(panel)
+    )
     assert not empty_state.isVisible()
 
     warning_chip = _visual_by_name(window, "severityFilter-WARNING")
@@ -129,6 +136,7 @@ def test_severity_badges_replace_combobox_and_toggle_filter(qapp: object) -> Non
 
 def test_mode_dialog_stays_inside_window_and_options_have_room(qapp: object) -> None:
     controller = AnalysisController(async_enabled=False)
+    controller.vendor = "huawei"
     engine = create_engine(controller)
     window = engine.rootObjects()[0]
     assert isinstance(window, QQuickWindow)
@@ -157,8 +165,7 @@ def test_theme_defines_required_design_tokens() -> None:
         assert f"property color {token}" in colors
     for token in ("xxs", "xs", "sm", "md", "lg", "xl", "radiusCard"):
         assert f"property int {token}" in spacing
-    assert "monoFamilies" in typography
-    assert "sansFamilies" in typography
+    assert "fontPalette.fonts" in typography
     assert "ComboBox" not in analysis
 
 

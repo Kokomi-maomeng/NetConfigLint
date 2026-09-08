@@ -57,15 +57,18 @@ unchanged. Vendor-specific command knowledge must not leak into GUI code.
 The Huawei parser is a conservative line-oriented block parser. It recognizes a
 bounded set of documented configuration shapes and preserves every source line. Unknown
 commands remain available as raw commands and do not cause parse failure. This is not a VRP
-CLI emulator. Grammar/profile scaffolding supports future command trees, shortest-unique-
-prefix resolution, and base/platform/model/version overlays.
+CLI emulator. CommandTree, CommandProfile and ProfileOverlay remain explicitly experimental APIs.
+They do not validate product input or establish platform command compatibility. The active
+ProfileDatabase resolves source-linked metadata only; the capability repair is tracked as F22.
 
 ## Analysis modes
 
 - `snippet`: missing global references are not definitive; diagnostics become INFO/UNKNOWN.
 - `full`: the supplied configuration is treated as the complete candidate configuration.
 - `snapshot`: parses bounded Huawei IPv4/IPv6 RIB, BGP peer, and interface-status sections.
-  A matching RIB makes exact prefix presence or absence verifiable; omitted sections do not.
+  Exact prefix evidence must match the VPN and address family. Absence requires a successful,
+  complete, unfiltered capture with a recognized table and a closing device prompt. Failed,
+  filtered, paginated, unterminated, or mixed-device captures cannot verify absence.
 
 ## Threading and GUI
 
