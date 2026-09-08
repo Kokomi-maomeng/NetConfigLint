@@ -10,7 +10,7 @@ def test_registry_resolves_alias_without_core_vendor_conditionals() -> None:
 
 
 def test_registry_selects_supported_detector() -> None:
-    detected = detect_vendor_plugin("sysname SYNTHETIC-LAB\nport link-type trunk")
+    detected = detect_vendor_plugin("Huawei Versatile Routing Platform\nsysname SYNTHETIC-LAB")
     assert detected is not None
     plugin, detection = detected
     assert plugin.key == "huawei"

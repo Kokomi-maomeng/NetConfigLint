@@ -1,13 +1,13 @@
 from netconfiglint.vendors.huawei.detector import HuaweiDetector
 
 
-def test_detects_huawei_without_guessing_model() -> None:
+def test_shared_commands_remain_unknown_without_guessing_model() -> None:
     result = HuaweiDetector().detect("sysname LAB\ninterface GigabitEthernet1/0/1\n port link-type trunk")
 
-    assert result.vendor == "Huawei"
+    assert result.vendor == "Unknown"
     assert "os" not in result.to_dict()
     assert result.model == "Unknown"
-    assert result.confidence >= 0.5
+    assert 0 < result.confidence < 0.5
 
 
 def test_unknown_text_is_not_forced_to_huawei() -> None:

@@ -28,28 +28,29 @@ class BgpNetworkCandidateRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         if context.config.bgp is None:
             return ()
-        candidates: set[Network] = set()
+        candidates: set[tuple[str | None, Network]] = set()
         for route in context.config.static_routes:
             network = _network(route.destination, route.mask)
             if network is not None:
-                candidates.add(network)
+                candidates.add((route.vpn_instance, network))
         for interface in context.config.interfaces.values():
             for address, mask, _ in interface.ip_addresses:
                 network = _network(address, mask)
                 if network is not None:
-                    candidates.add(network)
+                    candidates.add((interface.vpn_instance, network))
             for address, mask, _ in interface.ipv6_addresses:
                 network = _network(address, mask)
                 if network is not None:
-                    candidates.add(network)
+                    candidates.add((interface.vpn_instance, network))
         for ipv6_route in context.config.ipv6_static_routes:
             network = _network(ipv6_route.destination, ipv6_route.prefix_length)
             if network is not None:
-                candidates.add(network)
+                candidates.add((ipv6_route.vpn_instance, network))
 
         snapshot_routes = {
-            parsed
+            (route.vpn_instance, parsed)
             for route in context.config.snapshot.routes
+            if route.scope_known
             if (parsed := _network(route.prefix, None)) is not None
         }
 
@@ -59,21 +60,24 @@ class BgpNetworkCandidateRule:
                 network = _network(address, mask)
                 if network is None:
                     continue
-                rib_present = (
-                    context.config.snapshot.ipv4_rib_present
-                    if network.version == 4
-                    else context.config.snapshot.ipv6_rib_present
+                key = (family.vpn_instance, network)
+                complete_rib = any(
+                    capture.complete
+                    and capture.family == network.version
+                    and capture.vpn_instance == family.vpn_instance
+                    for capture in context.config.snapshot.rib_captures
                 )
-                if context.mode == AnalysisMode.SNAPSHOT and rib_present:
-                    if network in snapshot_routes:
-                        continue
+                if context.mode == AnalysisMode.SNAPSHOT and key in snapshot_routes:
+                    continue
+                if context.mode == AnalysisMode.SNAPSHOT and complete_rib:
                     severity = Severity.ERROR
                     message = f"BGP network {network} is absent from the supplied local RIB snapshot."
                     explanation = (
-                        "A matching routing-table section was supplied and contains no exact route prefix."
+                        "A complete, successful, unfiltered routing table in the same "
+                        "VPN/address family contains no exact prefix."
                     )
                     confidence = Confidence.VERIFIED
-                elif network in candidates:
+                elif key in candidates:
                     continue
                 else:
                     severity = Severity.UNKNOWN if context.mode == AnalysisMode.SNAPSHOT else Severity.WARNING

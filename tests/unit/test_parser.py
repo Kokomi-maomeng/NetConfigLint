@@ -104,8 +104,8 @@ interface Vlanif10
 """
     config = HuaweiConfigParser().parse(source, AnalysisMode.FULL, DETECTION)
 
-    assert "3001" in config.acls
-    assert config.traffic_classifiers["IPV6-WEB"].acl_references[0][0] == "3001"
+    assert "ipv6:number:3001" in config.acls
+    assert config.traffic_classifiers["IPV6-WEB"].acl_references[0][0] == "ipv6:number:3001"
     assert config.traffic_policies["EDGE"].classifier_bindings[0][:2] == (
         "IPV6-WEB",
         "FORWARD",

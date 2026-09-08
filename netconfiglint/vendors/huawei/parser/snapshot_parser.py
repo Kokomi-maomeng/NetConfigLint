@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
+from dataclasses import replace
 from typing import cast
 
 from netconfiglint.core.diagnostics import SourceRange
@@ -14,6 +15,7 @@ from netconfiglint.core.model import (
     SnapshotInterface,
     SnapshotRoute,
 )
+from netconfiglint.core.model.config import RibCapture
 
 _BGP_STATES = {"idle", "connect", "active", "opensent", "openconfirm", "established", "no", "noneg"}
 
@@ -22,58 +24,103 @@ class HuaweiSnapshotParser:
     def parse(self, source: str) -> SnapshotEvidence:
         evidence = SnapshotEvidence()
         section: str | None = None
+        capture: RibCapture | None = None
         pending_ipv6: dict[str, object] | None = None
-        for line in lex_lines(source):
-            lower = line.text.lower()
-            if "display ipv6 routing-table" in lower:
-                section = "rib6"
-                evidence.ipv6_rib_present = True
-                continue
-            if "display ip routing-table" in lower:
-                section = "rib4"
-                evidence.ipv4_rib_present = True
-                continue
-            if "display bgp peer" in lower:
-                section = "bgp"
-                evidence.bgp_peer_table_present = True
-                continue
-            if "display ip interface brief" in lower or "display interface brief" in lower:
-                section = "interface"
-                evidence.interface_table_present = True
-                continue
-            if "destination/mask" in lower and "nexthop" in lower:
-                section = "rib4"
-                evidence.ipv4_rib_present = True
-                continue
-            if lower.startswith("peer ") and "state" in lower and "as" in lower:
-                section = "bgp"
-                evidence.bgp_peer_table_present = True
-                continue
-            if lower.startswith("interface ") and "physical" in lower and "protocol" in lower:
-                section = "interface"
-                evidence.interface_table_present = True
-                continue
+        devices: set[str] = set()
+        peer_scope_known = True
 
-            if section in {"rib4", "rib6"}:
-                if section == "rib6":
-                    pending_ipv6, parsed = self._ipv6_route_line(line.text, line.number, pending_ipv6)
-                    if parsed is not None:
-                        evidence.routes.append(parsed)
-                    if pending_ipv6 is not None or parsed is not None:
-                        continue
-                route = self._route(line.text, line.number, 4 if section == "rib4" else 6)
-                if route is not None:
-                    evidence.routes.append(route)
-            elif section == "bgp":
-                peer = self._peer(line.text, line.number)
+        def append_route(route: SnapshotRoute) -> None:
+            if capture is not None:
+                capture.routes.append(
+                    replace(route, vpn_instance=capture.vpn_instance, scope_known=capture.scope_known)
+                )
+
+        for line in lex_lines(source):
+            text, lower = line.text, line.text.lower()
+            prompt = re.match(r"^<([^>]+)>\s*(.*)$", text)
+            command = prompt.group(2) if prompt else text
+            if prompt:
+                devices.add(prompt.group(1))
+            if prompt or command.lower().startswith("display "):
+                if capture is not None:
+                    capture.terminated = prompt is not None
+                    if pending_ipv6 is not None:
+                        capture.truncated = True
+                capture, pending_ipv6, section = None, None, None
+                rib = re.fullmatch(r"display (ip|ipv6) routing-table(?:\s+(.*))?", command, re.I)
+                if rib:
+                    args = (rib.group(2) or "").split()
+                    vpn = None
+                    if len(args) >= 2 and args[0].lower() == "vpn-instance":
+                        vpn, args = args[1], args[2:]
+                    capture = RibCapture(
+                        4 if rib.group(1).lower() == "ip" else 6,
+                        SourceRange(line.number),
+                        vpn,
+                        unfiltered=not args,
+                    )
+                    evidence.rib_captures.append(capture)
+                    section = "rib"
+                    if capture.family == 4:
+                        evidence.ipv4_rib_present = True
+                    else:
+                        evidence.ipv6_rib_present = True
+                elif command.lower().startswith("display bgp peer"):
+                    section = "bgp"
+                    # Scoped/filtered peer output must not satisfy global peer references.
+                    peer_scope_known = command.lower() == "display bgp peer"
+                    evidence.bgp_peer_table_present = True
+                elif command.lower() in {"display ip interface brief", "display interface brief"}:
+                    section = "interface"
+                    evidence.interface_table_present = True
+                continue
+            if section == "rib" and capture is not None:
+                if re.search(r"permission|denied|error|failed|unrecognized|incomplete command", lower):
+                    capture.failed = True
+                if re.search(r"--+\s*more|truncat|press.*(?:space|continue)|^\^$", lower):
+                    capture.truncated = True
+                table = re.match(r"routing table\s*:\s*(\S+)", text, re.I)
+                if table:
+                    table_vpn = None if table.group(1).lower() in {"public", "_public_"} else table.group(1)
+                    if table_vpn != capture.vpn_instance:
+                        capture.scope_known = False
+                count = re.search(r"destinations?\s*:\s*(\d+)", text, re.I)
+                if count:
+                    capture.expected_count = int(count.group(1))
+                    if capture.expected_count == 0:
+                        capture.header_seen = True
+                if ("destination/mask" in lower and "nexthop" in lower) or (
+                    "destination" in lower and "prefixlength" in lower
+                ):
+                    capture.header_seen = True
+                if capture.family == 6:
+                    pending_ipv6, route = self._ipv6_route_line(text, line.number, pending_ipv6)
+                    if route is not None:
+                        append_route(route)
+                else:
+                    route = self._route(text, line.number, 4)
+                    if route is not None:
+                        append_route(route)
+                    elif re.match(r"^[0-9]+\.", text):
+                        capture.truncated = True
+            elif section == "bgp" and peer_scope_known:
+                peer = self._peer(text, line.number)
                 if peer is not None:
                     evidence.bgp_peers[peer.address] = peer
             elif section == "interface":
-                interface = self._interface(line.text, line.number)
+                interface = self._interface(text, line.number)
                 if interface is not None:
                     evidence.interfaces[interface.name.lower()] = interface
-        if pending_ipv6 is not None:
-            evidence.routes.append(self._finish_ipv6_route(pending_ipv6))
+        if pending_ipv6 is not None and capture is not None:
+            capture.truncated = True
+        for item in evidence.rib_captures:
+            if len(devices) > 1:
+                item.scope_known = False
+            if not item.failed and item.scope_known:
+                evidence.routes.extend(item.routes)
+        if len(devices) > 1:
+            evidence.bgp_peers.clear()
+            evidence.interfaces.clear()
         return evidence
 
     @staticmethod

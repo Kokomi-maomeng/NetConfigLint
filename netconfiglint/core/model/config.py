@@ -144,6 +144,8 @@ class OSPFProcess:
 class ACL:
     name: str
     source: SourceRange
+    family: str = "ipv4"
+    kind: str = "number"
 
 
 @dataclass(slots=True)
@@ -193,6 +195,40 @@ class SnapshotRoute:
     next_hop: str
     interface: str
     source: SourceRange
+    vpn_instance: str | None = None
+    scope_known: bool = True
+
+
+@dataclass(slots=True)
+class RibCapture:
+    """A single capture; presence alone never proves the absence of a route."""
+
+    family: int
+    source: SourceRange
+    vpn_instance: str | None = None
+    scope_known: bool = True
+    unfiltered: bool = True
+    header_seen: bool = False
+    terminated: bool = False
+    failed: bool = False
+    truncated: bool = False
+    expected_count: int | None = None
+    routes: list[SnapshotRoute] = field(default_factory=list)
+
+    @property
+    def complete(self) -> bool:
+        count_matches = self.expected_count is None or self.expected_count == len(
+            {route.prefix for route in self.routes}
+        )
+        return (
+            self.scope_known
+            and self.unfiltered
+            and self.header_seen
+            and self.terminated
+            and not self.failed
+            and not self.truncated
+            and count_matches
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -222,6 +258,7 @@ class SnapshotEvidence:
     routes: list[SnapshotRoute] = field(default_factory=list)
     bgp_peers: dict[str, SnapshotBgpPeer] = field(default_factory=dict)
     interfaces: dict[str, SnapshotInterface] = field(default_factory=dict)
+    rib_captures: list[RibCapture] = field(default_factory=list)
 
 
 @dataclass(slots=True)

@@ -61,17 +61,24 @@ class HuaweiConfigHighlighter(QSyntaxHighlighter):
             self.rehighlight()
 
     def highlightBlock(self, text: str) -> None:
+        offsets = [0]
+        for character in text:
+            offsets.append(offsets[-1] + (2 if ord(character) > 0xFFFF else 1))
+
+        def apply(start: int, end: int, kind: str) -> None:
+            self.setFormat(offsets[start], offsets[end] - offsets[start], self._formats[kind])
+
         if text.strip() in {"#", "return"}:
-            self.setFormat(0, len(text), self._formats["section"])
+            apply(0, len(text), "section")
             return
         if match := self._BLOCK.search(text):
-            self.setFormat(match.start(), match.end() - match.start(), self._formats["block"])
+            apply(match.start(), match.end(), "block")
         for match in self._KEYWORDS.finditer(text):
-            self.setFormat(match.start(), match.end() - match.start(), self._formats["keyword"])
+            apply(match.start(), match.end(), "keyword")
         for match in self._ADDRESS.finditer(text):
-            self.setFormat(match.start(), match.end() - match.start(), self._formats["address"])
+            apply(match.start(), match.end(), "address")
         for match in self._SENSITIVE.finditer(text):
-            self.setFormat(match.start(), match.end() - match.start(), self._formats["sensitive"])
+            apply(match.start(), match.end(), "sensitive")
 
 
 class SyntaxHighlighterBridge(QObject):
