@@ -1,8 +1,11 @@
 """Release gates must reject secrets and obsolete packaged resources."""
 
+import hashlib
 import importlib.util
 import zipfile
 from pathlib import Path
+
+import pytest
 
 
 def load_auditor():
@@ -51,3 +54,27 @@ def test_archive_gate_accepts_exact_resources(tmp_path: Path) -> None:
     with zipfile.ZipFile(archive, "w") as package:
         package.write(qml, "portable/netconfiglint/gui/qml/Main.qml")
     assert auditor.audit_archive(tmp_path, archive)["passed"]
+
+
+def test_reviewed_upstream_needs_exact_wheel_and_binary_bytes(tmp_path: Path) -> None:
+    auditor = load_auditor()
+    wheel = tmp_path / "synthetic-review-only.whl"
+    binary = b"C:" + b"/Users/" + b"qt/build/"
+    with zipfile.ZipFile(wheel, "w") as package:
+        package.writestr("PySide6/Qt6Core.dll", binary)
+    with pytest.raises(ValueError, match="official distribution"):
+        auditor.upstream_binary_hashes([wheel])
+    auditor.REVIEWED_UPSTREAM_WHEELS[wheel.name] = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    hashes = auditor.upstream_binary_hashes([wheel])
+    archive = tmp_path / "portable.zip"
+    with zipfile.ZipFile(archive, "w") as package:
+        package.writestr("portable/PySide6/Qt6Core.dll", binary)
+    report = auditor.audit_archive(tmp_path, archive, upstream=hashes)
+    assert report["passed"]
+    assert len(report["reviewed_upstream_matches"]) == 1
+    with zipfile.ZipFile(archive, "w") as package:
+        package.writestr("portable/PySide6/Qt6Core.dll", binary + b"modified")
+    assert not auditor.audit_archive(tmp_path, archive, upstream=hashes)["passed"]
+    wheel.write_bytes(wheel.read_bytes() + b"modified")
+    with pytest.raises(ValueError, match="official distribution"):
+        auditor.upstream_binary_hashes([wheel])
