@@ -48,7 +48,7 @@ class AnalysisController(QObject):
         self._async_enabled = async_enabled
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="netconfiglint")
         self._source_text = ""
-        self._mode = "full"
+        self._mode = "snippet"
         self._vendor = "auto"
         self._busy = False
         self._status_message = ""

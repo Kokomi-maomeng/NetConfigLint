@@ -10,7 +10,7 @@ from netconfiglint.vendors.registry import detect_vendor_plugin, get_vendor_plug
 
 def analyze(
     source: str,
-    mode: AnalysisMode | str = AnalysisMode.FULL,
+    mode: AnalysisMode | str = AnalysisMode.SNIPPET,
     vendor: str = "auto",
 ) -> AnalysisResult:
     started = perf_counter()

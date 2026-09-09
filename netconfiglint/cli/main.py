@@ -25,7 +25,9 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     check = subparsers.add_parser("check", help="analyze a local configuration file")
     check.add_argument("path", type=Path)
-    check.add_argument("--mode", choices=("snippet", "full", "snapshot"), default="full")
+    check.add_argument(
+        "--mode", choices=("snippet", "full", "snapshot"), default="snippet", help="default: snippet"
+    )
     check.add_argument("--vendor", choices=("auto", "huawei"), default="auto")
     check.add_argument("--format", choices=("text", "json"), default="text", dest="output_format")
     check.add_argument("--no-color", action="store_true")

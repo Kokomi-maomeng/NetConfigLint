@@ -67,6 +67,9 @@ def run_smoke(
 
     def analyze_sample() -> None:
         try:
+            if controller.property("mode") != "snippet":
+                raise RuntimeError("Default analysis mode is not snippet")
+            report["default_mode"] = controller.property("mode")
             controller.analyzeConfig()
             if controller.busy or controller.statusMessage:
                 raise RuntimeError("Empty configuration started analysis")
@@ -74,6 +77,7 @@ def run_smoke(
                 "sysname SYNTHETIC-LAB\ninterface GigabitEthernet1/0/1\n port trunk allow-pass vlan 100\n"
             )
             controller.setProperty("sourceText", source)
+            controller.setProperty("mode", "full")
             controller.analyzeConfig()
             if not controller.property("resultCurrent") or controller.property("summary")["ERROR"] != 1:
                 raise RuntimeError("Synthetic analysis did not return the expected diagnostic")

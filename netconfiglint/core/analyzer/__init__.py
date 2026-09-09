@@ -3,7 +3,7 @@ from netconfiglint.core.analyzer.models import AnalysisMode, AnalysisResult, Ven
 
 def analyze(
     source: str,
-    mode: AnalysisMode | str = AnalysisMode.FULL,
+    mode: AnalysisMode | str = AnalysisMode.SNIPPET,
     vendor: str = "auto",
 ) -> AnalysisResult:
     """Lazy public wrapper that keeps model imports free of vendor-registry cycles."""
