@@ -89,6 +89,19 @@ foreach ($backend in @('native', 'software')) {
     }
 }
 
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$python = Join-Path $projectRoot '.venv\Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $python)) { $python = (Get-Command python -ErrorAction Stop).Source }
+$standardUser = @()
+foreach ($backend in @('native', 'software')) {
+    $standardOutput = Join-Path $outputPath ('standard-user-' + $backend)
+    $arguments = @((Join-Path $PSScriptRoot 'verify_windows_standard_user.py'), $exe, '--output', $standardOutput, '--version', $Version)
+    if ($backend -eq 'software') { $arguments += '--software' }
+    & $python @arguments
+    if ($LASTEXITCODE -ne 0) { throw "Portable $backend acceptance without elevation failed." }
+    $standardUser += Get-Content -LiteralPath (Join-Path $standardOutput 'standard-user-result.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+}
+
 $normal = Start-Portable @() $false
 try {
     $timer = [Diagnostics.Stopwatch]::StartNew()
@@ -121,6 +134,7 @@ try {
     $result = [ordered]@{
         Version = $Version; SHA256 = $sha256; Passed = $true; Architecture = 'x64'; Subsystem = $subsystem
         Smokes = $smokes; Responsive = $true; WindowCreated = $true; ConsoleChildren = 0
+        StandardUser = $standardUser
         HistoryCreated = $historyCreated; SystemOnlyPath = $true; UnicodeAndSpacePath = $true; ExitConfirmed = $true
     }
     $result | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $outputPath 'acceptance.json') -Encoding UTF8
