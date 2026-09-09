@@ -32,6 +32,12 @@ $executables = @(Get-ChildItem -LiteralPath $extractPath -Recurse -File -Filter 
 if ($executables.Count -ne 1) { throw 'Expected exactly one NetConfigLint.exe.' }
 $exe = $executables[0].FullName
 $appRoot = $executables[0].DirectoryName
+$versionInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
+$requestedVersion = [version]$Version
+$expectedVersion = [version]::new($requestedVersion.Major, $requestedVersion.Minor, [Math]::Max(0, $requestedVersion.Build), [Math]::Max(0, $requestedVersion.Revision))
+if ([version]$versionInfo.ProductVersion -ne $expectedVersion -or [version]$versionInfo.FileVersion -ne $expectedVersion) {
+    throw 'Windows executable version metadata does not match the requested release.'
+}
 $pe = [IO.File]::ReadAllBytes($exe)
 $peOffset = [BitConverter]::ToInt32($pe, 0x3c)
 $machine = [BitConverter]::ToUInt16($pe, $peOffset + 4)
@@ -67,6 +73,9 @@ foreach ($backend in @('native', 'software')) {
         $smoke = Get-Content -LiteralPath (Join-Path $smokePath 'smoke-result.json') -Raw -Encoding UTF8 | ConvertFrom-Json
         if (-not $smoke.passed -or $smoke.version -ne $Version -or $smoke.exports -ne 3 -or $smoke.qml_errors.Count -ne 0) {
             throw "Portable $backend smoke report did not pass."
+        }
+        if ([version]$Version -ge [version]'1.5.0' -and $smoke.default_mode -ne 'snippet') {
+            throw 'Portable application did not verify the default snippet mode.'
         }
         foreach ($extension in @('json', 'md', 'txt')) {
             $report = Get-Content -LiteralPath (Join-Path $smokePath "synthetic-report.$extension") -Raw -Encoding UTF8
