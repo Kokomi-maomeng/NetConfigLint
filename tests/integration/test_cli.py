@@ -10,7 +10,7 @@ def test_cli_json_output(tmp_path: Path, capsys: object) -> None:
     path = tmp_path / "config.cfg"
     path.write_text("sysname LAB\ninterface GE1/0/1\n port default vlan 100", encoding="utf-8")
 
-    exit_code = main(["check", str(path), "--format", "json"])
+    exit_code = main(["check", str(path), "--mode", "full", "--format", "json"])
     captured = capsys.readouterr()  # type: ignore[attr-defined]
     payload = json.loads(captured.out)
     assert exit_code == 1

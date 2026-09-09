@@ -63,7 +63,8 @@ ProfileDatabase resolves source-linked metadata only; the capability repair is t
 
 ## Analysis modes
 
-- `snippet`: missing global references are not definitive; diagnostics become INFO/UNKNOWN.
+- `snippet` (default in GUI, CLI, and API): missing global references are not definitive;
+  diagnostics become INFO/UNKNOWN.
 - `full`: the supplied configuration is treated as the complete candidate configuration.
 - `snapshot`: parses bounded Huawei IPv4/IPv6 RIB, BGP peer, and interface-status sections.
   Exact prefix evidence must match the VPN and address family. Absence requires a successful,

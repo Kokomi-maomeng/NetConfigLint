@@ -82,6 +82,11 @@ python3 -m venv .venv
 
 ## CLI
 
+The desktop, CLI, and Python API default to **Snippet** mode. Paste part of a configuration
+to check it without treating omitted settings as confirmed missing. Select **Full** when
+providing the whole device configuration, or **Snapshot** when also providing supported
+route, peer, or interface command output.
+
 ```console
 netconfiglint check examples/huawei-basic.cfg
 netconfiglint check config.txt --mode snippet --vendor auto --format text

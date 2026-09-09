@@ -30,7 +30,7 @@ def test_empty_input_never_starts_a_worker_or_reports_failure(qapp: object) -> N
 
 
 @pytest.mark.parametrize(
-    "field,value", [("sourceText", SOURCE + "# changed"), ("mode", "snippet"), ("vendor", "huawei")]
+    "field,value", [("sourceText", SOURCE + "# changed"), ("mode", "full"), ("vendor", "huawei")]
 )
 def test_edits_invalidate_diagnostics_and_block_mismatched_export(
     qapp: object, field: str, value: str
@@ -90,6 +90,7 @@ def test_export_combinations_use_matching_snapshot(
     qapp: object, tmp_path: Path, scope: str, format: str, first: bool
 ) -> None:
     controller = AnalysisController(async_enabled=False)
+    controller.mode = "full"
     controller.translator = TranslationController(system_locale="zh_CN", persist_settings=False)
     controller.sourceText = SOURCE
     controller.analyzeConfig()
