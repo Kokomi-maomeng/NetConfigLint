@@ -26,6 +26,15 @@ PATTERNS = {
     "unix-personal-path": rb"/(?:Users|home)/[A-Za-z0-9_.-]+/",
 }
 FORBIDDEN = {".env", "history.json", "id_rsa", "id_ed25519", "credentials.json", "auth.json"}
+# Published by the Qt project on PyPI. Exact upstream bytes can contain build-worker
+# paths, locale strings resembling tokens, and PEM parser markers. They are reported
+# separately; application code and changed binaries never inherit this exception.
+# https://pypi.org/pypi/PySide6_Essentials/6.11.2/json
+REVIEWED_UPSTREAM_WHEELS = {
+    "pyside6_essentials-6.11.2-cp310-abi3-win_amd64.whl": (
+        "c8a29def77032773a30879f7f24415b5395ad08592d147c170824ef4c735dfc1"
+    ),
+}
 
 
 def git(root: Path, *args: str) -> bytes:
@@ -126,8 +135,25 @@ def audit_repository(root: Path, baseline: str) -> dict[str, Any]:
     }
 
 
-def audit_archive(root: Path, archive: Path) -> dict[str, Any]:
+def upstream_binary_hashes(wheels: list[Path]) -> dict[str, str]:
+    result = {}
+    for wheel in wheels:
+        expected = REVIEWED_UPSTREAM_WHEELS.get(wheel.name)
+        if expected is None or hashlib.sha256(wheel.read_bytes()).hexdigest() != expected:
+            raise ValueError("Upstream wheel is not an exact reviewed official distribution")
+        with zipfile.ZipFile(wheel) as package:
+            for entry in package.infolist():
+                if entry.filename.startswith("PySide6/") and entry.filename.endswith(".dll"):
+                    digest = hashlib.sha256(package.read(entry)).hexdigest()
+                    result[entry.filename] = digest
+                    if entry.filename.startswith("PySide6/plugins/"):
+                        result[entry.filename.replace("PySide6/plugins/", "PySide6/qt-plugins/", 1)] = digest
+    return result
+
+
+def audit_archive(root: Path, archive: Path, *, upstream: dict[str, str] | None = None) -> dict[str, Any]:
     findings = []
+    reviewed_upstream = []
     resource_mismatches = []
     expected = {
         path.relative_to(root).as_posix(): path
@@ -147,6 +173,12 @@ def audit_archive(root: Path, archive: Path) -> dict[str, Any]:
             name = entry.filename
             data = package.read(entry)
             categories = scan_bytes(data)
+            relative_binary = name[name.index("PySide6/") :] if "PySide6/" in name else ""
+            if categories and upstream and upstream.get(relative_binary) == hashlib.sha256(data).hexdigest():
+                reviewed_upstream.append(
+                    {"path": name, "categories": categories, "reason": "exact-reviewed-official-wheel-binary"}
+                )
+                categories = []
             if forbidden_path(name):
                 categories.append("private-artifact-path")
             findings.extend({"path": name, "category": category} for category in categories)
@@ -174,6 +206,7 @@ def audit_archive(root: Path, archive: Path) -> dict[str, Any]:
         "files": len(entries),
         "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
         "findings": findings,
+        "reviewed_upstream_matches": reviewed_upstream,
         "resource_mismatches": sorted(resource_mismatches),
         "missing_resources": missing,
         "passed": not findings and not resource_mismatches and not missing,
@@ -185,11 +218,14 @@ def main() -> int:
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--baseline", default="v1.4.0")
     parser.add_argument("--archive", type=Path)
+    parser.add_argument("--upstream-wheel", type=Path, action="append", default=[])
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     report = {"repository": audit_repository(args.root, args.baseline)}
     if args.archive:
-        report["archive"] = audit_archive(args.root, args.archive)
+        report["archive"] = audit_archive(
+            args.root, args.archive, upstream=upstream_binary_hashes(args.upstream_wheel)
+        )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
     print(
