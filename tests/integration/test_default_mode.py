@@ -8,13 +8,16 @@ import pytest
 from netconfiglint import analyze
 from netconfiglint.cli.main import main
 from netconfiglint.core.analyzer import AnalysisMode
+from netconfiglint.core.analyzer import analyze as analyze_wrapped
 from netconfiglint.core.analyzer.api import analyze as analyze_direct
 from netconfiglint.core.diagnostics import Severity
 
 SOURCE = "interface GigabitEthernet1/0/1\n port default vlan 100\n"
 
 
-@pytest.mark.parametrize("entrypoint", [analyze, analyze_direct])
+@pytest.mark.parametrize(
+    "entrypoint", [analyze, analyze_wrapped, analyze_direct], ids=["public", "core", "direct"]
+)
 def test_api_default_does_not_report_omitted_vlan_as_error(entrypoint: object) -> None:
     default = entrypoint(SOURCE, vendor="huawei")  # type: ignore[operator]
     complete = entrypoint(SOURCE, "full", "huawei")  # type: ignore[operator]
