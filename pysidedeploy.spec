@@ -68,7 +68,7 @@ macos.permissions =
 mode = standalone
 
 # specify any extra nuitka arguments
-extra_args = --quiet --assume-yes-for-downloads --windows-console-mode=disable --product-name=NetConfigLint --product-version=1.4.0 --file-version=1.4.0 --file-description=NetConfigLint --noinclude-qt-translations --include-data-dir=netconfiglint/gui/qml=netconfiglint/gui/qml --include-data-dir=netconfiglint/gui/i18n=netconfiglint/gui/i18n --include-data-dir=netconfiglint/vendors/huawei/profiles=netconfiglint/vendors/huawei/profiles --include-data-dir=netconfiglint/resources=netconfiglint/resources
+extra_args = --quiet --assume-yes-for-downloads --windows-console-mode=disable --product-name=NetConfigLint --product-version=1.5.0 --file-version=1.5.0 --file-description=NetConfigLint --noinclude-qt-translations --include-data-dir=netconfiglint/gui/qml=netconfiglint/gui/qml --include-data-dir=netconfiglint/gui/i18n=netconfiglint/gui/i18n --include-data-dir=netconfiglint/vendors/huawei/profiles=netconfiglint/vendors/huawei/profiles --include-data-dir=netconfiglint/resources=netconfiglint/resources
 
 [buildozer]
 

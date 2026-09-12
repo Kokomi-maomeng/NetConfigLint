@@ -1,4 +1,4 @@
-# NetConfigLint v1.4
+# NetConfigLint v1.5
 
 > A fast, offline, extensible static analyzer for network device configurations.
 
@@ -9,7 +9,10 @@ source-linked diagnostics to the CLI and QML desktop application through one sha
 It is not a complete VRP emulator, network simulator, migration engine, or replacement for
 vendor-supported validation and lab testing.
 
-## Desktop v1.4
+See the [v1.5 audit repair report](docs/v1.5-audit-repairs.md) for all 26 findings,
+fixes and retained validation evidence.
+
+## Desktop v1.5
 
 The desktop adopts the Material 3 typography, palettes, rounded navigation, cards, and motion
 of [Material-Design-CastoriceUI](https://github.com/Kokomi-maomeng/Material-Design-CastoriceUI).
@@ -36,7 +39,7 @@ Roboto and Noto Sans SC are bundled for offline use. Platform font rasterizers s
 
 ## Supported scope
 
-The v1.4 Huawei VRP implementation includes:
+The v1.5 Huawei VRP implementation includes:
 
 - registry-driven vendor detection in the desktop interface;
 - an auditable profile catalog whose facts link to official Huawei documents;
@@ -237,7 +240,7 @@ checking the final dependency closure.
 .\scripts\build_installer.ps1 -SkipAppBuild
 ```
 
-The portable command creates `release/NetConfigLint-1.4.0-windows-x64-portable.zip`. Extract the
+The portable command creates `release/NetConfigLint-1.5.0-windows-x64-portable.zip`. Extract the
 single top-level folder and start `NetConfigLint.exe`; the Nuitka build uses the Windows GUI
 subsystem and therefore does not open a console window.
 

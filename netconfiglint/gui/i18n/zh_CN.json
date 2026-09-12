@@ -64,7 +64,7 @@
   "history.clear": "清空历史",
   "history.lines": "行",
   "history.issues": "项诊断",
-  "about.version": "版本 1.4.0",
+  "about.version": "版本 1.5.0",
   "about.project": "项目与作者",
   "about.license": "NetConfigLint 采用 Apache License 2.0 开源。配置分析完全在本机执行。",
   "about.components": "开源组件",
