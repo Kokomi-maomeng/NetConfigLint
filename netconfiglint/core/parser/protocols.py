@@ -5,4 +5,6 @@ from netconfiglint.core.model import DeviceConfig
 
 
 class ConfigParser(Protocol):
-    def parse(self, source: str, mode: AnalysisMode, detection: VendorDetection) -> DeviceConfig: ...
+    def parse(
+        self, source: str, mode: AnalysisMode, detection: VendorDetection, *, initial_view: str | None = None
+    ) -> DeviceConfig: ...

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
@@ -21,7 +22,9 @@ class MissingIsisProcessRule:
         }
         result = []
         for interface in context.config.interfaces.values():
+            checkpoint()
             for text, source in interface.raw_commands:
+                checkpoint()
                 tokens = text.lower().split()
                 if tokens[:2] != ["isis", "enable"]:
                     continue

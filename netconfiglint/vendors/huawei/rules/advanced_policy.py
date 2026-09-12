@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.parser.acl_identity import acl_label, parse_acl_identity
@@ -17,6 +18,7 @@ class MissingRedistributionPolicyRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result = []
         for text, source, block in all_commands(context.config):
+            checkpoint()
             if not text.lower().startswith(("import-route ", "export-route ")):
                 continue
             match = _ROUTE_POLICY.search(text)
@@ -43,26 +45,24 @@ class BroadPermitAclRule:
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result = []
-        for block in context.config.blocks:
-            if not block.header.lower().startswith("acl "):
-                continue
-            for command in block.commands:
-                lower = command.text.lower()
-                if not lower.startswith("rule ") or " permit " not in f" {lower} ":
-                    continue
-                if "source any" not in lower or "destination any" not in lower:
+        for acl in context.config.acls.values():
+            checkpoint()
+            for rule in acl.rules.values():
+                checkpoint()
+                if not rule.unrestricted:
                     continue
                 result.append(
                     Diagnostic(
                         Severity.WARNING,
                         self.metadata.rule_id,
-                        command.source,
-                        block.header,
+                        rule.source,
+                        f"{acl.family} ACL {acl.name}",
                         "ACL rule permits traffic from any source to any destination.",
-                        "The rule is intentionally reported as broad; its impact depends on every consumer.",
+                        "The documented omitted-address defaults match any address; no protocol, port "
+                        "or additional restriction is present. Impact depends on ACL order and consumers.",
                         "Confirm the policy intent and narrow protocol, source, destination, "
                         "or service fields.",
-                        Confidence.VERIFIED,
+                        Confidence.DOCUMENTED,
                     )
                 )
         return tuple(result)
@@ -82,19 +82,18 @@ class EmptyReferencedAclRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         if context.mode.value == "snippet":
             return ()
-        acl_has_rule = {
-            name: any(command.text.lower().startswith("rule ") for command in block.commands)
-            for block in context.config.blocks
-            if (name := self._acl_name(block.header)) is not None
-        }
+        acl_has_rule = {key: bool(acl.rules) for key, acl in context.config.acls.items()}
         references = list(context.config.acl_references)
         for policy in context.config.route_policies.values():
+            checkpoint()
             references.extend((name, policy.name, source) for name, source in policy.acl_references)
         for classifier in context.config.traffic_classifiers.values():
+            checkpoint()
             references.extend((name, classifier.name, source) for name, source in classifier.acl_references)
         seen = set()
         result = []
         for name, object_name, source in references:
+            checkpoint()
             if name in seen or acl_has_rule.get(name, True):
                 continue
             seen.add(name)

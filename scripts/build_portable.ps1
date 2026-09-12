@@ -41,7 +41,13 @@ Set-Content -LiteralPath (Join-Path $history 'README.txt') -Encoding UTF8 -Value
     'Configuration text, filenames, object names, and addresses are not stored here.'
 )
 
+$python = Join-Path $projectRoot '.venv\Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $python)) { $python = (Get-Command python).Source }
+& $python (Join-Path $PSScriptRoot 'assemble_licenses.py') $stagingRoot
+if ($LASTEXITCODE -ne 0) { throw 'Portable license assembly failed.' }
 Compress-Archive -LiteralPath $stagingRoot -DestinationPath $archivePath -CompressionLevel Optimal
+& $python (Join-Path $PSScriptRoot 'assemble_licenses.py') $archivePath --verify-archive
+if ($LASTEXITCODE -ne 0) { throw 'Final ZIP license gate failed.' }
 $archive = Get-Item -LiteralPath $archivePath
 [pscustomobject]@{
     Archive = $archive.FullName

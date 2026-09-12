@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.rules.facts import all_commands
@@ -30,7 +31,11 @@ class SensitiveConfigurationRule:
 
 
 def _first_match(context: RuleContext, pattern: re.Pattern[str]) -> tuple[SourceRange, int] | None:
-    matches = [source for text, source, _block in all_commands(context.config) if pattern.search(text)]
+    matches = [
+        source
+        for text, source, block in all_commands(context.config)
+        if block.header == text and pattern.search(text)
+    ]
     return (matches[0], len(matches)) if matches else None
 
 
@@ -44,21 +49,42 @@ def _diagnostic(
     explanation: str,
     suggested_fix: str,
 ) -> tuple[Diagnostic, ...]:
-    match = _first_match(context, pattern)
-    if match is None:
-        return ()
-    source, count = match
-    return (
+    matches: dict[tuple[str, bool], list[SourceRange]] = {}
+    for command, source, block in all_commands(context.config):
+        checkpoint()
+        if not pattern.search(command):
+            continue
+        header = block.header.lower()
+        unknown = not block.context_known or command == block.header
+        if rule_id in {"HUA-SEC-009", "HUA-SEC-010"}:
+            if not unknown and not header.startswith("user-interface vty"):
+                continue
+        elif rule_id in {"HUA-SEC-004", "HUA-SEC-008"}:
+            if not unknown and not (header == "aaa" or header.startswith("user-interface ")):
+                continue
+        elif command != block.header:
+            continue  # Server, SNMP, SSH and NTP commands belong to system view.
+        else:
+            unknown = False
+        object_name = (
+            "Unknown context" if unknown else ("System view" if command == block.header else block.header)
+        )
+        matches.setdefault((object_name, unknown), []).append(source)
+    return tuple(
         Diagnostic(
-            severity,
+            Severity.UNKNOWN if unknown and rule_id in {"HUA-SEC-009", "HUA-SEC-010"} else severity,
             rule_id,
-            source,
-            "Management plane",
-            message,
-            f"{explanation} Matching configuration lines: {count}.",
+            sources[0],
+            object_name,
+            "Cannot verify the command's management view."
+            if unknown and rule_id in {"HUA-SEC-009", "HUA-SEC-010"}
+            else message,
+            f"{explanation} Matching configuration lines: {len(sources)}."
+            + (" Starting view was not supplied." if unknown else ""),
             suggested_fix,
-            Confidence.DOCUMENTED,
-        ),
+            Confidence.LOW if unknown else Confidence.DOCUMENTED,
+        )
+        for (object_name, unknown), sources in matches.items()
     )
 
 
@@ -96,7 +122,10 @@ class FtpServerRule:
 
 class PlaintextPasswordRule:
     metadata = RuleMetadata("HUA-SEC-004", "Plaintext password command", Severity.ERROR, "Huawei")
-    _PATTERN = re.compile(r"\b(?:password|authentication password)\s+simple\b", re.IGNORECASE)
+    _PATTERN = re.compile(
+        r"^(?:local-user\s+\S+\s+password|set\s+authentication\s+password|authentication\s+password|password)\s+simple\b",
+        re.IGNORECASE,
+    )
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         return _diagnostic(
@@ -161,7 +190,7 @@ class SshAllInterfacesRule:
     _PATTERN = re.compile(r"^ssh\s+server-source\s+all-interface$", re.IGNORECASE)
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
-        return _diagnostic(
+        explicit = _diagnostic(
             context,
             rule_id=self.metadata.rule_id,
             pattern=self._PATTERN,
@@ -170,6 +199,54 @@ class SshAllInterfacesRule:
             explanation="This broadens the management-plane exposure beyond a dedicated management path.",
             suggested_fix=(
                 "Bind SSH to the intended management interface after verifying reachability and rollback."
+            ),
+        )
+        if explicit:
+            return explicit
+        commands = [
+            (text.lower(), source)
+            for text, source, block in all_commands(context.config)
+            if text == block.header
+        ]
+        if any(text.startswith(("ssh server-source ", "undo ssh server-source")) for text, _ in commands):
+            return ()
+        enabled = next(
+            (
+                source
+                for text, source in commands
+                if text
+                in {
+                    "stelnet server enable",
+                    "stelnet ipv4 server enable",
+                    "sftp server enable",
+                    "scp server enable",
+                }
+            ),
+            None,
+        )
+        if enabled is None or context.mode.value == "snippet":
+            return ()
+        fact = context.config.feature_facts.get("management.ssh_default_source")
+        if fact is not None and fact["value"] == "none":
+            return ()
+        documented = fact is not None and fact["value"] == "all"
+        return (
+            Diagnostic(
+                Severity.WARNING if documented else Severity.UNKNOWN,
+                self.metadata.rule_id,
+                enabled,
+                "SSH server",
+                "The documented SSH default accepts connections on all interfaces."
+                if documented
+                else "Cannot verify the SSH source-interface default for this model and version.",
+                "No explicit SSH source-interface command was supplied. "
+                + (
+                    "The matched S7700 version fact is documented in EDOC1100365368."
+                    if documented
+                    else "An exact model and documented version match is required to apply a version default."
+                ),
+                "Check the effective SSH source interface and restrict it to the intended management path.",
+                Confidence.DOCUMENTED if documented else Confidence.LOW,
             ),
         )
 

@@ -1,4 +1,4 @@
-from netconfiglint.vendors.huawei.grammar.command_tree import CommandTree, Resolution
+from experiments.huawei_grammar.command_tree import CommandTree, Resolution
 
 
 def test_shortest_unique_prefix() -> None:

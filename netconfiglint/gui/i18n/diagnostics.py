@@ -27,6 +27,10 @@ def _fill(translated: str, match: re.Match[str]) -> str:
 
 
 def translate_diagnostic(value: str) -> str:
+    if value.endswith(" Starting view was not supplied."):
+        return (
+            translate_diagnostic(value.removesuffix(" Starting view was not supplied.")) + " 未提供起始视图。"
+        )
     for pattern, translated in _templates():
         match = pattern.fullmatch(value)
         if match:

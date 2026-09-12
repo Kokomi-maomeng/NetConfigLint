@@ -54,27 +54,31 @@ class HuaweiDetector:
             evidence.append(f"{signals} shared VRP-style signatures; vendor inferred, not confirmed")
         confidence = min(0.99, (0.85 if strong else 0.35) + signals * 0.04) if strong or signals else 0.10
 
-        platform = "Unknown"
-        model = "Unknown"
-        if re.search(r"\bCloudEngine\b|\bCE\d{4,}\b", source, re.IGNORECASE):
-            platform = "CloudEngine"
-            confidence = min(0.99, confidence + 0.05)
-            model_match = re.search(r"\b(CE(?:5|6|8|9)\d{3}[A-Z0-9-]*)\b", source, re.IGNORECASE)
-            if model_match:
-                model = model_match.group(1).upper()
-        else:
-            model_match = re.search(r"\b(S77\d{2}[A-Z0-9-]*)\b", source, re.IGNORECASE)
-            if model_match:
-                platform = "S-Series"
-                model = model_match.group(1).upper()
-                confidence = min(0.99, confidence + 0.05)
-
-        version_match = re.search(r"\b(V\d{3}R\d{3}C\d{2}(?:SPC\d{3})?)\b", source, re.IGNORECASE)
+        # Only version-output/banner positions can activate device-specific facts.
+        # Free-form descriptions, usernames, policy names and addresses are not device evidence.
+        identity_lines = [
+            line.strip()
+            for line in source.splitlines()
+            if re.match(
+                r"^(?:Huawei(?:\s|$)|CloudEngine(?:\s|$)|Version V\d|VRP \(R\) software|"
+                r"(?:CE[5689]\d{3}|S\d{4})[A-Z0-9-]*(?:\s|$)|!Software Version)",
+                line,
+                re.I,
+            )
+        ]
+        identity_source = "\n".join(identity_lines)
+        models = set(re.findall(r"\b((?:CE[5689]\d{3}|S\d{4})[A-Z0-9-]*)\b", identity_source, re.I))
+        versions = set(re.findall(r"\b(V\d{3}R\d{3}C\d{2}(?:SPC\d{3})?)\b", identity_source, re.I))
+        model = next(iter(models)).upper() if len(models) == 1 else "Unknown"
+        version = next(iter(versions)).upper() if len(versions) == 1 else "Unknown"
+        platform = (
+            "CloudEngine" if model.startswith("CE") else "S-Series" if model.startswith("S") else "Unknown"
+        )
         detection = VendorDetection(
             vendor="Huawei" if strong or distinctive else "Unknown",
             platform_family=platform,
             model=model,
-            version=version_match.group(1).upper() if version_match else "Unknown",
+            version=version,
             confidence=round(confidence, 2),
             evidence=tuple(evidence),
         )

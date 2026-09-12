@@ -15,6 +15,13 @@ if (-not $SkipAppBuild) {
     if ($LASTEXITCODE -ne 0) { throw 'Application build failed.' }
 }
 
+$python = Join-Path $projectRoot '.venv\Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $python)) { $python = (Get-Command python).Source }
+$distribution = Get-ChildItem (Join-Path $projectRoot 'dist') -Directory -Filter '*.dist' | Select-Object -First 1
+if (-not $distribution) { throw 'Standalone distribution missing.' }
+& $python (Join-Path $PSScriptRoot 'assemble_licenses.py') $distribution.FullName --verify
+if ($LASTEXITCODE -ne 0) { throw 'Installer input license gate failed.' }
+
 $isccCandidates = @(
     (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
     (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe')

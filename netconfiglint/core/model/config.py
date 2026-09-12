@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from netconfiglint.core.diagnostics import SourceRange
+from netconfiglint.core.diagnostics import Diagnostic, SourceRange
 
 
 def _json_compatible(value: Any) -> Any:
@@ -40,6 +40,7 @@ class ConfigBlock:
     header: str
     source: SourceRange
     commands: list[ConfigCommand] = field(default_factory=list)
+    context_known: bool = True
 
 
 @dataclass(slots=True)
@@ -62,6 +63,9 @@ class Interface:
     vpn_instance: str | None = None
     command_sources: dict[str, SourceRange] = field(default_factory=dict)
     raw_commands: list[tuple[str, SourceRange]] = field(default_factory=list)
+    vlan_sources: dict[str, dict[int, SourceRange]] = field(default_factory=dict)
+    vlan_all: set[str] = field(default_factory=set)
+    vlan_exclusions: dict[str, set[int]] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -73,6 +77,7 @@ class StaticRoute:
     source: SourceRange
     parse_valid: bool = True
     parse_issue: str = ""
+    syntax_known: bool = True
 
 
 @dataclass(slots=True)
@@ -84,6 +89,7 @@ class IPv6StaticRoute:
     source: SourceRange
     parse_valid: bool = True
     parse_issue: str = ""
+    syntax_known: bool = True
 
 
 @dataclass(slots=True)
@@ -94,6 +100,7 @@ class BGPPeer:
     group: str | None = None
     import_policies: list[tuple[str, SourceRange]] = field(default_factory=list)
     export_policies: list[tuple[str, SourceRange]] = field(default_factory=list)
+    group_source: SourceRange | None = None
 
 
 @dataclass(slots=True)
@@ -104,6 +111,7 @@ class BGPGroup:
     remote_as: str | None = None
     import_policies: list[tuple[str, SourceRange]] = field(default_factory=list)
     export_policies: list[tuple[str, SourceRange]] = field(default_factory=list)
+    declared: bool = False
 
 
 @dataclass(slots=True)
@@ -112,6 +120,7 @@ class BGPAddressFamily:
     source: SourceRange
     vpn_instance: str | None = None
     networks: list[tuple[str, str | None, SourceRange]] = field(default_factory=list)
+    network_policies: list[tuple[str, SourceRange]] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -138,6 +147,32 @@ class OSPFProcess:
     source: SourceRange
     areas: set[str] = field(default_factory=set)
     networks: list[OSPFNetwork] = field(default_factory=list)
+    area_order: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class ACLRule:
+    rule_id: str
+    source: SourceRange
+    action: str
+    protocol: str
+    source_match: tuple[str, ...] = ("any",)
+    destination_match: tuple[str, ...] = ("any",)
+    source_ports: tuple[str, ...] = ()
+    destination_ports: tuple[str, ...] = ()
+    extra_matches: tuple[str, ...] = ()
+    syntax_known: bool = True
+
+    @property
+    def unrestricted(self) -> bool:
+        return (
+            self.syntax_known
+            and self.action == "permit"
+            and self.protocol in {"ip", "ipv6"}
+            and self.source_match == ("any",)
+            and self.destination_match == ("any",)
+            and not (self.source_ports or self.destination_ports or self.extra_matches)
+        )
 
 
 @dataclass(slots=True)
@@ -146,6 +181,8 @@ class ACL:
     source: SourceRange
     family: str = "ipv4"
     kind: str = "number"
+    acl_type: str = "unknown"
+    rules: dict[str, ACLRule] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -273,6 +310,7 @@ class DeviceConfig:
     bgp: BGPProcess | None = None
     ospf_processes: dict[str, OSPFProcess] = field(default_factory=dict)
     acls: dict[str, ACL] = field(default_factory=dict)
+    acl_aliases: dict[str, str] = field(default_factory=dict)
     route_policies: dict[str, RoutePolicy] = field(default_factory=dict)
     traffic_classifiers: dict[str, TrafficClassifier] = field(default_factory=dict)
     traffic_behaviors: dict[str, TrafficBehavior] = field(default_factory=dict)
@@ -282,8 +320,14 @@ class DeviceConfig:
     acl_references: list[tuple[str, str, SourceRange]] = field(default_factory=list)
     sensitive_lines: list[SourceRange] = field(default_factory=list)
     metadata: dict[str, str] = field(default_factory=dict)
+    feature_facts: dict[str, dict[str, Any]] = field(default_factory=dict)
     unparsed_lines: list[SourceRange] = field(default_factory=list)
     snapshot: SnapshotEvidence = field(default_factory=SnapshotEvidence)
+    parse_issues: list[Diagnostic] = field(default_factory=list)
+    unsupported_lines: list[SourceRange] = field(default_factory=list)
+    ignored_lines: list[SourceRange] = field(default_factory=list)
+    context_unknown_lines: list[SourceRange] = field(default_factory=list)
+    incomplete_reasons: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         data = _json_compatible(asdict(self))

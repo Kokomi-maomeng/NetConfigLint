@@ -1,0 +1,7 @@
+# Qualified release toolchain. Python is checked by scripts/check_build_environment.py.
+PySide6==6.11.2
+PySide6_Essentials==6.11.2
+PySide6_Addons==6.11.2
+shiboken6==6.11.2
+Nuitka==4.2
+pefile==2024.8.26

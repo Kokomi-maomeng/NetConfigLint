@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
+import platform
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QMetaObject, QObject, QTimer
+from PySide6.QtCore import QMetaObject, QObject, QTimer, qVersion
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
@@ -32,6 +34,18 @@ def run_smoke(
     translator.language = "zh_CN"
 
     def finish() -> None:
+        api = window.rendererInterface().graphicsApi().name
+        report["runtime"] = {
+            "python": platform.python_version(),
+            "qt": qVersion(),
+            "platform": app.platformName(),
+            "graphics_api": api,
+            "device_pixel_ratio": window.devicePixelRatio(),
+        }
+        if os.environ.get("QT_QUICK_BACKEND") == "software" and api != "Software":
+            errors.append("Requested Qt Quick software renderer was not active")
+        if api in {"Unknown", "Null"}:
+            errors.append("No usable graphics API was reported")
         report["qml_errors"] = errors
         report["passed"] = not errors and report.get("exports") == 3
         (output / "smoke-result.json").write_text(json.dumps(report, indent=2), encoding="utf-8")

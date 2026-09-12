@@ -22,9 +22,9 @@ def parse_acl_identity(tokens: tuple[str, ...], *, family: str = "ipv4") -> AclI
     kind = "number" if tokens[0].isdigit() else "name"
     if tokens[0].lower() in {"name", "number"}:
         kind, tokens = tokens[0].lower(), tokens[1:]
-    if not tokens or (kind == "number" and not tokens[0].isdigit()):
+    if not tokens or (kind == "number" and not (tokens[0].isascii() and tokens[0].isdigit())):
         return None
-    value = str(int(tokens[0])) if kind == "number" else tokens[0]
+    value = (tokens[0].lstrip("0") or "0") if kind == "number" else tokens[0]
     return AclIdentity(family, kind, value)
 
 

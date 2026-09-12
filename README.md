@@ -68,7 +68,14 @@ also disclose network design; review exported files before sharing.
 
 ## Install from source
 
-Requirements: Python 3.12 or newer; PySide6 6.9 or newer is optional for CLI-only use.
+Requirements: Python 3.12–3.13; PySide6 >=6.9,<6.12 is optional for CLI-only use.
+The release toolchain is pinned in `constraints/release.txt` (Python 3.13.2,
+Qt/PySide6 6.11.2, Nuitka 4.2). `scripts/check_build_environment.py` rejects drift.
+The quality matrix covers Python 3.12.10/3.13.2 across Windows/Linux/macOS and
+3.12.14 on Linux, with Qt 6.9.0/6.11.2. GitHub's 3.12.14 manifest contains no
+Windows/macOS artifacts. Native platform support is qualified only after the
+actual compiled desktop smoke gates pass; authored CI is not a passed test.
+See [P2 verification and remaining platform boundaries](docs/v1.5-p2-repairs.md).
 
 ```powershell
 python -m venv .venv
@@ -251,7 +258,7 @@ NetConfigLint is Apache-2.0 licensed.
 | Dependency | Scope | License information | Purpose |
 |---|---|---|---|
 | PySide6 / Qt for Python | Optional GUI/runtime | LGPLv3, GPLv3, or Qt commercial | Official Qt 6 Python/QML bindings |
-| Nuitka | Build only | Apache-2.0 | Windows standalone compilation through `pyside6-deploy` |
+| Nuitka 4.2 | Compiler and generated runtime | AGPLv3 + Runtime Library Exception 1.0 | Complete texts and exception are included; independent compiled modules retain their own terms |
 | pefile | Build only | MIT | Verifiable recursive Windows PE import resolution |
 | Inno Setup | Build machine | Modified BSD-style | Windows installer generation |
 | pytest, Ruff, mypy | Development only | MIT | Test, lint, and type validation |
@@ -259,6 +266,10 @@ NetConfigLint is Apache-2.0 licensed.
 Original project SVG assets are Apache-2.0. No vendor firmware, private software, documentation
 copies, credentials, or production configurations are included. Redistributors must satisfy the
 licenses of their selected Python/Qt distribution and packaging toolchain.
+Every standalone/portable build assembles full license material and an actual-file
+`SBOM.json`; the final ZIP is verified after compression. Missing/changed legal
+material or unknown native components fail the gate. See [notices and source/library
+replacement instructions](THIRD_PARTY_NOTICES.md).
 
 ## Known limitations
 

@@ -7,6 +7,21 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
 
+$python = Join-Path $projectRoot '.venv\Scripts\python.exe'
+$deploy = Join-Path $projectRoot '.venv\Scripts\pyside6-deploy.exe'
+if (-not (Test-Path -LiteralPath $python)) {
+    $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+    if (-not $pythonCommand) { throw 'Python is required for packaging.' }
+    $python = $pythonCommand.Source
+}
+if (-not (Test-Path -LiteralPath $deploy)) {
+    $deployCommand = Get-Command pyside6-deploy -ErrorAction SilentlyContinue
+    if (-not $deployCommand) { throw 'Install the gui dependencies before packaging.' }
+    $deploy = $deployCommand.Source
+}
+& $python (Join-Path $PSScriptRoot 'check_build_environment.py')
+if ($LASTEXITCODE -ne 0) { throw 'Unqualified build environment.' }
+
 # Nuitka can retain obsolete data files in an existing standalone directory.
 # Rebuild that generated payload so removed QML cannot reappear in a release.
 if (-not $DryRun) {
@@ -23,18 +38,6 @@ if (-not $DryRun) {
     }
 }
 
-$python = Join-Path $projectRoot '.venv\Scripts\python.exe'
-$deploy = Join-Path $projectRoot '.venv\Scripts\pyside6-deploy.exe'
-if (-not (Test-Path -LiteralPath $python)) {
-    $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
-    if (-not $pythonCommand) { throw 'Python is required for packaging.' }
-    $python = $pythonCommand.Source
-}
-if (-not (Test-Path -LiteralPath $deploy)) {
-    $deployCommand = Get-Command pyside6-deploy -ErrorAction SilentlyContinue
-    if (-not $deployCommand) { throw 'Install the gui dependencies before packaging.' }
-    $deploy = $deployCommand.Source
-}
 $scripts = Split-Path -Parent $deploy
 
 $svg = Join-Path $projectRoot 'netconfiglint\resources\icons\app.svg'
@@ -47,12 +50,14 @@ if (-not (Test-Path -LiteralPath $ico)) {
 $env:PATH = $scripts + [IO.Path]::PathSeparator + $env:PATH
 $env:PYTHONUTF8 = '1'
 $env:PYTHONIOENCODING = 'utf-8'
-$ignored = '.venv,.mypy_cache,.pytest_cache,.ruff_cache,build,dist,deployment,tests,docs,examples,scripts'
+$ignored = 'licenses,experiments,.venv,.mypy_cache,.pytest_cache,.ruff_cache,build,dist,deployment,tests,docs,examples,scripts'
 $arguments = @('-c', 'pysidedeploy.spec', '--force', "--extra-ignore-dirs=$ignored")
 if ($DryRun) { $arguments += '--dry-run' }
 $specPath = Join-Path $projectRoot 'pysidedeploy.spec'
 $specSnapshot = [IO.File]::ReadAllText($specPath, [Text.Encoding]::UTF8)
 try {
+    $temporarySpec = $specSnapshot -replace '(?m)^python_path = .*$', ('python_path = ' + $python)
+    [IO.File]::WriteAllText($specPath, $temporarySpec, [Text.UTF8Encoding]::new($false))
     & $deploy @arguments
     $deployExitCode = $LASTEXITCODE
 }
@@ -87,6 +92,8 @@ if (-not $DryRun) {
         if (Test-Path -LiteralPath $generatedExe) {
             Move-Item -LiteralPath $generatedExe -Destination $namedExe -Force
         }
+        & $python (Join-Path $PSScriptRoot 'assemble_licenses.py') $distribution.FullName
+        if ($LASTEXITCODE -ne 0) { throw 'Distribution license gate failed.' }
     }
 
     $executables = Get-ChildItem -LiteralPath $dist -Filter '*.exe' -Recurse

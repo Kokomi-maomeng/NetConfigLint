@@ -3,7 +3,9 @@ from __future__ import annotations
 import ipaddress
 
 from netconfiglint.core.analyzer import AnalysisMode
+from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
+from netconfiglint.core.model import BGPPeer, BGPProcess
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
 
@@ -30,21 +32,26 @@ class BgpNetworkCandidateRule:
             return ()
         candidates: set[tuple[str | None, Network]] = set()
         for route in context.config.static_routes:
+            checkpoint()
             network = _network(route.destination, route.mask)
-            if network is not None:
+            if route.parse_valid and network is not None:
                 candidates.add((route.vpn_instance, network))
         for interface in context.config.interfaces.values():
+            checkpoint()
             for address, mask, _ in interface.ip_addresses:
+                checkpoint()
                 network = _network(address, mask)
                 if network is not None:
                     candidates.add((interface.vpn_instance, network))
             for address, mask, _ in interface.ipv6_addresses:
+                checkpoint()
                 network = _network(address, mask)
                 if network is not None:
                     candidates.add((interface.vpn_instance, network))
         for ipv6_route in context.config.ipv6_static_routes:
+            checkpoint()
             network = _network(ipv6_route.destination, ipv6_route.prefix_length)
-            if network is not None:
+            if ipv6_route.parse_valid and network is not None:
                 candidates.add((ipv6_route.vpn_instance, network))
 
         snapshot_routes = {
@@ -56,7 +63,9 @@ class BgpNetworkCandidateRule:
 
         result = []
         for family in context.config.bgp.address_families:
+            checkpoint()
             for address, mask, source in family.networks:
+                checkpoint()
                 network = _network(address, mask)
                 if network is None:
                     continue
@@ -139,7 +148,7 @@ class MissingBgpPeerGroupRule:
             missing_reference_diagnostic(
                 context,
                 rule_id=self.metadata.rule_id,
-                source=peer.source,
+                source=peer.group_source or peer.source,
                 object_name=peer.address,
                 full_message=f"BGP peer references undefined group {peer.group}.",
                 snippet_message=f"BGP group {peer.group} was not found in the snippet.",
@@ -147,7 +156,11 @@ class MissingBgpPeerGroupRule:
                 suggested_fix=f"Define group {peer.group} or correct the peer group reference.",
             )
             for peer in context.config.bgp.peers.values()
-            if peer.group is not None and peer.group not in context.config.bgp.groups
+            if peer.group is not None
+            and (
+                peer.group not in context.config.bgp.groups
+                or not context.config.bgp.groups[peer.group].declared
+            )
         )
 
 
@@ -155,19 +168,49 @@ class MissingBgpPeerRemoteAsRule:
     metadata = RuleMetadata("HUA-BGP-005", "BGP peer without remote AS", Severity.ERROR, "Huawei")
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
-        if context.config.bgp is None or context.mode.value == "snippet":
+        if context.config.bgp is None:
             return ()
         return tuple(
             Diagnostic(
-                Severity.ERROR,
+                Severity.UNKNOWN if context.mode == AnalysisMode.SNIPPET else Severity.ERROR,
                 self.metadata.rule_id,
                 peer.source,
                 peer.address,
-                "BGP peer has neither a remote AS nor a peer-group binding.",
+                "BGP peer has no effective remote AS in the supplied configuration.",
                 "The supplied full configuration does not establish how the peer inherits its remote AS.",
                 "Configure the peer AS number or bind the peer to a defined group with a remote AS.",
-                Confidence.VERIFIED,
+                Confidence.LOW if context.mode == AnalysisMode.SNIPPET else Confidence.DOCUMENTED,
             )
             for peer in context.config.bgp.peers.values()
-            if peer.remote_as is None and peer.group is None
+            if effective_remote_as(context.config.bgp, peer) is None
         )
+
+
+def _valid_as(value: str | None) -> bool:
+    if value is None:
+        return False
+    parts = value.split(".")
+    if len(parts) == 1:
+        return (
+            parts[0].isascii()
+            and parts[0].isdigit()
+            and len(parts[0]) <= 10
+            and 1 <= int(parts[0]) <= 4294967295
+        )
+    return (
+        len(parts) == 2
+        and all(
+            part.isascii() and part.isdigit() and len(part) <= 5 and 0 <= int(part) <= 65535 for part in parts
+        )
+        and any(int(part) for part in parts)
+    )
+
+
+def effective_remote_as(bgp: BGPProcess, peer: BGPPeer) -> str | None:
+    if peer.remote_as is not None:
+        return peer.remote_as if _valid_as(peer.remote_as) else None
+    group = bgp.groups.get(peer.group or "")
+    if group is None or not group.declared:
+        return None
+    value = bgp.local_as if group.group_type == "internal" else group.remote_as
+    return value if _valid_as(value) else None

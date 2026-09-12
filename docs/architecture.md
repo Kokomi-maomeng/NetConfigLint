@@ -42,13 +42,13 @@ and confidence dimensions and retain source ranges without retaining secrets in 
 - `core.lexer`: vendor-neutral source line/token helpers.
 - `rules`: rule protocol, metadata, context, and engine.
 - `vendors.registry`: vendor plugin descriptors and auto/explicit vendor resolution.
-- `vendors.huawei`: Huawei VRP detection, parsing, profiles, grammar scaffolding, and rules.
+- `vendors.huawei`: Huawei VRP detection, parsing, evidence-scoped profiles, and rules.
 - `cli`: text/JSON adapters over the public API.
 - `gui`: testable controller/models and a QML-first presentation layer.
 
 ## Extending vendors
 
-A new vendor supplies a detector, parser, optional profile overlays, and rules. It registers
+A new vendor supplies a detector, parser, optional documented profile facts, and rules. It registers
 through the core registries; the unified model, rule engine, diagnostics, CLI, and GUI remain
 unchanged. Vendor-specific command knowledge must not leak into GUI code.
 
@@ -85,8 +85,11 @@ also sit behind QObject/list-model boundaries. QML does not access the filesyste
 
 Huawei profile facts are data in `vendors/huawei/profiles/catalog.json`. Each fact names one or
 more official-source records and is inherited through base/platform/version overlays. Profile
-resolution is conservative: a documented release overlay requires explicit version/platform or
-model evidence, while unmatched input uses the generic VRP base profile. The catalog records
+resolution is conservative: a model-specific release fact requires both model and
+version evidence from identity/banner positions, never descriptions. An exact S7700
+version match changes the SSH omitted-source check using the cited vendor default;
+unmatched versions/models produce UNKNOWN for that fact. Other profile metadata
+alone does not imply device-specific validation of all commands. The catalog records
 facts needed by this analyzer, not complete copies of vendor documentation.
 
 ## Compatibility confidence
@@ -94,3 +97,25 @@ facts needed by this analyzer, not complete copies of vendor documentation.
 Severity describes impact. Confidence describes evidence quality: VERIFIED, DOCUMENTED,
 INFERRED, GENERIC, or LOW. Platform/version-specific assertions require a matching profile;
 otherwise rules remain generic or return UNKNOWN instead of asserting incompatibility.
+
+
+## Analysis budgets, coverage and experimental grammar
+
+A per-call ContextVar carries cooperative cancellation and character, line, line-length,
+work, diagnostic, VLAN-membership and elapsed-time limits. Parser state belongs to
+DeviceConfig, so the shared vendor parser cannot cross-contaminate OSPF area context.
+Partial rule output remains available with SYS-LIMIT-001; parse-stage limits return
+an explicit incomplete result. Cancellation raises AnalysisCancelled and the GUI
+publishes no result/history for cancelled work. The built-in analyzer checks during
+work; legacy injected analyzers are only checked before and after their call.
+
+Coverage counts and source lines are exported by default and displayed even when
+there are no diagnostics. Recognized does not mean every device syntax or runtime
+condition has been checked. Description/banner metadata is explicitly ignored.
+An optional initial_view is available to API/CLI snippet callers; the original source
+and line numbers are retained. Unsupported undo forms and OSPFv3 remain explicit
+unsupported coverage, not guessed effective configuration.
+
+CommandTree and CommandProfile/ProfileOverlay are isolated in
+experiments/huawei_grammar, outside the shipped package. They have no active parser
+or rule consumer and do not advertise production grammar coverage.

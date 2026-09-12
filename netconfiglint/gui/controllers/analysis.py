@@ -10,6 +10,7 @@ from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 
 from netconfiglint import analyze
 from netconfiglint.core.analyzer import AnalysisResult
+from netconfiglint.core.analyzer.control import AnalysisCancelled, AnalysisLimits, CancellationToken
 from netconfiglint.gui.exporting import render_report
 from netconfiglint.gui.i18n import TranslationController
 from netconfiglint.gui.models import DiagnosticListModel, HistoryListModel, HistoryStore
@@ -58,6 +59,8 @@ class AnalysisController(QObject):
         self._result_current = False
         self._export_payload: str | None = None
         self._closing = False
+        self._cancellation = CancellationToken()
+        self._coverage: dict[str, Any] = {}
         self.translator = TranslationController(persist_settings=False)
         self._detection: dict[str, Any] = self._empty_detection()
         self._summary: dict[str, int] = {key: 0 for key in ("ERROR", "WARNING", "INFO", "UNKNOWN")}
@@ -72,6 +75,8 @@ class AnalysisController(QObject):
         return {"vendor": "Unknown"}
 
     def _invalidate(self) -> None:
+        self._cancellation.cancel()
+        self._coverage = {}
         self._revision += 1
         had_result = self._result_current
         self._result_current = False
@@ -90,6 +95,11 @@ class AnalysisController(QObject):
         return self._result_current
 
     resultCurrent = Property(bool, _get_result_current, notify=resultCurrentChanged)
+
+    def _get_coverage(self) -> dict[str, Any]:
+        return self._coverage
+
+    coverage = Property("QVariantMap", _get_coverage, notify=resultCurrentChanged)  # type: ignore[arg-type]
 
     def _get_vendor_options(self) -> list[dict[str, str]]:
         return [{"value": "auto", "label": "auto"}] + [
@@ -172,9 +182,15 @@ class AnalysisController(QObject):
     def _set_history_enabled(self, value: bool) -> None:
         if value != self._history_store.enabled:
             self._history_store.set_enabled(value)
+            self._history_model.replace(self._history_store.entries)
             self.historyEnabledChanged.emit()
 
     historyEnabled = Property(bool, _get_history_enabled, _set_history_enabled, notify=historyEnabledChanged)
+
+    def _get_history_warning(self) -> bool:
+        return self._history_store.load_warning
+
+    historyLoadWarning = Property(bool, _get_history_warning, notify=historyEnabledChanged)
 
     def _set_busy(self, value: bool) -> None:
         if value != self._busy:
@@ -204,6 +220,8 @@ class AnalysisController(QObject):
     def loadFile(self, value: str) -> None:
         try:
             path = Path(QUrl(value).toLocalFile() if value.startswith("file:") else value)
+            if path.stat().st_size > AnalysisLimits().max_characters * 4:
+                raise OSError("Input size budget exceeded")
             self._set_source_text(path.read_text(encoding="utf-8-sig"))
             self._file_name = path.name
             self.fileNameChanged.emit()
@@ -227,6 +245,7 @@ class AnalysisController(QObject):
                 vendor=self._detection["vendor"],
                 text=self.translator.text,
                 translate=self.translator.diagnostic,
+                coverage=self._coverage,
             )
         except ValueError:
             return False
@@ -256,17 +275,24 @@ class AnalysisController(QObject):
         if not self._source_text.strip():
             return
         self._running_revision = self._revision
+        self._cancellation = CancellationToken()
         self._set_busy(True)
         self._set_status("analysis.running")
         if not self._async_enabled:
             self._run_synchronously()
             return
-        future = self._executor.submit(self._analyzer, self._source_text, self._mode, self._vendor)
+        future = self._executor.submit(
+            self._analyze_input, self._source_text, self._mode, self._vendor, self._cancellation
+        )
         future.add_done_callback(self._worker_done)
 
     def _run_synchronously(self) -> None:
         try:
-            self._apply_result(self._analyzer(self._source_text, self._mode, self._vendor))
+            self._apply_result(
+                self._analyze_input(self._source_text, self._mode, self._vendor, self._cancellation)
+            )
+        except AnalysisCancelled:
+            self._apply_error("cancelled")
         except Exception as exc:  # analyzer boundary: surfaced without source text
             self._apply_error(str(exc))
 
@@ -275,11 +301,33 @@ class AnalysisController(QObject):
             return
         try:
             self._workerSucceeded.emit(future.result())
+        except AnalysisCancelled:
+            self._workerFailed.emit("cancelled")
         except Exception as exc:  # analyzer boundary: surfaced without source text
             self._workerFailed.emit(str(exc))
 
+    def _analyze_input(
+        self, source: str, mode: str, vendor: str, cancellation: CancellationToken
+    ) -> AnalysisResult:
+        if self._analyzer is analyze:
+            return analyze(source, mode, vendor, cancellation=cancellation)
+        # Third-party injected analyzers retain their existing three-argument contract.
+        if cancellation.cancelled:
+            raise AnalysisCancelled()
+        result = self._analyzer(source, mode, vendor)
+        if cancellation.cancelled:
+            raise AnalysisCancelled()
+        return result
+
+    @Slot()
+    def cancelAnalysis(self) -> None:
+        self._cancellation.cancel()
+
     @Slot(object)
     def _apply_result(self, result: object) -> None:
+        if self._busy and self._cancellation.cancelled:
+            self._apply_error("cancelled")
+            return
         if not isinstance(result, AnalysisResult):
             self._apply_error("invalid_result")
             return
@@ -288,6 +336,7 @@ class AnalysisController(QObject):
             self._set_status("analysis.changed" if self._source_text.strip() else "")
             return
         self._diagnostics.replace(result.diagnostics)
+        self._coverage = result.coverage
         self._detection = {"vendor": result.detection.vendor}
         self._result_current = True
         self.resultCurrentChanged.emit()
@@ -311,6 +360,9 @@ class AnalysisController(QObject):
             self._set_status("analysis.changed" if self._source_text.strip() else "")
             return
         self._invalidate()
+        if message == "cancelled":
+            self._set_status("analysis.cancelled")
+            return
         key = (
             "analysis.unsupported"
             if "Could not identify a supported vendor" in message
@@ -330,10 +382,12 @@ class AnalysisController(QObject):
         try:
             self._history_store.clear()
             self._history_model.replace([])
+            self.historyEnabledChanged.emit()
             self.toastRequested.emit("history.cleared")
         except OSError:
             self.toastRequested.emit("history.clear_error")
 
     def close(self) -> None:
         self._closing = True
+        self._cancellation.cancel()
         self._executor.shutdown(wait=False, cancel_futures=True)
