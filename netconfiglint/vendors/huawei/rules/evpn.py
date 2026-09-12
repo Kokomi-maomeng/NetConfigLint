@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
+from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
@@ -15,6 +16,7 @@ _INTERFACE_VNI = re.compile(r"^vni\s+(\d+)(?:\s|$)", re.IGNORECASE)
 def _vni_definitions(context: RuleContext) -> set[int]:
     result = set()
     for block in context.config.blocks:
+        checkpoint()
         match = _VNI_HEADER.match(block.header)
         if match is not None:
             result.add(int(match.group(1)))
@@ -24,10 +26,12 @@ def _vni_definitions(context: RuleContext) -> set[int]:
 def _bridge_bindings(context: RuleContext) -> list[tuple[str, int, SourceRange]]:
     result = []
     for block in context.config.blocks:
+        checkpoint()
         if not block.header.lower().startswith("bridge-domain "):
             continue
         bridge_domain = block.header.split(maxsplit=1)[1]
         for command in block.commands:
+            checkpoint()
             match = _VXLAN_VNI.match(command.text)
             if match is not None:
                 result.append((bridge_domain, int(match.group(1)), command.source))
@@ -40,10 +44,12 @@ class InvalidVniRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         candidates: list[tuple[int, SourceRange, str]] = []
         for block in context.config.blocks:
+            checkpoint()
             header_match = _VNI_HEADER.match(block.header)
             if header_match is not None:
                 candidates.append((int(header_match.group(1)), block.source, block.header))
             for command in block.commands:
+                checkpoint()
                 match = _VXLAN_VNI.match(command.text)
                 if match is None and block.header.lower().startswith("interface nve"):
                     match = _INTERFACE_VNI.match(command.text)
@@ -96,12 +102,15 @@ class DuplicateBridgeDomainVniRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         by_vni: defaultdict[int, list[tuple[str, SourceRange]]] = defaultdict(list)
         for bridge_domain, vni, source in _bridge_bindings(context):
+            checkpoint()
             by_vni[vni].append((bridge_domain, source))
         result = []
         for vni, bindings in sorted(by_vni.items()):
+            checkpoint()
             if len({item[0] for item in bindings}) < 2:
                 continue
             for _bridge_domain, source in bindings[1:]:
+                checkpoint()
                 result.append(
                     Diagnostic(
                         Severity.ERROR,

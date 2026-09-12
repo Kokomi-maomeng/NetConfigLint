@@ -13,6 +13,9 @@ AppCard {
     property string statusKey: ""
     property bool resultCurrent: false
     property bool busy: false
+    property var coverage: ({})
+    property bool coverageExpanded: false
+    signal cancelRequested()
     signal issueActivated(int row)
     signal dragStarted()
     signal dragMoved(real sceneX)
@@ -48,6 +51,32 @@ AppCard {
                 font: Typography.caption
             }
             ProgressBar { Layout.fillWidth: true; visible: root.busy; indeterminate: root.busy }
+            AppButton {
+                visible: root.busy
+                text: i18n.catalog["analysis.cancel"]
+                onClicked: root.cancelRequested()
+            }
+            ToolButton {
+                objectName: "coverageToggle"
+                Layout.fillWidth: true
+                visible: root.resultCurrent
+                text: i18n.catalog["analysis.coverage"] + ": " + (root.coverage.recognized || 0)
+                      + " / " + ((root.coverage.recognized || 0) + (root.coverage.unparsed || 0) + (root.coverage.unsupported || 0))
+                      + "  " + (root.coverage.complete === false ? i18n.catalog["analysis.incomplete"] : "")
+                onClicked: root.coverageExpanded = !root.coverageExpanded
+            }
+            SelectableText {
+                objectName: "coverageDetails"
+                Layout.fillWidth: true
+                visible: root.resultCurrent && root.coverageExpanded
+                font: Typography.caption
+                text: i18n.catalog["analysis.coverage_scope"] + "\n"
+                      + i18n.catalog["analysis.unparsed"] + ": " + (root.coverage.unparsed || 0) + "\n"
+                      + i18n.catalog["analysis.unsupported_lines"] + ": " + (root.coverage.unsupported || 0) + "\n"
+                      + i18n.catalog["issue.line"] + ": "
+                      + (root.coverage.unparsed_lines || []).concat(root.coverage.unsupported_lines || []).slice(0, 80).join(", ")
+                      + (((root.coverage.unparsed || 0) + (root.coverage.unsupported || 0)) > 80 ? " …" : "")
+            }
             RowLayout {
                 Layout.fillWidth: true
                 visible: root.resultCurrent

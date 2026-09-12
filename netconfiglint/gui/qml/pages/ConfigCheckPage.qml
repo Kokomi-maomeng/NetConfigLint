@@ -127,6 +127,8 @@ Item {
                 detection: root.controller.detection
                 summary: root.controller.summary
                 statusKey: root.controller.statusMessage
+                coverage: root.controller.coverage
+                onCancelRequested: root.controller.cancelAnalysis()
                 resultCurrent: root.controller.resultCurrent
                 busy: root.controller.busy
                 onIssueActivated: row => { root.showConfiguration(); root.controller.requestJump(row) }

@@ -22,14 +22,21 @@ Item {
             Item { Layout.fillWidth: true }
             AppButton {
                 text: i18n.catalog["history.clear"]
-                enabled: historyList.count > 0
+                enabled: historyList.count > 0 || root.controller.historyLoadWarning
                 onClicked: root.controller.clearHistory()
             }
+        }
+        SelectableText {
+            Layout.fillWidth: true
+            visible: root.controller.historyLoadWarning
+            text: i18n.catalog["history.recovery_warning"]
+            color: Colors.warning
+            font: Typography.caption
         }
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: historyList.count === 0
+            visible: !root.controller.historyEnabled || historyList.count === 0
             EmptyState {
                 anchors.centerIn: parent
                 width: Math.min(parent.width, 520)
@@ -49,6 +56,7 @@ Item {
             spacing: Spacing.sm
             clip: true
             delegate: AppCard {
+                objectName: "historyCard"
                 required property string timestamp
                 required property string mode
                 required property string vendor
@@ -57,18 +65,21 @@ Item {
                 required property var summary
                 required property var ruleIds
                 width: ListView.view.width
-                implicitHeight: 92
+                implicitHeight: historyRow.implicitHeight + padding * 2
                 RowLayout {
+                    id: historyRow
                     anchors.fill: parent
                     ColumnLayout {
                         Layout.fillWidth: true
-                        SelectableText { text: timestamp; color: Colors.textPrimary; font: Typography.label }
+                        SelectableText { Layout.fillWidth: true; text: timestamp; color: Colors.textPrimary; font: Typography.label }
                         SelectableText {
-                            text: vendor + " 路 " + mode
+                            Layout.fillWidth: true
+                            text: vendor + " · " + (i18n.catalog["mode." + mode] || mode)
                             color: Colors.textSecondary
                             font: Typography.body
                         }
                         SelectableText {
+                            objectName: "historyRules"
                             text: ruleIds.join(", ")
                             color: Colors.textSecondary
                             font: Typography.caption

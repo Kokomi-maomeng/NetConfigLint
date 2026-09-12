@@ -127,5 +127,16 @@
   "color.slate": "Slate",
   "object.management": "Management plane",
   "object.configuration": "Configuration",
-  "analysis.severity_filter": "Diagnostic severity filter"
+  "analysis.severity_filter": "Diagnostic severity filter",
+  "history.recovery_warning": "Some history could not be read. The original file is preserved; recover it or clear history before saving.",
+  "issue.object": "Object",
+  "issue.confidence": "Confidence",
+  "issue.source_range": "Source range",
+  "analysis.cancel": "Cancel analysis",
+  "analysis.cancelled": "Analysis cancelled",
+  "analysis.coverage": "Recognized commands",
+  "analysis.incomplete": "Incomplete result",
+  "analysis.unparsed": "Unparsed",
+  "analysis.unsupported_lines": "Unsupported",
+  "analysis.coverage_scope": "Only supported rules are checked. Recognition does not mean full validation. Up to 80 line numbers are shown; exports contain the full list."
 }

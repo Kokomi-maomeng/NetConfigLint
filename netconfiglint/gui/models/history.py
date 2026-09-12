@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -76,30 +77,78 @@ class HistoryStore:
         self._persist_settings = persist_settings
         configured = QSettings().value("privacy/historyEnabled", False, type=bool)
         self.enabled = bool(configured if enabled is None else enabled)
-        self.entries = self._load()
+        self.load_warning = False
+        self.entries = self._load() if self.enabled else []
 
     def _load(self) -> list[HistoryEntry]:
-        if not self.path.exists():
-            return []
         try:
-            raw: list[dict[str, Any]] = json.loads(self.path.read_text(encoding="utf-8"))
-            return [
-                HistoryEntry(
-                    entry_id=item["entry_id"],
-                    timestamp=item["timestamp"],
-                    mode=item["mode"],
-                    vendor=item["vendor"],
-                    diagnostic_count=int(item["diagnostic_count"]),
-                    source_line_count=int(item["source_line_count"]),
-                    summary={str(key): int(value) for key, value in item["summary"].items()},
-                    rule_ids=tuple(item["rule_ids"]),
-                )
-                for item in raw
-            ]
-        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+            with self.path.open("rb") as stream:
+                data = stream.read(2 * 1024 * 1024 + 1)
+            if len(data) > 2 * 1024 * 1024:
+                raise ValueError("History size limit")
+            raw = json.loads(data)
+            if isinstance(raw, dict):
+                if raw.get("schema_version") != 1:
+                    raise ValueError("Unsupported history schema")
+                raw = raw.get("entries")
+            if not isinstance(raw, list) or len(raw) > 1000:
+                raise ValueError("Invalid history root or record count")
+            entries = []
+            for item in raw:
+                try:
+                    entries.append(self._entry(item))
+                except (ValueError, KeyError, TypeError, OverflowError):
+                    self.load_warning = True
+            return entries[: self.limit]
+        except FileNotFoundError:
+            return []
+        except (OSError, ValueError, TypeError, RecursionError):
+            self.load_warning = True
             return []
 
+    @staticmethod
+    def _entry(item: Any) -> HistoryEntry:
+        if not isinstance(item, dict):
+            raise ValueError("Invalid history entry")
+        for key in ("entry_id", "timestamp", "mode", "vendor"):
+            if not isinstance(item[key], str) or not 1 <= len(item[key]) <= 128:
+                raise ValueError("Invalid history string")
+        datetime.fromisoformat(item["timestamp"])
+        if item["mode"] not in {"snippet", "full", "snapshot"}:
+            raise ValueError("Invalid history mode")
+        for key in ("diagnostic_count", "source_line_count"):
+            if type(item[key]) is not int or not 0 <= item[key] <= 1000000:
+                raise ValueError("Invalid history count")
+        summary = item["summary"]
+        if not isinstance(summary, dict) or set(summary) != {"ERROR", "WARNING", "INFO", "UNKNOWN"}:
+            raise ValueError("Invalid history summary")
+        if any(type(value) is not int or not 0 <= value <= 1000000 for value in summary.values()):
+            raise ValueError("Invalid summary counts")
+        if sum(summary.values()) != item["diagnostic_count"]:
+            raise ValueError("Inconsistent history counts")
+        ids = item["rule_ids"]
+        if (
+            not isinstance(ids, list)
+            or len(ids) > 1000
+            or any(
+                not isinstance(value, str) or re.fullmatch(r"[A-Z0-9-]{1,80}", value) is None for value in ids
+            )
+        ):
+            raise ValueError("Invalid history rule list")
+        return HistoryEntry(
+            item["entry_id"],
+            item["timestamp"],
+            item["mode"],
+            item["vendor"],
+            item["diagnostic_count"],
+            item["source_line_count"],
+            dict(summary),
+            tuple(ids),
+        )
+
     def set_enabled(self, enabled: bool) -> None:
+        if enabled and not self.enabled:
+            self.entries = self._load()
         self.enabled = enabled
         if self._persist_settings:
             QSettings().setValue("privacy/historyEnabled", enabled)
@@ -107,6 +156,8 @@ class HistoryStore:
     def append(self, result: AnalysisResult) -> None:
         if not self.enabled:
             return
+        if self.load_warning:
+            raise OSError("Damaged history preserved; recover or explicitly clear it before saving")
         previous = list(self.entries)
         self.entries.insert(0, HistoryEntry.from_result(result))
         del self.entries[self.limit :]
@@ -120,10 +171,11 @@ class HistoryStore:
         if self.path.exists():
             self.path.unlink()
         self.entries.clear()
+        self.load_warning = False
 
     def _write(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = [asdict(entry) for entry in self.entries]
+        payload = {"schema_version": 1, "entries": [asdict(entry) for entry in self.entries]}
         temporary = self.path.with_suffix(".tmp")
         temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         temporary.replace(self.path)

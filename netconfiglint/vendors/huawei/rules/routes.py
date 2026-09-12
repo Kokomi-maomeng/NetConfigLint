@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 
+from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.rules.facts import all_commands
@@ -25,19 +26,20 @@ class StaticRouteFormatRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result = []
         for route in context.config.static_routes:
+            checkpoint()
             valid = route.parse_valid and _route_network(route.destination, route.mask) is not None
             if valid:
                 continue
             result.append(
                 Diagnostic(
-                    Severity.ERROR,
+                    Severity.ERROR if route.syntax_known else Severity.UNKNOWN,
                     self.metadata.rule_id,
                     route.source,
                     route.destination or "ip route-static",
                     "The static route could not be normalized safely.",
                     route.parse_issue or "The destination or mask is not a valid IPv4 network form.",
                     "Correct the destination, mask/prefix length, and next-hop arguments.",
-                    Confidence.VERIFIED,
+                    Confidence.DOCUMENTED if route.syntax_known else Confidence.LOW,
                 )
             )
         return tuple(result)
@@ -49,6 +51,7 @@ class AbnormalNextHopRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result = []
         for route in context.config.static_routes:
+            checkpoint()
             try:
                 address = ipaddress.ip_address(route.next_hop)
             except ValueError:
@@ -78,11 +81,13 @@ class MissingStaticRouteVpnRule:
         result = []
         seen: set[tuple[int, str]] = set()
         for text, source, block in all_commands(context.config):
+            checkpoint()
             tokens = text.split()
             lowered = [token.lower() for token in tokens]
             if lowered[:2] not in (["ip", "route-static"], ["ipv6", "route-static"]):
                 continue
             for index, token in enumerate(lowered[:-1]):
+                checkpoint()
                 if token != "vpn-instance":
                     continue
                 vpn_instance = tokens[index + 1]

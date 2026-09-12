@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import re
 
-from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
+from netconfiglint.core.analyzer.control import checkpoint
+from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
 
@@ -19,6 +20,7 @@ def _expand_reference(value: str) -> set[int]:
     result: set[int] = set()
     index = 0
     while index < len(tokens):
+        checkpoint()
         if not tokens[index].isdigit():
             index += 1
             continue
@@ -38,14 +40,15 @@ def _expand_reference(value: str) -> set[int]:
 def _service_vlan_references(context: RuleContext) -> set[int]:
     references: set[int] = set()
     for block in context.config.blocks:
+        checkpoint()
         for command in block.commands:
+            checkpoint()
             lower = command.text.lower()
             if not lower.startswith(
                 (
                     "encapsulation ",
                     "if-match vlan ",
                     "l2 binding vlan ",
-                    "port ",
                     "qinq ",
                     "vlan mapping ",
                 )
@@ -59,28 +62,55 @@ def _service_vlan_references(context: RuleContext) -> set[int]:
     return references
 
 
+def _missing_ranges(context: RuleContext, key: str, rule_id: str) -> tuple[Diagnostic, ...]:
+    result = []
+    defined = _defined_vlans(context)
+    for interface in context.config.interfaces.values():
+        # 'all' admits existing VLANs; it is not a request to create every possible VLAN.
+        checkpoint()
+        if key in interface.vlan_all:
+            continue
+        sources = interface.vlan_sources.get(key, {})
+        by_source: dict[SourceRange, list[int]] = {}
+        for value in sorted(getattr(interface, key) - defined):
+            checkpoint()
+            by_source.setdefault(sources.get(value, interface.source), []).append(value)
+        for source, values in by_source.items():
+            checkpoint()
+            ranges: list[str] = []
+            start = end = values[0]
+            for value in values[1:]:
+                checkpoint()
+                if value == end + 1:
+                    end = value
+                else:
+                    ranges.append(str(start) if start == end else f"{start}-{end}")
+                    start = end = value
+            ranges.append(str(start) if start == end else f"{start}-{end}")
+            label = ", ".join(ranges)
+            result.append(
+                missing_reference_diagnostic(
+                    context,
+                    rule_id=rule_id,
+                    source=source,
+                    object_name=interface.name,
+                    full_message=f"VLAN {label} is referenced but not defined.",
+                    snippet_message=f"VLAN {label} was not found in the supplied snippet.",
+                    explanation=(
+                        f"This command references {len(values)} VLAN(s) "
+                        "absent from the supplied configuration."
+                    ),
+                    suggested_fix=f"Create VLAN {label} or correct this VLAN list.",
+                )
+            )
+    return tuple(result)
+
+
 class MissingTrunkVlanRule:
     metadata = RuleMetadata("HUA-VLAN-001", "Undefined trunk VLAN", Severity.ERROR, "Huawei")
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
-        result: list[Diagnostic] = []
-        for interface in context.config.interfaces.values():
-            source = interface.command_sources.get("allowed_vlans", interface.source)
-            for vlan_id in sorted(interface.allowed_vlans - _defined_vlans(context)):
-                result.append(
-                    missing_reference_diagnostic(
-                        context,
-                        rule_id=self.metadata.rule_id,
-                        source=source,
-                        object_name=interface.name,
-                        full_message=f"VLAN {vlan_id} is referenced but not defined.",
-                        snippet_message=f"VLAN {vlan_id} was not found in the supplied snippet.",
-                        explanation=f"The interface allows VLAN {vlan_id}, but that VLAN does not "
-                        "exist in the supplied full configuration.",
-                        suggested_fix=f"Create VLAN {vlan_id} or remove it from the allowed VLAN list.",
-                    )
-                )
-        return tuple(result)
+        return _missing_ranges(context, "allowed_vlans", self.metadata.rule_id)
 
 
 class MissingAccessVlanRule:
@@ -89,6 +119,7 @@ class MissingAccessVlanRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result: list[Diagnostic] = []
         for interface in context.config.interfaces.values():
+            checkpoint()
             vlan_id = interface.access_vlan
             if vlan_id is None or vlan_id in _defined_vlans(context):
                 continue
@@ -133,6 +164,10 @@ class UnusedVlanRule:
         )
         used.update(_service_vlan_references(context))
         for interface in context.config.interfaces.values():
+            checkpoint()
+            for key in interface.vlan_all:
+                checkpoint()
+                used.update(set(context.config.vlans) - interface.vlan_exclusions.get(key, set()))
             match = re.fullmatch(r"vlanif\s*(\d+)", interface.name, re.IGNORECASE)
             if match is not None:
                 used.add(int(match.group(1)))
@@ -163,26 +198,10 @@ class MissingHybridVlanRule:
     metadata = RuleMetadata("HUA-VLAN-004", "Undefined hybrid VLAN", Severity.ERROR, "Huawei")
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
-        result = []
-        for interface in context.config.interfaces.values():
-            referenced = interface.hybrid_tagged_vlans | interface.hybrid_untagged_vlans
-            source = interface.command_sources.get("hybrid_tagged_vlans") or interface.command_sources.get(
-                "hybrid_untagged_vlans", interface.source
-            )
-            for vlan_id in sorted(referenced - _defined_vlans(context)):
-                result.append(
-                    missing_reference_diagnostic(
-                        context,
-                        rule_id=self.metadata.rule_id,
-                        source=source,
-                        object_name=interface.name,
-                        full_message=f"Hybrid VLAN {vlan_id} is referenced but not defined.",
-                        snippet_message=f"Hybrid VLAN {vlan_id} was not found in the snippet.",
-                        explanation="The interface tags or untags a VLAN without a matching global VLAN.",
-                        suggested_fix=f"Create VLAN {vlan_id} or remove it from the hybrid VLAN list.",
-                    )
-                )
-        return tuple(result)
+        return (
+            *_missing_ranges(context, "hybrid_tagged_vlans", self.metadata.rule_id),
+            *_missing_ranges(context, "hybrid_untagged_vlans", self.metadata.rule_id),
+        )
 
 
 class MissingPvidVlanRule:
@@ -191,6 +210,7 @@ class MissingPvidVlanRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result = []
         for interface in context.config.interfaces.values():
+            checkpoint()
             if interface.pvid_vlan is None or interface.pvid_vlan in _defined_vlans(context):
                 continue
             result.append(

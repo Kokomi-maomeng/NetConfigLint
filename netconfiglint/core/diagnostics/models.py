@@ -47,6 +47,11 @@ class Diagnostic:
     suggested_fix: str
     confidence: Confidence
 
+    def __post_init__(self) -> None:
+        from netconfiglint.core.analyzer.control import record_diagnostic
+
+        record_diagnostic(self)
+
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["severity"] = self.severity.value

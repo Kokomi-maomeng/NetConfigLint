@@ -127,5 +127,16 @@
   "color.slate": "岩灰",
   "object.management": "管理平面",
   "object.configuration": "配置",
-  "analysis.severity_filter": "诊断级别筛选"
+  "analysis.severity_filter": "诊断级别筛选",
+  "history.recovery_warning": "部分历史无法读取，原文件已保留。恢复文件或清除历史后才能继续保存。",
+  "issue.object": "对象",
+  "issue.confidence": "置信度",
+  "issue.source_range": "来源范围",
+  "analysis.cancel": "取消分析",
+  "analysis.cancelled": "分析已取消",
+  "analysis.coverage": "已识别命令",
+  "analysis.incomplete": "结果不完整",
+  "analysis.unparsed": "未解析",
+  "analysis.unsupported_lines": "暂不支持",
+  "analysis.coverage_scope": "只检查已支持的规则；识别命令不代表完整验证。下方最多显示 80 个行号，完整列表见导出。"
 }

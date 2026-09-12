@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
@@ -11,7 +12,9 @@ class MissingTrafficPolicyComponentRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result = []
         for policy in context.config.traffic_policies.values():
+            checkpoint()
             for classifier, behavior, source in policy.classifier_bindings:
+                checkpoint()
                 if classifier not in context.config.traffic_classifiers:
                     result.append(
                         missing_reference_diagnostic(

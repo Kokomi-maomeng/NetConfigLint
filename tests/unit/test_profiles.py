@@ -7,7 +7,12 @@ def test_profile_catalog_has_valid_official_evidence_links() -> None:
     assert database.schema_version == "1.0"
     assert len(database.sources) >= 7
     assert all(source.url.startswith("https://") for source in database.sources.values())
-    assert all("huawei.com" in source.url for source in database.sources.values())
+    assert all(
+        source.url.startswith(
+            ("https://support.huawei.com/", "https://info.support.huawei.com/", "https://support.huawei.cn/")
+        )
+        for source in database.sources.values()
+    )
 
 
 def test_profile_resolution_is_conservative_without_explicit_evidence() -> None:

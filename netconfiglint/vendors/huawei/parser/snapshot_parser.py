@@ -7,6 +7,7 @@ import re
 from dataclasses import replace
 from typing import cast
 
+from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import SourceRange
 from netconfiglint.core.lexer import lex_lines
 from netconfiglint.core.model import (
@@ -26,7 +27,8 @@ class HuaweiSnapshotParser:
         section: str | None = None
         capture: RibCapture | None = None
         pending_ipv6: dict[str, object] | None = None
-        devices: set[str] = set()
+        # Identity is used only within this parse; no device name is retained in metadata.
+        devices = set(re.findall(r"(?im)^\s*sysname\s+(\S+)\s*$", source))
         peer_scope_known = True
 
         def append_route(route: SnapshotRoute) -> None:
@@ -36,6 +38,7 @@ class HuaweiSnapshotParser:
                 )
 
         for line in lex_lines(source):
+            checkpoint()
             text, lower = line.text, line.text.lower()
             prompt = re.match(r"^<([^>]+)>\s*(.*)$", text)
             command = prompt.group(2) if prompt else text
@@ -113,8 +116,23 @@ class HuaweiSnapshotParser:
                     evidence.interfaces[interface.name.lower()] = interface
         if pending_ipv6 is not None and capture is not None:
             capture.truncated = True
+        conflicting_scopes: set[tuple[int, str | None]] = set()
+        complete_prefixes: dict[tuple[int, str | None], set[str]] = {}
         for item in evidence.rib_captures:
-            if len(devices) > 1:
+            key = (item.family, item.vpn_instance)
+            prefixes = {route.prefix for route in item.routes}
+            if item.complete:
+                previous = complete_prefixes.setdefault(key, prefixes)
+                if previous != prefixes:
+                    conflicting_scopes.add(key)
+        for item in evidence.rib_captures:
+            key = (item.family, item.vpn_instance)
+            # A partial later/earlier positive record also contradicts a complete absence.
+            if key in complete_prefixes and not {r.prefix for r in item.routes} <= complete_prefixes[key]:
+                conflicting_scopes.add(key)
+        for item in evidence.rib_captures:
+            checkpoint()
+            if len(devices) > 1 or (item.family, item.vpn_instance) in conflicting_scopes:
                 item.scope_known = False
             if not item.failed and item.scope_known:
                 evidence.routes.extend(item.routes)

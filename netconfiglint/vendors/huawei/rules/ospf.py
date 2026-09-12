@@ -3,6 +3,7 @@ from __future__ import annotations
 import ipaddress
 from contextlib import suppress
 
+from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
@@ -23,7 +24,9 @@ class OspfAreaAssociationRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result = []
         for process in context.config.ospf_processes.values():
+            checkpoint()
             for network in process.networks:
+                checkpoint()
                 if network.area != "Unknown" and _ospf_network(network.address, network.wildcard):
                     continue
                 severity = Severity.UNKNOWN if network.area == "Unknown" else Severity.ERROR
@@ -70,11 +73,14 @@ class OspfNoParticipatingInterfaceRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         interface_ips = []
         for interface in context.config.interfaces.values():
+            checkpoint()
             for address, _, _ in interface.ip_addresses:
+                checkpoint()
                 with suppress(ValueError):
                     interface_ips.append(ipaddress.IPv4Address(address.split("/")[0]))
         result = []
         for process in context.config.ospf_processes.values():
+            checkpoint()
             has_interface_binding = any(
                 binding[0] == process.process_id
                 for interface in context.config.interfaces.values()

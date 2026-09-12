@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.parser.acl_identity import acl_label
@@ -18,8 +19,27 @@ class MissingBgpRoutePolicyRule:
         result = []
         if context.config.bgp is None:
             return ()
+        for family in context.config.bgp.address_families:
+            for name, source in family.network_policies:
+                checkpoint()
+                if name not in context.config.route_policies:
+                    result.append(
+                        missing_reference_diagnostic(
+                            context,
+                            rule_id=self.metadata.rule_id,
+                            source=source,
+                            object_name=family.name,
+                            full_message=f"BGP network references undefined route-policy {name}.",
+                            snippet_message=f"Route-policy {name} was not found in the snippet.",
+                            explanation="The network policy reference has no matching "
+                            "route-policy definition.",
+                            suggested_fix=f"Define route-policy {name} or correct the network reference.",
+                        )
+                    )
         for peer in context.config.bgp.peers.values():
+            checkpoint()
             for name, source in (*peer.import_policies, *peer.export_policies):
+                checkpoint()
                 if name in context.config.route_policies:
                     continue
                 result.append(
@@ -36,7 +56,9 @@ class MissingBgpRoutePolicyRule:
                     )
                 )
         for group in context.config.bgp.groups.values():
+            checkpoint()
             for name, source in (*group.import_policies, *group.export_policies):
+                checkpoint()
                 if name in context.config.route_policies:
                     continue
                 result.append(
@@ -60,7 +82,9 @@ class MissingPrefixListRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result = []
         for policy in context.config.route_policies.values():
+            checkpoint()
             for name, source in policy.prefix_references:
+                checkpoint()
                 if name in context.config.prefix_lists:
                     continue
                 result.append(
@@ -85,8 +109,10 @@ class MissingAclRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         references = list(context.config.acl_references)
         for policy in context.config.route_policies.values():
+            checkpoint()
             references.extend((name, policy.name, source) for name, source in policy.acl_references)
         for classifier in context.config.traffic_classifiers.values():
+            checkpoint()
             references.extend((name, classifier.name, source) for name, source in classifier.acl_references)
         return tuple(
             missing_reference_diagnostic(
@@ -113,10 +139,13 @@ class UnusedRoutePolicyRule:
         used: set[str] = set()
         if context.config.bgp is not None:
             for peer in context.config.bgp.peers.values():
+                checkpoint()
                 used.update(name for name, _ in (*peer.import_policies, *peer.export_policies))
             for group in context.config.bgp.groups.values():
+                checkpoint()
                 used.update(name for name, _ in (*group.import_policies, *group.export_policies))
         for text, _source, _block in all_commands(context.config):
+            checkpoint()
             if text.lower().startswith("route-policy "):
                 continue
             if (match := _ROUTE_POLICY_REFERENCE.search(text)) is not None:

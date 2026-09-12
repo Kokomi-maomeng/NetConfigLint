@@ -21,6 +21,7 @@ def render_report(
     vendor: str,
     text: Callable[[str], str],
     translate: Callable[[str], str] = lambda value: value,
+    coverage: dict[str, Any] | None = None,
 ) -> str:
     if scope not in {"full", "configuration", "diagnostics"} or format not in {"json", "md", "txt"}:
         raise ValueError("Invalid export options")
@@ -52,6 +53,8 @@ def render_report(
             )
     if format == "json":
         payload: dict[str, Any] = {"schema_version": "1.4", "scope": scope, "mode": mode, "vendor": vendor}
+        if coverage is not None and scope != "configuration":
+            payload["coverage"] = coverage
         if scope == "diagnostics" or (scope == "full" and diagnostics_first):
             payload["diagnostics"] = records
         if scope != "diagnostics":
@@ -78,6 +81,10 @@ def render_report(
 
     def diagnostic_section() -> str:
         result = heading(text("analysis.diagnostics"))
+        if coverage is not None:
+            result += (
+                fenced(text("analysis.coverage") + ": " + json.dumps(coverage, ensure_ascii=False)) + "\n"
+            )
         if not diagnostics:
             return result + text("analysis.no_issues") + "\n"
         for item, record in zip(diagnostics, records, strict=True):
@@ -86,6 +93,9 @@ def render_report(
                     f"[{text('analysis.' + item.severity.value.lower())}] {item.rule_id} · "
                     f"{text('issue.line')} {item.source.line}"
                     + (f"-{item.source.end_line}" if item.source.end_line else "")
+                    + f"\n{text('issue.object')}: {item.object_name}"
+                    + f"\n{text('issue.confidence')}: {item.confidence.value}"
+                    + f"\n{text('issue.source_range')}: {json.dumps(record['source'], sort_keys=True)}"
                     + f"\n{record['message']}\n{text('issue.explanation')}: {record['explanation']}"
                     + f"\n{text('issue.fix')}: {record['suggested_fix']}"
                 )

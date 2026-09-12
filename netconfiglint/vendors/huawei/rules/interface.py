@@ -4,6 +4,7 @@ import ipaddress
 import re
 
 from netconfiglint.core.analyzer import AnalysisMode
+from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
@@ -17,6 +18,7 @@ class ShutdownWithBusinessConfigRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result = []
         for interface in context.config.interfaces.values():
+            checkpoint()
             business = bool(
                 interface.allowed_vlans
                 or interface.access_vlan is not None
@@ -46,6 +48,7 @@ class LinkTypeMismatchRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result = []
         for interface in context.config.interfaces.values():
+            checkpoint()
             mismatch = bool(interface.allowed_vlans and interface.link_type not in {None, "trunk", "hybrid"})
             mismatch = mismatch or bool(interface.access_vlan is not None and interface.link_type == "trunk")
             if mismatch:
@@ -71,6 +74,7 @@ class MissingEthTrunkRule:
         names = {name.lower() for name in context.config.interfaces}
         result = []
         for interface in context.config.interfaces.values():
+            checkpoint()
             if interface.eth_trunk is None:
                 continue
             expected = f"eth-trunk{interface.eth_trunk}".lower()
@@ -100,6 +104,7 @@ class OperationalInterfaceDownRule:
             return ()
         result = []
         for interface in context.config.interfaces.values():
+            checkpoint()
             status = context.config.snapshot.interfaces.get(interface.name.lower())
             business = bool(
                 interface.allowed_vlans
@@ -133,7 +138,9 @@ class InvalidInterfaceAddressRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result = []
         for interface in context.config.interfaces.values():
+            checkpoint()
             for address, mask, source in interface.ip_addresses:
+                checkpoint()
                 try:
                     if mask is None and "/" not in address:
                         raise ValueError
@@ -160,6 +167,7 @@ class MissingVlanifVlanRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         result = []
         for interface in context.config.interfaces.values():
+            checkpoint()
             match = re.fullmatch(r"vlanif\s*(\d+)", interface.name, re.IGNORECASE)
             if match is None or int(match.group(1)) in {*context.config.vlans, 1}:
                 continue

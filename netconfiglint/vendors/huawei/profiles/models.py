@@ -2,36 +2,11 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from netconfiglint.core.analyzer.models import VendorDetection
-
-
-@dataclass(frozen=True, slots=True)
-class ProfileOverlay:
-    """Experimental command overlay; separate from the active evidence catalog."""
-
-    name: str
-    commands: tuple[tuple[str, ...], ...] = ()
-    removed_commands: tuple[tuple[str, ...], ...] = ()
-
-
-@dataclass(slots=True)
-class CommandProfile:
-    """Experimental grammar API; no product compatibility guarantee is derived from it."""
-
-    name: str
-    base_commands: set[tuple[str, ...]] = field(default_factory=set)
-    overlays: list[ProfileOverlay] = field(default_factory=list)
-
-    def effective_commands(self) -> set[tuple[str, ...]]:
-        commands = set(self.base_commands)
-        for overlay in self.overlays:
-            commands.update(overlay.commands)
-            commands.difference_update(overlay.removed_commands)
-        return commands
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +24,7 @@ class FeatureFact:
     syntax: str
     confidence: str
     source_ids: tuple[str, ...]
+    value: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +82,7 @@ class ProfileDatabase:
                     syntax=fact["syntax"],
                     confidence=fact["confidence"],
                     source_ids=tuple(fact["source_ids"]),
+                    value=fact.get("value"),
                 )
                 for fact in item.get("features", ())
             ),
@@ -154,10 +131,12 @@ class ProfileDatabase:
             )
             if model_match and version_match:
                 candidates.append((3, profile, "model+version"))
-            elif version_match and profile.platform_family == detection.platform_family:
+            elif (
+                not profile.model_patterns
+                and version_match
+                and profile.platform_family == detection.platform_family
+            ):
                 candidates.append((2, profile, "platform+version"))
-            elif model_match:
-                candidates.append((1, profile, "model"))
         if candidates:
             score, profile, level = max(candidates, key=lambda item: item[0])
             confidence = "DOCUMENTED" if score >= 2 else "INFERRED"
