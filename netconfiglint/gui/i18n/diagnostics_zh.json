@@ -264,5 +264,14 @@
   "Input line budget exceeded": "超过输入行数或单行长度限额",
   "BGP network references undefined route-policy {0}.": "BGP network 引用了未定义的 route-policy {0}。",
   "The network policy reference has no matching route-policy definition.": "network 策略引用没有匹配的 route-policy 定义。",
-  "Define route-policy {0} or correct the network reference.": "定义 route-policy {0}，或修正 network 的引用。"
+  "Define route-policy {0} or correct the network reference.": "定义 route-policy {0}，或修正 network 的引用。",
+  "Cannot verify next-table route installation": "无法验证指向另一张路由表的路由是否已安装",
+  "Cannot verify next-table route syntax": "无法验证指向另一张路由表的路由语法",
+  "Missing next-hop VPN instance name": "缺少下一跳的 VPN 实例名称",
+  "Cannot verify whether VNI {0} requires a separate EVPN VNI block.": "无法验证 VNI {0} 是否需要单独的 EVPN VNI 配置块。",
+  "A bridge-domain VXLAN binding can itself create a VNI. Other top-level VNI blocks do not prove a universal requirement for this model, version, or service.": "bridge-domain 的 VXLAN 绑定本身可以创建 VNI。其他顶层 VNI 配置块不足以证明此型号、版本或业务也必须采用同样的配置。",
+  "Check the intended VXLAN/EVPN configuration against the exact device command reference.": "请对照该设备的命令参考，核对预期的 VXLAN/EVPN 配置。",
+  "Unverified EVPN VNI relationship": "尚无法验证的 EVPN VNI 关系",
+  "The if-match clause has no matching IPv{0} prefix-list definition in the supplied full configuration.": "所提供的完整配置中，if-match 条件没有对应的 IPv{0} 前缀列表定义。",
+  "Define the IPv{0} prefix-list {1} or correct the if-match clause.": "定义 IPv{0} 前缀列表 {1}，或修正 if-match 条件。"
 }
