@@ -9,7 +9,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import textwrap
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from netconfiglint.core.analyzer.control import charge_vlan_memberships, checkpoint
 from netconfiglint.core.analyzer.models import AnalysisMode, VendorDetection
@@ -22,7 +22,6 @@ from netconfiglint.core.model import (
     BGPPeer,
     BGPProcess,
     ConfigBlock,
-    ConfigCommand,
     DeviceConfig,
     Interface,
     IPv6StaticRoute,
@@ -40,6 +39,7 @@ from netconfiglint.core.model import (
 from netconfiglint.vendors.huawei.parser.acl_identity import parse_acl_identity
 from netconfiglint.vendors.huawei.parser.semantics import acl_rule, bgp_network, route_arguments, vlan_list
 from netconfiglint.vendors.huawei.parser.snapshot_parser import HuaweiSnapshotParser
+from netconfiglint.vendors.huawei.parser.views import effective_blocks, index_blocks, interface_name
 from netconfiglint.vendors.huawei.profiles import ProfileDatabase
 
 _SENSITIVE = re.compile(r"\b(password|cipher|community|pre-shared-key|secret|private-key)\b", re.IGNORECASE)
@@ -55,7 +55,8 @@ class HuaweiConfigParser:
             if (
                 mode != AnalysisMode.SNIPPET
                 or re.fullmatch(
-                    r"aaa|user-interface (?:vty|console) \d+(?: \d+)?|interface \S+|ospf \d+|bgp \d+|acl .+",
+                    r"aaa|user-interface (?:vty|console) \d+(?: \d+)?|"
+                    r"interface \S+(?: \d[\d/.:]*)?|ospf \d+|bgp \d+|acl .+",
                     initial_view,
                     re.I,
                 )
@@ -63,7 +64,8 @@ class HuaweiConfigParser:
             ):
                 raise ValueError("Unsupported initial view; use a supported snippet view header")
             lines = tuple(SourceLine(line.number, " " + line.raw, line.text, line.tokens) for line in lines)
-        config.blocks = self._index_blocks(lines, initial_view)
+        config.blocks, superseded = effective_blocks(self._index_blocks(lines, initial_view))
+        config.ignored_lines.extend(superseded)
         config.metadata["profile_id"] = detection.profile_id
         database = ProfileDatabase()
         resolution = database.resolve(detection)
@@ -72,39 +74,25 @@ class HuaweiConfigParser:
                 fact.feature: asdict(fact)
                 for fact in database.effective_features(resolution.profile.profile_id)
             }
-        context: tuple[str, object] | None = None
-        if initial_view is not None:
-            context = self._start_block(
-                config, SourceLine(1, initial_view, initial_view, tuple(initial_view.split()))
-            )
-
+        # Sensitive input is inventoried even when the command has since been removed.
         for line in lines:
             checkpoint()
-            text = line.text
-            lower = text.lower()
-            if not text or text == "#" or lower == "return":
-                if text == "#":
-                    context = None
-                continue
-            if _SENSITIVE.search(text):
+            if _SENSITIVE.search(line.text):
                 config.sensitive_lines.append(SourceRange(line.number))
-
-            started = self._start_block(config, line)
-            if started is not None:
-                context = started
-                continue
-            if not line.raw[:1].isspace():
-                context = None
-            if self._parse_global(config, line):
-                continue
-            if context is not None and self._parse_context(config, line, context):
-                continue
-            if lower.startswith(("description ", "!software version", "huawei versatile routing platform")):
-                config.ignored_lines.append(SourceRange(line.number))
-                continue
-            config.unparsed_lines.append(SourceRange(line.number))
-            if lower.startswith(("undo ", "ospfv3")):
-                config.unsupported_lines.append(SourceRange(line.number))
+        for block in config.blocks:
+            checkpoint()
+            header = SourceLine(block.source.line, block.header, block.header, tuple(block.header.split()))
+            context = self._start_block(config, header) if block.context_known else None
+            if context is None and block.context_known and not self._parse_global(config, header):
+                self._unparsed(config, header)
+            for command in block.commands:
+                checkpoint()
+                line = SourceLine(
+                    command.source.line, " " + command.text, command.text, tuple(command.text.split())
+                )
+                if context is not None and self._parse_context(config, line, context, command.views):
+                    continue
+                self._unparsed(config, line)
         for block in config.blocks:
             checkpoint()
             if not block.context_known:
@@ -126,26 +114,17 @@ class HuaweiConfigParser:
 
     @staticmethod
     def _index_blocks(lines: tuple[SourceLine, ...], initial_view: str | None = None) -> list[ConfigBlock]:
-        """Build a lossless-enough block index for rules outside the normalized core model."""
-        active = ConfigBlock(initial_view, SourceRange(1)) if initial_view is not None else None
-        blocks: list[ConfigBlock] = [active] if active is not None else []
-        for line in lines:
-            checkpoint()
-            text = line.text
-            if not text or text.lower() == "return":
-                continue
-            if text == "#":
-                active = None
-                continue
-            if not line.raw[:1].isspace():
-                active = ConfigBlock(text, SourceRange(line.number))
-                blocks.append(active)
-                continue
-            if active is None:
-                active = ConfigBlock("Unknown context", SourceRange(line.number), context_known=False)
-                blocks.append(active)
-            active.commands.append(ConfigCommand(text, SourceRange(line.number)))
-        return blocks
+        return index_blocks(lines, initial_view)
+
+    @staticmethod
+    def _unparsed(config: DeviceConfig, line: SourceLine) -> None:
+        lower = line.text.lower()
+        if lower.startswith(("description ", "!software version", "huawei versatile routing platform")):
+            config.ignored_lines.append(SourceRange(line.number))
+        else:
+            config.unparsed_lines.append(SourceRange(line.number))
+            if lower.startswith(("undo ", "ospfv3")):
+                config.unsupported_lines.append(SourceRange(line.number))
 
     def _start_block(self, config: DeviceConfig, line: SourceLine) -> tuple[str, object] | None:
         if line.raw[:1].isspace():
@@ -156,24 +135,31 @@ class HuaweiConfigParser:
         if len(tokens) >= 2 and lower.startswith("interface "):
             if tokens[1].lower() == "ip" and "address/mask" in lower:
                 return None
-            interface = config.interfaces.setdefault(tokens[1], Interface(tokens[1], source))
+            name = interface_name(line.text[10:])
+            # Unknown trailing view qualifiers must not become invented interface names.
+            if " " in name:
+                return None
+            interface = config.interfaces.setdefault(name, Interface(name, source))
             return ("interface", interface)
         if len(tokens) >= 2 and lower.startswith("bgp "):
-            if lower.startswith("bgp local router id"):
+            if re.fullmatch(r"bgp \d+(?:\.\d+)?", lower) is None:
                 return None
             config.bgp = config.bgp or BGPProcess(tokens[1], source)
             return ("bgp", config.bgp)
         if tokens and tokens[0].lower() == "ospf":
-            if len(tokens) >= 2 and tokens[1].lower() == "process":
+            if re.fullmatch(r"ospf(?: \d+)?(?: (?:router-id|vpn-instance) \S+)*", line.text, re.I) is None:
                 return None
             process_id = tokens[1] if len(tokens) >= 2 and tokens[1].isdigit() else "1"
             process = config.ospf_processes.setdefault(process_id, OSPFProcess(process_id, source))
+            words = [word.lower() for word in tokens]
+            if "vpn-instance" in words and words.index("vpn-instance") + 1 < len(tokens):
+                process.vpn_instance = tokens[words.index("vpn-instance") + 1]
             return ("ospf", process)
         if lower.startswith("acl ") and self._parse_global(config, line):
             identity = parse_acl_identity(tokens[1:])
             if identity is not None:
                 return ("acl", config.acls[config.acl_aliases.get(identity.key, identity.key)])
-        if len(tokens) >= 4 and lower.startswith("route-policy "):
+        if re.fullmatch(r"route-policy \S+ (?:permit|deny) node \d+", line.text, re.I):
             route_policy = config.route_policies.setdefault(tokens[1], RoutePolicy(tokens[1], source))
             return ("route_policy", route_policy)
         if len(tokens) >= 3 and lower.startswith("ip vpn-instance "):
@@ -196,6 +182,24 @@ class HuaweiConfigParser:
         tokens = line.tokens
         lower = line.text.lower()
         source = SourceRange(line.number)
+        if lower.startswith(("ip route-static default-preference ", "ipv6 route-static default-preference ")):
+            # A process preference setting is not a route destination.
+            return (
+                len(tokens) == 4
+                and tokens[3].isascii()
+                and tokens[3].isdigit()
+                and len(tokens[3]) <= 3
+                and 1 <= int(tokens[3]) <= 255
+            )
+        if lower.startswith("undo vlan "):
+            try:
+                values = tokens[3:] if len(tokens) > 2 and tokens[2].lower() == "batch" else tokens[2:]
+                for vlan_id in vlan_list(values)[0]:
+                    checkpoint()
+                    config.vlans.pop(vlan_id, None)
+            except ValueError as exc:
+                self._issue(config, line, "HUA-PARSE-VLAN", "VLAN", str(exc))
+            return True
         if tokens and tokens[0].lower() == "vlan":
             try:
                 values = tokens[2:] if len(tokens) > 1 and tokens[1].lower() == "batch" else tokens[1:]
@@ -217,7 +221,7 @@ class HuaweiConfigParser:
             config.prefix_lists.setdefault(tokens[2], PrefixList(tokens[2], source))
             return True
         if lower.startswith("ip ipv6-prefix ") and len(tokens) >= 3:
-            config.prefix_lists.setdefault(tokens[2], PrefixList(tokens[2], source))
+            config.ipv6_prefix_lists.setdefault(tokens[2], PrefixList(tokens[2], source))
             return True
         if lower.startswith("acl ") and len(tokens) >= 2:
             identity = parse_acl_identity(tokens[1:])
@@ -271,22 +275,34 @@ class HuaweiConfigParser:
             return True
         return False
 
-    def _parse_context(self, config: DeviceConfig, line: SourceLine, context: tuple[str, object]) -> bool:
+    def _parse_context(
+        self, config: DeviceConfig, line: SourceLine, context: tuple[str, object], views: tuple[str, ...] = ()
+    ) -> bool:
         kind, value = context
+        if views and kind not in {"bgp", "ospf", "vpn"}:
+            return False
         if kind == "interface" and isinstance(value, Interface):
             return self._parse_interface(config, line, value)
         if kind == "bgp" and isinstance(value, BGPProcess):
-            return self._parse_bgp(config, line, value)
+            return self._parse_bgp(config, line, value, views)
         if kind == "acl" and isinstance(value, ACL):
             if line.tokens[:2] == ("undo", "rule") and len(line.tokens) == 3:
                 value.rules.pop(line.tokens[2], None)
                 return True
             rule = acl_rule(line.tokens, SourceRange(line.number), value.acl_type, value.family)
             if rule is not None:
+                if rule.rule_id in value.rules:
+                    rule = replace(rule, syntax_known=False)
                 value.rules[rule.rule_id] = rule
                 return rule.syntax_known
+            if line.text.lower().startswith("rule "):
+                value.unnormalized_rules = True
             return False
         if kind == "ospf" and isinstance(value, OSPFProcess):
+            if views and (len(views) != 1 or not views[0].lower().startswith("area ")):
+                return False
+            if line.text.lower().startswith("network "):
+                value.area_order = [views[0].split()[1]] if views else []
             return self._parse_ospf(line, value)
         if kind == "route_policy" and isinstance(value, RoutePolicy):
             return self._parse_route_policy(line, value)
@@ -372,10 +388,19 @@ class HuaweiConfigParser:
         elif lower.startswith("ip address ") and len(tokens) >= 3:
             if tokens[2].lower() not in {"dhcp-alloc", "negotiated", "ppp-negotiate", "unnumbered"}:
                 interface.ip_addresses.append((tokens[2], tokens[3] if len(tokens) >= 4 else None, source))
+                if tokens[-1].lower() == "sub":
+                    interface.secondary_ipv4_lines.add(source.line)
             interface.command_sources["ip_address"] = source
         elif lower.startswith("ipv6 address ") and len(tokens) >= 3:
-            if tokens[2].lower() != "auto":
+            if tokens[2].lower() not in {"auto", "dhcp-alloc"}:
                 ipv6_prefix = tokens[3] if len(tokens) >= 4 and tokens[3].isdigit() else None
+                if len(tokens) >= 4 and tokens[3].lower() == "link-local":
+                    return False  # Link-local addresses cannot supply a unicast BGP candidate.
+                if "/" not in tokens[2] and ipv6_prefix is None:
+                    return False
+                extras = [token.lower() for token in tokens[3 if "/" in tokens[2] else 4 :]]
+                if extras and extras != ["eui-64"]:
+                    return False
                 interface.ipv6_addresses.append((tokens[2], ipv6_prefix, source))
             interface.command_sources["ipv6_address"] = source
         elif lower.startswith("ospf enable ") and "area" in tuple(token.lower() for token in tokens):
@@ -399,31 +424,91 @@ class HuaweiConfigParser:
         elif lower.startswith("ip binding vpn-instance ") and len(tokens) >= 4:
             interface.vpn_instance = tokens[3]
             interface.command_sources["vpn_instance"] = source
+        elif lower.startswith("undo ip binding vpn-instance"):
+            interface.vpn_instance = None
+            interface.command_sources["vpn_instance"] = source
+        elif lower == "undo port link-type":
+            interface.link_type = None
         elif lower.startswith("traffic-filter "):
             self._record_acl_reference(config, line, object_name=interface.name)
         else:
             return False
         return True
 
-    def _parse_bgp(self, config: DeviceConfig, line: SourceLine, bgp: BGPProcess) -> bool:
+    def _parse_bgp(
+        self, config: DeviceConfig, line: SourceLine, bgp: BGPProcess, views: tuple[str, ...] = ()
+    ) -> bool:
         tokens = line.tokens
         lower = line.text.lower()
         source = SourceRange(line.number)
+        family: BGPAddressFamily | None = None
+        if lower.startswith(("ipv4-family ", "ipv6-family ", "l2vpn-family ")) and not views:
+            name = line.text
+        elif views and len(views) == 1:
+            name = views[0]
+        elif views:
+            return False
+        else:
+            name = ""
+        if name:
+            name_parts = name.split()
+            name = " ".join([*(part.lower() for part in name_parts[:2]), *name_parts[2:]])
+            if (
+                re.fullmatch(
+                    r"(?:ipv4-family (?:unicast|multicast|vpnv4|vpn-instance \S+)|"
+                    r"ipv6-family (?:unicast|vpnv6|vpn-instance \S+)|l2vpn-family evpn)",
+                    name,
+                    re.I,
+                )
+                is None
+            ):
+                return False
+            family = next((item for item in bgp.address_families if item.name == name), None)
+            if family is None:
+                words = name.split()
+                family = BGPAddressFamily(
+                    name, source, words[2] if words[1].lower() == "vpn-instance" else None
+                )
+                bgp.address_families.append(family)
+            if not views:
+                return True
+        peers = family.peers if family else bgp.peers
+        groups = family.groups if family else bgp.groups
         if lower.startswith("router-id ") and len(tokens) >= 2:
+            if family is not None:
+                return False
             bgp.router_id = tokens[1]
             return True
         if lower.startswith("group ") and len(tokens) >= 2:
-            group = bgp.groups.setdefault(tokens[1], BGPGroup(tokens[1], source))
+            group = groups.setdefault(tokens[1], BGPGroup(tokens[1], source))
             group.declared = True
             group.source = source
             if len(tokens) >= 3:
                 group.group_type = tokens[2].lower()
-            return True
+            group.semantics_known = len(tokens) == 3 and group.group_type in {"internal", "external"}
+            return group.semantics_known
         if lower.startswith("peer ") and len(tokens) >= 3:
+            operation = tokens[2].lower()
+            if operation not in {"as-number", "group", "route-policy", "enable", "description"}:
+                return False
+            if operation == "description" and len(tokens) < 4:
+                return False
+            if operation in {"as-number", "group"} and len(tokens) != 4:
+                if operation == "as-number" and not self._is_ip_address(tokens[1]):
+                    group = groups.setdefault(tokens[1], BGPGroup(tokens[1], source))
+                    group.semantics_known = False
+                return False
+            if operation == "route-policy" and (
+                len(tokens) != 5 or tokens[4].lower() not in {"import", "export"}
+            ):
+                return False
+            if operation == "enable" and len(tokens) != 3:
+                return False
             target_name = tokens[1]
             is_address = self._is_ip_address(target_name)
             if is_address:
-                peer = bgp.peers.setdefault(target_name, BGPPeer(target_name, source))
+                target_name = str(ipaddress.ip_address(target_name))
+                peer = peers.setdefault(target_name, BGPPeer(target_name, source))
                 if tokens[2].lower() == "as-number" and len(tokens) >= 4:
                     peer.remote_as = tokens[3]
                 elif tokens[2].lower() == "group" and len(tokens) >= 4:
@@ -433,21 +518,21 @@ class HuaweiConfigParser:
                     target = peer.import_policies if tokens[4].lower() == "import" else peer.export_policies
                     target.append((tokens[3], source))
             else:
-                group = bgp.groups.setdefault(target_name, BGPGroup(target_name, source))
+                group = groups.setdefault(target_name, BGPGroup(target_name, source))
                 if tokens[2].lower() == "as-number" and len(tokens) >= 4:
                     group.remote_as = tokens[3]
                 elif tokens[2].lower() == "route-policy" and len(tokens) >= 5:
                     target = group.import_policies if tokens[4].lower() == "import" else group.export_policies
                     target.append((tokens[3], source))
             return True
-        if lower.startswith(("ipv4-family ", "ipv6-family ")):
-            vpn_name = tokens[2] if len(tokens) >= 3 and tokens[1].lower() == "vpn-instance" else None
-            bgp.address_families.append(BGPAddressFamily(line.text, source, vpn_name))
-            return True
         if lower == "network" or lower.startswith("network "):
-            if not bgp.address_families:
-                bgp.address_families.append(BGPAddressFamily("ipv4-family unicast", bgp.source))
-            family = bgp.address_families[-1]
+            if family is None:
+                family = next((f for f in bgp.address_families if f.name == "ipv4-family unicast"), None)
+                if family is None:
+                    family = BGPAddressFamily("ipv4-family unicast", bgp.source)
+                    bgp.address_families.append(family)
+            if not re.fullmatch(r"ipv[46]-family (?:unicast|multicast|vpn-instance \S+)", family.name, re.I):
+                return False
             try:
                 address, mask, policy = bgp_network(tokens[1:], 6 if family.name.startswith("ipv6") else 4)
                 family.networks.append((address, mask, source))
@@ -477,8 +562,21 @@ class HuaweiConfigParser:
         lower = line.text.lower()
         source = SourceRange(line.number)
         if lower.startswith("if-match ip-prefix ") and len(tokens) >= 3:
-            policy.prefix_references.append((tokens[2], source))
+            policy.prefix_references.extend((name, source) for name in tokens[2:])
             return True
+        if (
+            len(tokens) >= 5
+            and tokens[:2] == ("if-match", "ipv6")
+            and tokens[2] in {"address", "next-hop", "route-source"}
+        ):
+            if tokens[3] == "prefix-list" and len(tokens) == 5:
+                policy.ipv6_prefix_references.append((tokens[4], source))
+                return True
+            if tokens[3] == "acl":
+                identity = parse_acl_identity(tokens[4:], family="ipv6")
+                if identity is not None:
+                    policy.acl_references.append((identity.key, source))
+                    return True
         if lower.startswith(("if-match acl ", "if-match ipv6 acl ")):
             offset = 3 if tokens[1].lower() == "ipv6" else 2
             identity = parse_acl_identity(tokens[offset:], family="ipv6" if offset == 3 else "ipv4")

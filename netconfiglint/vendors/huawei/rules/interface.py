@@ -6,8 +6,25 @@ import re
 from netconfiglint.core.analyzer import AnalysisMode
 from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
+from netconfiglint.core.model import Interface
 from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
+
+
+def _has_business(interface: Interface) -> bool:
+    return bool(
+        interface.allowed_vlans
+        or interface.hybrid_tagged_vlans
+        or interface.hybrid_untagged_vlans
+        or interface.vlan_all
+        or interface.access_vlan is not None
+        or interface.pvid_vlan is not None
+        or interface.ip_addresses
+        or interface.ipv6_addresses
+        or interface.vpn_instance
+        or interface.traffic_policies
+        or interface.eth_trunk
+    )
 
 
 class ShutdownWithBusinessConfigRule:
@@ -19,12 +36,7 @@ class ShutdownWithBusinessConfigRule:
         result = []
         for interface in context.config.interfaces.values():
             checkpoint()
-            business = bool(
-                interface.allowed_vlans
-                or interface.access_vlan is not None
-                or interface.ip_addresses
-                or interface.vpn_instance
-            )
+            business = _has_business(interface)
             if interface.shutdown and business:
                 result.append(
                     Diagnostic(
@@ -49,8 +61,17 @@ class LinkTypeMismatchRule:
         result = []
         for interface in context.config.interfaces.values():
             checkpoint()
-            mismatch = bool(interface.allowed_vlans and interface.link_type not in {None, "trunk", "hybrid"})
-            mismatch = mismatch or bool(interface.access_vlan is not None and interface.link_type == "trunk")
+            trunk = bool(interface.allowed_vlans or "allowed_vlans" in interface.vlan_all)
+            hybrid = bool(
+                interface.hybrid_tagged_vlans
+                or interface.hybrid_untagged_vlans
+                or {"hybrid_tagged_vlans", "hybrid_untagged_vlans"} & interface.vlan_all
+            )
+            mismatch = bool(trunk and interface.link_type not in {None, "trunk"})
+            mismatch = mismatch or bool(hybrid and interface.link_type not in {None, "hybrid"})
+            mismatch = mismatch or bool(
+                interface.access_vlan is not None and interface.link_type not in {None, "access"}
+            )
             if mismatch:
                 result.append(
                     Diagnostic(
@@ -106,13 +127,7 @@ class OperationalInterfaceDownRule:
         for interface in context.config.interfaces.values():
             checkpoint()
             status = context.config.snapshot.interfaces.get(interface.name.lower())
-            business = bool(
-                interface.allowed_vlans
-                or interface.access_vlan is not None
-                or interface.ip_addresses
-                or interface.ipv6_addresses
-                or interface.vpn_instance
-            )
+            business = _has_business(interface)
             if status is None or not business or interface.shutdown:
                 continue
             if status.physical_state == "up" and status.protocol_state == "up":

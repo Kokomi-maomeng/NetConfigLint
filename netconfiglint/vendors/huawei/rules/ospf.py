@@ -12,6 +12,8 @@ from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnos
 def _ospf_network(address: str, wildcard: str) -> ipaddress.IPv4Network | None:
     try:
         wildcard_int = int(ipaddress.IPv4Address(wildcard))
+        if wildcard_int & (wildcard_int + 1):
+            return None  # Non-contiguous wildcard support varies; do not reinterpret it as a netmask.
         mask = ipaddress.IPv4Address((2**32 - 1) ^ wildcard_int)
         return ipaddress.IPv4Network(f"{address}/{mask}", strict=False)
     except (ValueError, ipaddress.AddressValueError, ipaddress.NetmaskValueError):
@@ -30,6 +32,10 @@ class OspfAreaAssociationRule:
                 if network.area != "Unknown" and _ospf_network(network.address, network.wildcard):
                     continue
                 severity = Severity.UNKNOWN if network.area == "Unknown" else Severity.ERROR
+                with suppress(ValueError):
+                    ipaddress.IPv4Address(network.address)
+                    ipaddress.IPv4Address(network.wildcard)
+                    severity = Severity.UNKNOWN
                 result.append(
                     Diagnostic(
                         severity,
@@ -64,6 +70,7 @@ class MissingInterfaceOspfProcessRule:
             for interface in context.config.interfaces.values()
             for process_id, _area, source in interface.ospf_bindings
             if process_id not in context.config.ospf_processes
+            or context.config.ospf_processes[process_id].vpn_instance != interface.vpn_instance
         )
 
 
@@ -74,15 +81,19 @@ class OspfNoParticipatingInterfaceRule:
         interface_ips = []
         for interface in context.config.interfaces.values():
             checkpoint()
-            for address, _, _ in interface.ip_addresses:
+            for address, _, source in interface.ip_addresses:
                 checkpoint()
+                if source.line in interface.secondary_ipv4_lines:
+                    continue
                 with suppress(ValueError):
-                    interface_ips.append(ipaddress.IPv4Address(address.split("/")[0]))
+                    interface_ips.append(
+                        (interface.vpn_instance, ipaddress.IPv4Address(address.split("/")[0]))
+                    )
         result = []
         for process in context.config.ospf_processes.values():
             checkpoint()
             has_interface_binding = any(
-                binding[0] == process.process_id
+                binding[0] == process.process_id and interface.vpn_instance == process.vpn_instance
                 for interface in context.config.interfaces.values()
                 for binding in interface.ospf_bindings
             )
@@ -93,7 +104,12 @@ class OspfNoParticipatingInterfaceRule:
                 for item in process.networks
                 if (candidate := _ospf_network(item.address, item.wildcard)) is not None
             ]
-            if any(ip in network for ip in interface_ips for network in networks):
+            if any(
+                ip in network
+                for vpn, ip in interface_ips
+                if vpn == process.vpn_instance
+                for network in networks
+            ):
                 continue
             result.append(
                 Diagnostic(

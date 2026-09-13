@@ -36,7 +36,10 @@ class MissingBgpRoutePolicyRule:
                             suggested_fix=f"Define route-policy {name} or correct the network reference.",
                         )
                     )
-        for peer in context.config.bgp.peers.values():
+        for peer in (
+            *context.config.bgp.peers.values(),
+            *(peer for family in context.config.bgp.address_families for peer in family.peers.values()),
+        ):
             checkpoint()
             for name, source in (*peer.import_policies, *peer.export_policies):
                 checkpoint()
@@ -55,7 +58,10 @@ class MissingBgpRoutePolicyRule:
                         suggested_fix=f"Define route-policy {name} or remove/correct the peer reference.",
                     )
                 )
-        for group in context.config.bgp.groups.values():
+        for group in (
+            *context.config.bgp.groups.values(),
+            *(group for family in context.config.bgp.address_families for group in family.groups.values()),
+        ):
             checkpoint()
             for name, source in (*group.import_policies, *group.export_policies):
                 checkpoint()
@@ -83,9 +89,13 @@ class MissingPrefixListRule:
         result = []
         for policy in context.config.route_policies.values():
             checkpoint()
-            for name, source in policy.prefix_references:
+            for name, source, family in (
+                *((name, source, 4) for name, source in policy.prefix_references),
+                *((name, source, 6) for name, source in policy.ipv6_prefix_references),
+            ):
                 checkpoint()
-                if name in context.config.prefix_lists:
+                inventory = context.config.prefix_lists if family == 4 else context.config.ipv6_prefix_lists
+                if name in inventory:
                     continue
                 result.append(
                     missing_reference_diagnostic(
@@ -95,9 +105,10 @@ class MissingPrefixListRule:
                         object_name=policy.name,
                         full_message=f"Route-policy references undefined ip-prefix {name}.",
                         snippet_message=f"ip-prefix {name} was not found in the snippet.",
-                        explanation="The if-match clause has no matching ip-prefix definition in the "
-                        "supplied full configuration.",
-                        suggested_fix=f"Define ip ip-prefix {name} or correct the if-match clause.",
+                        explanation=f"The if-match clause has no matching IPv{family} prefix-list definition "
+                        "in the supplied full configuration.",
+                        suggested_fix=f"Define the IPv{family} prefix-list {name} "
+                        "or correct the if-match clause.",
                     )
                 )
         return tuple(result)
@@ -146,7 +157,7 @@ class UnusedRoutePolicyRule:
                 used.update(name for name, _ in (*group.import_policies, *group.export_policies))
         for text, _source, _block in all_commands(context.config):
             checkpoint()
-            if text.lower().startswith("route-policy "):
+            if text.lower().startswith(("route-policy ", "description ", "undo ")):
                 continue
             if (match := _ROUTE_POLICY_REFERENCE.search(text)) is not None:
                 used.add(match.group(1))

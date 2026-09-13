@@ -86,6 +86,11 @@ class MissingStaticRouteVpnRule:
             lowered = [token.lower() for token in tokens]
             if lowered[:2] not in (["ip", "route-static"], ["ipv6", "route-static"]):
                 continue
+            if text != block.header:
+                continue
+            if "description" in lowered:
+                end = lowered.index("description")
+                tokens, lowered = tokens[:end], lowered[:end]
             for index, token in enumerate(lowered[:-1]):
                 checkpoint()
                 if token != "vpn-instance":

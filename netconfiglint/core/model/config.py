@@ -31,6 +31,7 @@ class ConfigCommand:
 
     text: str
     source: SourceRange
+    views: tuple[str, ...] = ()
 
 
 @dataclass(slots=True)
@@ -55,6 +56,7 @@ class Interface:
     hybrid_tagged_vlans: set[int] = field(default_factory=set)
     hybrid_untagged_vlans: set[int] = field(default_factory=set)
     ip_addresses: list[tuple[str, str | None, SourceRange]] = field(default_factory=list)
+    secondary_ipv4_lines: set[int] = field(default_factory=set)
     ipv6_addresses: list[tuple[str, str | None, SourceRange]] = field(default_factory=list)
     ospf_bindings: list[tuple[str, str, SourceRange]] = field(default_factory=list)
     traffic_policies: list[tuple[str, str, SourceRange]] = field(default_factory=list)
@@ -112,6 +114,7 @@ class BGPGroup:
     import_policies: list[tuple[str, SourceRange]] = field(default_factory=list)
     export_policies: list[tuple[str, SourceRange]] = field(default_factory=list)
     declared: bool = False
+    semantics_known: bool = True
 
 
 @dataclass(slots=True)
@@ -121,6 +124,8 @@ class BGPAddressFamily:
     vpn_instance: str | None = None
     networks: list[tuple[str, str | None, SourceRange]] = field(default_factory=list)
     network_policies: list[tuple[str, SourceRange]] = field(default_factory=list)
+    peers: dict[str, BGPPeer] = field(default_factory=dict)
+    groups: dict[str, BGPGroup] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -148,6 +153,7 @@ class OSPFProcess:
     areas: set[str] = field(default_factory=set)
     networks: list[OSPFNetwork] = field(default_factory=list)
     area_order: list[str] = field(default_factory=list)
+    vpn_instance: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,6 +189,7 @@ class ACL:
     kind: str = "number"
     acl_type: str = "unknown"
     rules: dict[str, ACLRule] = field(default_factory=dict)
+    unnormalized_rules: bool = False
 
 
 @dataclass(slots=True)
@@ -196,6 +203,7 @@ class RoutePolicy:
     name: str
     source: SourceRange
     prefix_references: list[tuple[str, SourceRange]] = field(default_factory=list)
+    ipv6_prefix_references: list[tuple[str, SourceRange]] = field(default_factory=list)
     acl_references: list[tuple[str, SourceRange]] = field(default_factory=list)
 
 
@@ -316,6 +324,7 @@ class DeviceConfig:
     traffic_behaviors: dict[str, TrafficBehavior] = field(default_factory=dict)
     traffic_policies: dict[str, TrafficPolicy] = field(default_factory=dict)
     prefix_lists: dict[str, PrefixList] = field(default_factory=dict)
+    ipv6_prefix_lists: dict[str, PrefixList] = field(default_factory=dict)
     vpn_instances: dict[str, VpnInstance] = field(default_factory=dict)
     acl_references: list[tuple[str, str, SourceRange]] = field(default_factory=list)
     sensitive_lines: list[SourceRange] = field(default_factory=list)

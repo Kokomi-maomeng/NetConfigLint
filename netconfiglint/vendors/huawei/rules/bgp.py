@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ipaddress
+from collections.abc import Iterator
+from dataclasses import replace
 
 from netconfiglint.core.analyzer import AnalysisMode
 from netconfiglint.core.analyzer.control import checkpoint
@@ -10,6 +12,32 @@ from netconfiglint.rules import RuleContext, RuleMetadata
 from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
 
 Network = ipaddress.IPv4Network | ipaddress.IPv6Network
+
+
+def peer_scopes(bgp: BGPProcess) -> Iterator[BGPProcess]:
+    """Public AF peers inherit transport settings; VPN AF peers have their own namespace."""
+    yield bgp
+    for family in bgp.address_families:
+        checkpoint()
+        groups = dict(bgp.groups) if family.vpn_instance is None else {}
+        for name, group in family.groups.items():
+            parent = groups.get(name)
+            groups[name] = replace(
+                group,
+                declared=group.declared or bool(parent and parent.declared),
+                remote_as=group.remote_as or (parent.remote_as if parent else None),
+                group_type=group.group_type or (parent.group_type if parent else None),
+                semantics_known=group.semantics_known and (parent.semantics_known if parent else True),
+            )
+        peers = {}
+        for address, peer in family.peers.items():
+            parent_peer = bgp.peers.get(address) if family.vpn_instance is None else None
+            peers[address] = replace(
+                peer,
+                remote_as=peer.remote_as or (parent_peer.remote_as if parent_peer else None),
+                group=peer.group or (parent_peer.group if parent_peer else None),
+            )
+        yield BGPProcess(bgp.local_as, family.source, peers=peers, groups=groups)
 
 
 def _network(address: str, mask: str | None) -> Network | None:
@@ -155,12 +183,10 @@ class MissingBgpPeerGroupRule:
                 explanation="The peer group reference has no matching group definition.",
                 suggested_fix=f"Define group {peer.group} or correct the peer group reference.",
             )
-            for peer in context.config.bgp.peers.values()
+            for scope in peer_scopes(context.config.bgp)
+            for peer in scope.peers.values()
             if peer.group is not None
-            and (
-                peer.group not in context.config.bgp.groups
-                or not context.config.bgp.groups[peer.group].declared
-            )
+            and (peer.group not in scope.groups or not scope.groups[peer.group].declared)
         )
 
 
@@ -172,17 +198,24 @@ class MissingBgpPeerRemoteAsRule:
             return ()
         return tuple(
             Diagnostic(
-                Severity.UNKNOWN if context.mode == AnalysisMode.SNIPPET else Severity.ERROR,
+                Severity.UNKNOWN
+                if context.mode == AnalysisMode.SNIPPET
+                or (peer.group in scope.groups and not scope.groups[peer.group].semantics_known)
+                else Severity.ERROR,
                 self.metadata.rule_id,
                 peer.source,
                 peer.address,
                 "BGP peer has no effective remote AS in the supplied configuration.",
                 "The supplied full configuration does not establish how the peer inherits its remote AS.",
                 "Configure the peer AS number or bind the peer to a defined group with a remote AS.",
-                Confidence.LOW if context.mode == AnalysisMode.SNIPPET else Confidence.DOCUMENTED,
+                Confidence.LOW
+                if context.mode == AnalysisMode.SNIPPET
+                or (peer.group in scope.groups and not scope.groups[peer.group].semantics_known)
+                else Confidence.DOCUMENTED,
             )
-            for peer in context.config.bgp.peers.values()
-            if effective_remote_as(context.config.bgp, peer) is None
+            for scope in peer_scopes(context.config.bgp)
+            for peer in scope.peers.values()
+            if effective_remote_as(scope, peer) is None
         )
 
 

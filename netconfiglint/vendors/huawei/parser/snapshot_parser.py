@@ -17,6 +17,7 @@ from netconfiglint.core.model import (
     SnapshotRoute,
 )
 from netconfiglint.core.model.config import RibCapture
+from netconfiglint.vendors.huawei.parser.views import interface_name
 
 _BGP_STATES = {"idle", "connect", "active", "opensent", "openconfirm", "established", "no", "noneg"}
 
@@ -30,6 +31,11 @@ class HuaweiSnapshotParser:
         # Identity is used only within this parse; no device name is retained in metadata.
         devices = set(re.findall(r"(?im)^\s*sysname\s+(\S+)\s*$", source))
         peer_scope_known = True
+        record_id = 0
+        failed_records: set[int] = set()
+        peers: list[tuple[int, SnapshotBgpPeer]] = []
+        interfaces: list[tuple[int, SnapshotInterface]] = []
+        table_seen = False
 
         def append_route(route: SnapshotRoute) -> None:
             if capture is not None:
@@ -45,6 +51,8 @@ class HuaweiSnapshotParser:
             if prompt:
                 devices.add(prompt.group(1))
             if prompt or command.lower().startswith("display "):
+                record_id += 1
+                table_seen = False
                 if capture is not None:
                     capture.terminated = prompt is not None
                     if pending_ipv6 is not None:
@@ -74,9 +82,15 @@ class HuaweiSnapshotParser:
                     peer_scope_known = command.lower() == "display bgp peer"
                     evidence.bgp_peer_table_present = True
                 elif command.lower() in {"display ip interface brief", "display interface brief"}:
-                    section = "interface"
+                    section = "interface-ip" if command.lower().startswith("display ip ") else "interface"
                     evidence.interface_table_present = True
                 continue
+            if re.search(
+                r"^(?:%\s*)?(?:error\b|failed\b|permission\b|access denied\b|"
+                r"unrecognized\b|incomplete command\b)",
+                lower,
+            ):
+                failed_records.add(record_id)
             if section == "rib" and capture is not None:
                 if re.search(r"permission|denied|error|failed|unrecognized|incomplete command", lower):
                     capture.failed = True
@@ -97,9 +111,16 @@ class HuaweiSnapshotParser:
                 ):
                     capture.header_seen = True
                 if capture.family == 6:
+                    if pending_ipv6 is not None and re.match(r"Destination\s*:", text, re.I):
+                        capture.truncated = True
+                        pending_ipv6 = None
                     pending_ipv6, route = self._ipv6_route_line(text, line.number, pending_ipv6)
                     if route is not None:
                         append_route(route)
+                    elif pending_ipv6 is None and (
+                        re.match(r"Destination\s*:", text, re.I) or re.match(r"^[0-9a-fA-F]*:", text)
+                    ):
+                        capture.truncated = True
                 else:
                     route = self._route(text, line.number, 4)
                     if route is not None:
@@ -107,13 +128,17 @@ class HuaweiSnapshotParser:
                     elif re.match(r"^[0-9]+\.", text):
                         capture.truncated = True
             elif section == "bgp" and peer_scope_known:
-                peer = self._peer(text, line.number)
+                table_seen = table_seen or (lower.startswith("peer ") and "state" in lower)
+                peer = self._peer(text, line.number) if table_seen else None
                 if peer is not None:
-                    evidence.bgp_peers[peer.address] = peer
-            elif section == "interface":
-                interface = self._interface(text, line.number)
+                    peers.append((record_id, peer))
+            elif section in {"interface", "interface-ip"}:
+                table_seen = table_seen or (lower.startswith("interface ") and "protocol" in lower)
+                interface = (
+                    self._interface(text, line.number, section == "interface-ip") if table_seen else None
+                )
                 if interface is not None:
-                    evidence.interfaces[interface.name.lower()] = interface
+                    interfaces.append((record_id, interface))
         if pending_ipv6 is not None and capture is not None:
             capture.truncated = True
         conflicting_scopes: set[tuple[int, str | None]] = set()
@@ -136,13 +161,44 @@ class HuaweiSnapshotParser:
                 item.scope_known = False
             if not item.failed and item.scope_known:
                 evidence.routes.extend(item.routes)
+        peer_conflicts: set[str] = set()
+        for record, peer in peers:
+            if record in failed_records:
+                continue
+            old_peer = evidence.bgp_peers.get(peer.address)
+            if old_peer and (old_peer.remote_as, old_peer.state) != (peer.remote_as, peer.state):
+                peer_conflicts.add(peer.address)
+            evidence.bgp_peers[peer.address] = peer
+        for address in peer_conflicts:
+            evidence.bgp_peers.pop(address, None)
+        interface_conflicts: set[str] = set()
+        for record, interface in interfaces:
+            if record in failed_records:
+                continue
+            key_name = interface.name.lower()
+            old_interface = evidence.interfaces.get(key_name)
+            if old_interface and (old_interface.physical_state, old_interface.protocol_state) != (
+                interface.physical_state,
+                interface.protocol_state,
+            ):
+                interface_conflicts.add(key_name)
+            evidence.interfaces[key_name] = interface
+        for key_name in interface_conflicts:
+            evidence.interfaces.pop(key_name, None)
         if len(devices) > 1:
             evidence.bgp_peers.clear()
             evidence.interfaces.clear()
         return evidence
 
     @staticmethod
-    def _finish_ipv6_route(fields: dict[str, object]) -> SnapshotRoute:
+    def _finish_ipv6_route(fields: dict[str, object]) -> SnapshotRoute | None:
+        if not {"prefix", "protocol", "next_hop", "interface"} <= fields.keys():
+            return None
+        try:
+            if ipaddress.ip_address(str(fields["next_hop"])).version != 6:
+                return None
+        except ValueError:
+            return None
         return SnapshotRoute(
             prefix=str(fields["prefix"]),
             protocol=str(fields.get("protocol", "Unknown")),
@@ -158,23 +214,23 @@ class HuaweiSnapshotParser:
         destination = re.search(r"Destination\s*:\s*(\S+).*PrefixLength\s*:\s*(\d+)", text, re.IGNORECASE)
         if destination:
             try:
-                network = ipaddress.ip_network(f"{destination.group(1)}/{destination.group(2)}", strict=False)
+                network = ipaddress.IPv6Network(f"{destination.group(1)}/{destination.group(2)}", strict=True)
             except ValueError:
                 return pending, None
-            completed = cls._finish_ipv6_route(pending) if pending is not None else None
-            return {"prefix": network, "line": line_number, "format": "detail"}, completed
+            return {"prefix": network, "line": line_number, "format": "detail"}, None
 
         if pending is not None and pending.get("format") == "detail":
             next_hop = re.search(r"NextHop\s*:\s*(\S+)", text, re.IGNORECASE)
             protocol = re.search(r"Protocol\s*:\s*(\S+)", text, re.IGNORECASE)
-            interface = re.search(r"Interface\s*:\s*(.*?)\s+Flags\s*:", text, re.IGNORECASE)
+            interface = re.search(r"^Interface\s*:\s*(.*?)\s+Flags\s*:", text, re.IGNORECASE)
             if next_hop:
                 pending["next_hop"] = next_hop.group(1)
             if protocol:
                 pending["protocol"] = protocol.group(1)
             if interface:
                 pending["interface"] = interface.group(1).strip()
-                return None, cls._finish_ipv6_route(pending)
+                route = cls._finish_ipv6_route(pending)
+                return (None, route) if route is not None else (pending, None)
             return pending, None
 
         tokens = text.split()
@@ -190,7 +246,7 @@ class HuaweiSnapshotParser:
             return pending, None
         if len(tokens) >= 2:
             try:
-                network = ipaddress.ip_network(tokens[0], strict=False)
+                network = ipaddress.IPv6Network(tokens[0], strict=True)
             except ValueError:
                 return None, None
             if network.version == 6:
@@ -205,19 +261,20 @@ class HuaweiSnapshotParser:
     @staticmethod
     def _route(text: str, line_number: int, family: int) -> SnapshotRoute | None:
         tokens = text.split()
-        if len(tokens) < 4:
+        if len(tokens) < 7 or not tokens[2].isdigit() or not tokens[3].isdigit():
             return None
         try:
-            network = ipaddress.ip_network(tokens[0], strict=False)
+            network = ipaddress.ip_network(tokens[0], strict=True)
+            next_hop = ipaddress.ip_address(tokens[5])
         except ValueError:
             return None
-        if network.version != family:
+        if network.version != family or next_hop.version != family:
             return None
         return SnapshotRoute(
             prefix=str(network),
             protocol=tokens[1],
-            next_hop=tokens[-2],
-            interface=tokens[-1],
+            next_hop=str(next_hop),
+            interface=interface_name(" ".join(tokens[6:])),
             source=SourceRange(line_number),
         )
 
@@ -248,17 +305,26 @@ class HuaweiSnapshotParser:
         )
 
     @staticmethod
-    def _interface(text: str, line_number: int) -> SnapshotInterface | None:
+    def _interface(text: str, line_number: int, ip_table: bool = True) -> SnapshotInterface | None:
         tokens = text.split()
         if len(tokens) < 4 or tokens[0].startswith("-"):
             return None
-        physical = tokens[-2].lstrip("*").lower()
-        protocol = tokens[-1].lstrip("*").lower()
-        if physical not in {"up", "down", "administratively-down", "administratively"}:
+        if (
+            len(tokens) > 1
+            and re.fullmatch(r"(?:[A-Za-z][A-Za-z-]*|\d+GE)", tokens[0])
+            and re.fullmatch(r"\d[\d/.:-]*", tokens[1])
+        ):
+            tokens = [tokens[0] + tokens[1], *tokens[2:]]
+        offset = 2 if ip_table else 1
+        if len(tokens) <= offset + 1:
+            return None
+        physical = tokens[offset].lstrip("*^").lower().split("(", 1)[0]
+        protocol = tokens[offset + 1].lstrip("*^").lower().split("(", 1)[0]
+        if physical not in {"up", "down", "administratively-down"} or protocol not in {"up", "down"}:
             return None
         return SnapshotInterface(
             name=tokens[0],
-            address=tokens[1],
+            address=tokens[1] if ip_table else "Unknown",
             physical_state=physical,
             protocol_state=protocol,
             source=SourceRange(line_number),

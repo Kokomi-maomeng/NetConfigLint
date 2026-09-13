@@ -67,8 +67,14 @@ class HuaweiDetector:
             )
         ]
         identity_source = "\n".join(identity_lines)
-        models = set(re.findall(r"\b((?:CE[5689]\d{3}|S\d{4})[A-Z0-9-]*)\b", identity_source, re.I))
-        versions = set(re.findall(r"\b(V\d{3}R\d{3}C\d{2}(?:SPC\d{3})?)\b", identity_source, re.I))
+        models = {
+            value.upper()
+            for value in re.findall(r"\b((?:CE[5689]\d{3}|S\d{4})[A-Z0-9-]*)\b", identity_source, re.I)
+        }
+        versions = {
+            value.upper()
+            for value in re.findall(r"\b(V\d{3}R\d{3}C\d{2}(?:SPC\d{3})?)\b", identity_source, re.I)
+        }
         model = next(iter(models)).upper() if len(models) == 1 else "Unknown"
         version = next(iter(versions)).upper() if len(versions) == 1 else "Unknown"
         platform = (
