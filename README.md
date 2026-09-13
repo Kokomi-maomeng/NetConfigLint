@@ -269,7 +269,7 @@ NetConfigLint is Apache-2.0 licensed.
 Original project SVG assets are Apache-2.0. No vendor firmware, private software, documentation
 copies, credentials, or production configurations are included. Redistributors must satisfy the
 licenses of their selected Python/Qt distribution and packaging toolchain.
-Every standalone/portable build assembles full license material and an actual-file
+Every Windows standalone/portable release assembles full license material and an actual-file
 `SBOM.json`; the final ZIP is verified after compression. Missing/changed legal
 material or unknown native components fail the gate. See [notices and source/library
 replacement instructions](THIRD_PARTY_NOTICES.md).

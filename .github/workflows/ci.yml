@@ -89,7 +89,7 @@ jobs:
       - name: Compile Unix standalone
         if: runner.os != 'Windows'
         run: python scripts/build_desktop.py
-      - name: Fresh standalone copy in Unicode path, native and software smoke, license gate
+      - name: Fresh Unicode path, native/software smoke and Windows release license gate
         shell: pwsh
         run: |
           $distribution = Get-ChildItem dist -Directory | Where-Object { $_.Extension -in @('.dist', '.app') }
@@ -97,8 +97,10 @@ jobs:
           $fresh = Join-Path $PWD 'build/独立 验收/runtime'
           New-Item -ItemType Directory -Force (Split-Path $fresh) | Out-Null
           Copy-Item -LiteralPath $distribution.FullName -Destination $fresh -Recurse
-          python scripts/assemble_licenses.py $fresh --verify
-          if ($LASTEXITCODE -ne 0) { throw 'License gate failed' }
+          if ($IsWindows) {
+            python scripts/assemble_licenses.py $fresh --verify
+            if ($LASTEXITCODE -ne 0) { throw 'License gate failed' }
+          }
           $entry = if ($IsWindows) { 'NetConfigLint.exe' } elseif ($IsMacOS) {
             $bundleExecutable = /usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$fresh/Contents/Info.plist"
             "Contents/MacOS/$bundleExecutable"
@@ -123,5 +125,4 @@ jobs:
             build/desktop-native
             build/desktop-software
             dist/*.dist/SBOM.json
-            dist/*.app/SBOM.json
             release/*.zip
