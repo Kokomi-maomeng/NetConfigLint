@@ -1,4 +1,9 @@
-"""Build a real Linux/macOS standalone runtime with the scanned QML deploy spec."""
+"""Compile Linux/macOS runtimes for CI smoke tests, not release redistribution.
+
+The release artifact is the Windows portable ZIP. Unix compiler relocation and
+signing change library bytes, so its ephemeral smoke builds must not claim the
+Windows exact-wheel provenance/license qualification.
+"""
 
 import configparser
 import os
@@ -67,9 +72,6 @@ def main() -> None:
             entry = plistlib.load(stream)["CFBundleExecutable"]
         if not (distribution / "Contents/MacOS" / entry).is_file():
             raise RuntimeError("Compiled macOS bundle entry point missing")
-        subprocess.run(
-            [sys.executable, str(root / "scripts/assemble_licenses.py"), str(distribution)], check=True
-        )
         print(distribution.name)
         return
     executable = next(
@@ -86,9 +88,6 @@ def main() -> None:
     target = distribution / "NetConfigLint"
     if executable != target:
         executable.rename(target)
-    subprocess.run(
-        [sys.executable, str(root / "scripts/assemble_licenses.py"), str(distribution)], check=True
-    )
     print(distribution.name)
 
 

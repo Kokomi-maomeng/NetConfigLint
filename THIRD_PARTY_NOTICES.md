@@ -3,7 +3,7 @@
 NetConfigLint and its original SVG/QML assets are provided under the complete
 Apache License 2.0 in `LICENSE`. Copyright NetConfigLint contributors.
 
-Each standalone package includes `SBOM.json`: actual relative file paths, SHA256,
+Each Windows release package includes `SBOM.json`: actual relative file paths, SHA256,
 sizes, component identities, license copies and corresponding source locations.
 `licenses/components.json` is the reviewed catalog, not a claim that every listed
 component is shipped. The inventory selects components found in that package.
