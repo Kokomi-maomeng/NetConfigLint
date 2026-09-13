@@ -95,6 +95,19 @@ def route_arguments(
     if not rest:
         return destination, mask, "", vpn, "Missing next hop or outgoing interface", True
     next_hop = rest.pop(0)
+    # Cross-table lookup changes the next-hop scope, never the destination route's VPN.
+    if next_hop.lower() == "vpn-instance":
+        if not rest:
+            return destination, mask, "", vpn, "Missing next-hop VPN instance name", True
+        rest.pop(0)
+        if rest:
+            try:
+                ipaddress.ip_address(rest[0])
+                next_hop = rest.pop(0)
+            except ValueError:
+                return destination, mask, "", vpn, "Cannot verify next-table route syntax", False
+        else:
+            return destination, mask, "", vpn, "Cannot verify next-table route installation", False
     if rest and _INTERFACE.fullmatch(next_hop + rest[0]):
         next_hop += rest.pop(0)
     try:
@@ -135,6 +148,8 @@ def route_arguments(
             if not rest:
                 return destination, mask, next_hop, vpn, "Missing route description", True
             rest.clear()
+        elif key == "public" and family == 4 and vpn is not None:
+            continue
         else:
             return destination, mask, next_hop, vpn, "Cannot verify this route extension", False
     return destination, mask, next_hop, vpn, "", True
@@ -166,15 +181,26 @@ def acl_rule(tokens: tuple[str, ...], source: SourceRange, acl_type: str, family
                 matches[key] = ("any",)
             elif family == "ipv4" and rest:
                 wildcard = rest.pop(0)
+                if wildcard == "0":
+                    wildcard = "0.0.0.0"
                 try:
                     ipaddress.IPv4Address(value)
                     ipaddress.IPv4Address(wildcard)
                     matches[key] = ("any",) if wildcard == "255.255.255.255" else (value, wildcard)
                 except ValueError:
                     known = False
+            elif family == "ipv6":
+                try:
+                    prefix = value if "/" in value else f"{value}/{rest.pop(0)}"
+                    network = ipaddress.IPv6Network(prefix, strict=False)
+                    matches[key] = (str(network),)
+                    if network.prefixlen == 0:
+                        known = False
+                except (ValueError, IndexError):
+                    known = False
             else:
                 matches[key] = (value,)
-                known = False  # IPv6 prefix and address-group variants are not normalized here.
+                known = False
         elif key in ports:
             if len(rest) < 2:
                 known = False

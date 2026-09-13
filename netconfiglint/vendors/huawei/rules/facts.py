@@ -14,4 +14,10 @@ def all_commands(config: DeviceConfig) -> Iterator[tuple[str, SourceRange, Confi
         yield block.header, block.source, block
         for command in block.commands:
             checkpoint()
+            if command.views and not (
+                block.header.lower().startswith("bgp ")
+                and len(command.views) == 1
+                and command.views[0].lower().startswith(("ipv4-family ", "ipv6-family ", "l2vpn-family evpn"))
+            ):
+                continue
             yield command.text, command.source, block

@@ -6,7 +6,6 @@ from collections import defaultdict
 from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
 from netconfiglint.rules import RuleContext, RuleMetadata
-from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
 
 _VNI_HEADER = re.compile(r"^vni\s+(\d+)(?:\s|$)", re.IGNORECASE)
 _VXLAN_VNI = re.compile(r"^vxlan\s+vni\s+(\d+)(?:\s|$)", re.IGNORECASE)
@@ -32,6 +31,8 @@ def _bridge_bindings(context: RuleContext) -> list[tuple[str, int, SourceRange]]
         bridge_domain = block.header.split(maxsplit=1)[1]
         for command in block.commands:
             checkpoint()
+            if command.views:
+                continue
             match = _VXLAN_VNI.match(command.text)
             if match is not None:
                 result.append((bridge_domain, int(match.group(1)), command.source))
@@ -50,7 +51,13 @@ class InvalidVniRule:
                 candidates.append((int(header_match.group(1)), block.source, block.header))
             for command in block.commands:
                 checkpoint()
-                match = _VXLAN_VNI.match(command.text)
+                if command.views:
+                    continue
+                match = (
+                    _VXLAN_VNI.match(command.text)
+                    if block.header.lower().startswith("bridge-domain ")
+                    else None
+                )
                 if match is None and block.header.lower().startswith("interface nve"):
                     match = _INTERFACE_VNI.match(command.text)
                 if match is not None:
@@ -72,7 +79,7 @@ class InvalidVniRule:
 
 
 class MissingEvpnVniDefinitionRule:
-    metadata = RuleMetadata("HUA-EVPN-002", "Undefined EVPN VNI", Severity.ERROR, "Huawei")
+    metadata = RuleMetadata("HUA-EVPN-002", "Unverified EVPN VNI relationship", Severity.UNKNOWN, "Huawei")
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         definitions = _vni_definitions(context)
@@ -81,15 +88,16 @@ class MissingEvpnVniDefinitionRule:
         if not definitions:
             return ()
         return tuple(
-            missing_reference_diagnostic(
-                context,
-                rule_id=self.metadata.rule_id,
-                source=source,
-                object_name=f"Bridge-domain {bridge_domain}",
-                full_message=f"Bridge-domain {bridge_domain} references undefined EVPN VNI {vni}.",
-                snippet_message=f"EVPN VNI {vni} was not found in the snippet.",
-                explanation="The bridge-domain VXLAN binding has no matching VNI definition.",
-                suggested_fix=f"Define VNI {vni} with the intended EVPN attributes or correct the binding.",
+            Diagnostic(
+                Severity.UNKNOWN,
+                self.metadata.rule_id,
+                source,
+                f"Bridge-domain {bridge_domain}",
+                f"Cannot verify whether VNI {vni} requires a separate EVPN VNI block.",
+                "A bridge-domain VXLAN binding can itself create a VNI. Other top-level VNI blocks "
+                "do not prove a universal requirement for this model, version, or service.",
+                "Check the intended VXLAN/EVPN configuration against the exact device command reference.",
+                Confidence.GENERIC,
             )
             for bridge_domain, vni, source in _bridge_bindings(context)
             if vni not in definitions

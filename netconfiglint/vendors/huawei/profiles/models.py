@@ -121,6 +121,8 @@ class ProfileDatabase:
             visit(profile_id)
 
     def resolve(self, detection: VendorDetection) -> ProfileResolution:
+        if detection.vendor.lower() != "huawei":
+            return ProfileResolution(self._by_id["huawei-vrp-base"], "generic", "GENERIC")
         candidates: list[tuple[int, VersionProfile, str]] = []
         for profile in self.profiles:
             model_match = any(
@@ -129,7 +131,7 @@ class ProfileDatabase:
             version_match = any(
                 re.search(pattern, detection.version, re.IGNORECASE) for pattern in profile.version_patterns
             )
-            if model_match and version_match:
+            if model_match and version_match and profile.platform_family == detection.platform_family:
                 candidates.append((3, profile, "model+version"))
             elif (
                 not profile.model_patterns

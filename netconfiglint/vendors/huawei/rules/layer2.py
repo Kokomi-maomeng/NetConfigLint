@@ -11,11 +11,13 @@ class MissingBpduProtectionRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         edge_sources = [
             source
-            for text, source, _block in all_commands(context.config)
-            if text.lower() in {"stp edged-port enable", "stp edged-port default"}
+            for text, source, block in all_commands(context.config)
+            if (text.lower() == "stp edged-port enable" and block.header.lower().startswith("interface "))
+            or (text.lower() == "stp edged-port default" and text == block.header)
         ]
         protected = any(
-            text.lower() == "stp bpdu-protection" for text, _source, _block in all_commands(context.config)
+            text.lower() == "stp bpdu-protection" and text == block.header
+            for text, _source, block in all_commands(context.config)
         )
         if not edge_sources or protected or context.mode.value == "snippet":
             return ()

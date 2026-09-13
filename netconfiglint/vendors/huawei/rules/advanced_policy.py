@@ -21,6 +21,8 @@ class MissingRedistributionPolicyRule:
             checkpoint()
             if not text.lower().startswith(("import-route ", "export-route ")):
                 continue
+            if not re.match(r"^(?:bgp|ospf|ospfv3|isis|rip|ripng)(?: \d|$)", block.header, re.I):
+                continue
             match = _ROUTE_POLICY.search(text)
             if match is None or match.group(1) in context.config.route_policies:
                 continue
@@ -82,7 +84,9 @@ class EmptyReferencedAclRule:
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         if context.mode.value == "snippet":
             return ()
-        acl_has_rule = {key: bool(acl.rules) for key, acl in context.config.acls.items()}
+        acl_has_rule = {
+            key: bool(acl.rules) or acl.unnormalized_rules for key, acl in context.config.acls.items()
+        }
         references = list(context.config.acl_references)
         for policy in context.config.route_policies.values():
             checkpoint()

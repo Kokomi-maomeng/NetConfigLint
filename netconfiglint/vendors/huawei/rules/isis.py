@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
@@ -11,14 +13,20 @@ def _process_id(header: str) -> str:
     return tokens[1] if len(tokens) > 1 and tokens[1].isdigit() else "1"
 
 
+def _vpn(header: str) -> str | None:
+    tokens = header.split()
+    lowered = [t.lower() for t in tokens]
+    return tokens[lowered.index("vpn-instance") + 1] if "vpn-instance" in lowered else None
+
+
 class MissingIsisProcessRule:
     metadata = RuleMetadata("HUA-ISIS-001", "Undefined IS-IS process", Severity.ERROR, "Huawei")
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         defined = {
-            _process_id(block.header)
+            (_process_id(block.header), _vpn(block.header))
             for block in context.config.blocks
-            if block.header.lower() == "isis" or block.header.lower().startswith("isis ")
+            if re.fullmatch(r"isis(?: \d+)?(?: vpn-instance \S+)?", block.header, re.I)
         }
         result = []
         for interface in context.config.interfaces.values():
@@ -29,7 +37,7 @@ class MissingIsisProcessRule:
                 if tokens[:2] != ["isis", "enable"]:
                     continue
                 process_id = tokens[2] if len(tokens) > 2 and tokens[2].isdigit() else "1"
-                if process_id in defined:
+                if (process_id, interface.vpn_instance) in defined:
                     continue
                 result.append(
                     missing_reference_diagnostic(
@@ -64,6 +72,9 @@ class MissingIsisNetworkEntityRule:
                 Confidence.DOCUMENTED,
             )
             for block in context.config.blocks
-            if (block.header.lower() == "isis" or block.header.lower().startswith("isis "))
-            and not any(command.text.lower().startswith("network-entity ") for command in block.commands)
+            if re.fullmatch(r"isis(?: \d+)?(?: vpn-instance \S+)?", block.header, re.I)
+            and not any(
+                command.text.lower().startswith("network-entity ") and not command.views
+                for command in block.commands
+            )
         )
