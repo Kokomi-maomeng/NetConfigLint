@@ -78,7 +78,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc patchelf ccache xvfb libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0
+          sudo apt-get install -y gcc patchelf ccache xvfb libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-xinerama0
       - name: Install qualified build environment
         run: python -m pip install -c constraints/release.txt -e ".[gui]" Nuitka pefile
       - run: python scripts/check_build_environment.py
@@ -106,6 +106,13 @@ jobs:
             "Contents/MacOS/$bundleExecutable"
           } else { 'NetConfigLint' }
           $executable = Join-Path $fresh $entry
+          if ($IsLinux) {
+            foreach ($plugin in (Get-ChildItem $fresh -Recurse -File -Filter libqxcb.so)) {
+              $dependencies = & ldd $plugin.FullName
+              $dependencies | Write-Output
+              if ($dependencies -match 'not found') { throw 'Missing XCB platform dependency' }
+            }
+          }
           $env:PYTHONPATH = ''
           Remove-Item Env:QT_QPA_PLATFORM -ErrorAction SilentlyContinue
           foreach ($backend in @('native', 'software')) {

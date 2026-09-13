@@ -4,6 +4,8 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 from netconfiglint import analyze
 from netconfiglint.gui.i18n.diagnostics import translate_diagnostic
 
@@ -19,6 +21,16 @@ def test_every_fixture_diagnostic_has_translated_prose() -> None:
                     assert translate_diagnostic(value) != value, (path.name, diagnostic.rule_id, value)
                     checked += 1
     assert checked > 300
+
+
+@pytest.mark.parametrize("next_table", ["vpn-instance", "vpn-instance BLUE", "vpn-instance BLUE unknown"])
+def test_huawei_next_table_parser_diagnostics_are_localized(next_table: str) -> None:
+    result = analyze(f"ip route-static 192.0.2.0 24 {next_table}", mode="full", vendor="huawei")
+    diagnostics = [item for item in result.diagnostics if item.rule_id == "HUA-ROUTE-001"]
+    assert diagnostics
+    for item in diagnostics:
+        for prose in (item.message, item.explanation, item.suggested_fix):
+            assert translate_diagnostic(prose) != prose
 
 
 def test_template_placeholders_are_preserved_exactly() -> None:
