@@ -127,6 +127,11 @@ jobs:
             else { Remove-Item Env:QT_QUICK_BACKEND -ErrorAction SilentlyContinue }
             $output = Join-Path $PWD "build/desktop-$backend"
             if ($IsLinux) { & xvfb-run -a $executable --smoke-test $output }
+            elseif ($IsWindows) {
+              # PowerShell can return immediately for a GUI-subsystem executable.
+              # Wait for the real process exit before reading its result file.
+              python -c 'import subprocess, sys; subprocess.run([sys.argv[1], "--smoke-test", sys.argv[2]], check=True, timeout=90)' $executable $output
+            }
             else { & $executable --smoke-test $output }
             if ($LASTEXITCODE -ne 0) { throw "Standalone $backend smoke failed" }
             if (-not (Get-Content -Raw "$output/smoke-result.json" | ConvertFrom-Json).passed) { throw 'Smoke rejected' }
