@@ -74,8 +74,8 @@ if (-not $DryRun) {
     $dist = Join-Path $projectRoot 'dist'
     if (-not (Test-Path -LiteralPath $dist)) { throw 'Packaging did not create the dist directory.' }
 
-    # Resolve the PE import graph when Visual Studio dumpbin is unavailable. This avoids copying
-    # every DLL from the PySide wheel while retaining a verifiable standalone dependency closure.
+    # Normalize both dumpbin and wheel-based layouts to the actual PE dependency graph,
+    # including delayed imports and dynamically loaded Qt plugins.
     $distributionDirs = Get-ChildItem -LiteralPath $dist -Directory -Filter '*.dist'
     foreach ($distribution in $distributionDirs) {
         $pruner = Join-Path $projectRoot 'scripts\prepare_windows_runtime.py'

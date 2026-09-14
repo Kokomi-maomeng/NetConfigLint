@@ -18,7 +18,7 @@ def payload(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     library.write_bytes(b"synthetic library, not an upstream binary")
     (directory / library.name).write_bytes(library.read_bytes())
     monkeypatch.setattr(
-        licensing, "origins", lambda: {library.name: [(library, "qtbase", "PySide6/Qt6Core.dll")]}
+        licensing, "origins", lambda: {library.name.lower(): [(library, "qtbase", "PySide6/Qt6Core.dll")]}
     )
     licensing.assemble(directory)
     return directory
@@ -56,6 +56,16 @@ def test_f24_final_payload_changes_are_rejected(payload: Path, change: str) -> N
 def test_f24_external_qt_library_is_required(payload: Path) -> None:
     (payload / "Qt6Core.dll").unlink()
     with pytest.raises(ValueError, match="External Qt Core"):
+        licensing.assemble(payload)
+
+
+def test_windows_flattened_lowercase_library_keeps_exact_provenance(payload: Path) -> None:
+    original = payload / "Qt6Core.dll"
+    renamed = payload / "qt6core.dll"
+    original.rename(renamed)
+    licensing.assemble(payload)
+    renamed.write_bytes(b"changed library")
+    with pytest.raises(ValueError, match="Unregistered native"):
         licensing.assemble(payload)
 
 
