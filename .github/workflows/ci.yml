@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: Run all checks, or retry only the Linux desktop build
+        description: Run all checks, or retry one desktop build
         type: choice
         default: all
-        options: [all, linux-desktop]
+        options: [all, linux-desktop, windows-desktop]
 
 jobs:
   quality:
@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'linux-desktop' && '["ubuntu-latest"]' || '["windows-latest", "ubuntu-latest", "macos-latest"]') }}
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'linux-desktop' && '["ubuntu-latest"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'windows-desktop' && '["windows-latest"]' || '["windows-latest", "ubuntu-latest", "macos-latest"]') }}
     env:
       PYTHONUTF8: "1"
       QT_QUICK_CONTROLS_STYLE: Material

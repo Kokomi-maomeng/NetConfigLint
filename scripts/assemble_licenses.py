@@ -11,8 +11,10 @@ import argparse
 import hashlib
 import importlib.metadata
 import json
+import os
 import re
 import shutil
+import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path, PurePosixPath
@@ -105,6 +107,58 @@ def origins() -> dict[str, list[tuple[Path, str, str]]]:
     return result
 
 
+def windows_runtime_candidates(name: str) -> list[Path]:
+    folders = [Path(os.environ.get("SYSTEMROOT", "C:/Windows")) / "System32"]
+    for variable in ("ProgramFiles", "ProgramFiles(x86)"):
+        if base := os.environ.get(variable):
+            folders.extend(
+                (Path(base) / "Microsoft Visual Studio").glob("*/*/VC/Redist/MSVC/*/x64/Microsoft.VC*.CRT")
+            )
+    return [folder / name for folder in folders if (folder / name).is_file()]
+
+
+def is_microsoft_signed(path: Path) -> bool:
+    # Pass filenames as stdin data, never interpolate them into PowerShell code.
+    command = (
+        "$ErrorActionPreference = 'Stop'; $p = [Console]::In.ReadToEnd() | ConvertFrom-Json; "
+        "$s = Get-AuthenticodeSignature -LiteralPath $p; "
+        "@{valid=($s.Status -eq 'Valid'); subject=$s.SignerCertificate.Subject} "
+        "| ConvertTo-Json -Compress"
+    )
+    try:
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command],
+            input=json.dumps(str(path)),
+            text=True,
+            capture_output=True,
+            # A caller running pwsh can export Core-only module paths to Windows PowerShell.
+            env={key: value for key, value in os.environ.items() if key.upper() != "PSMODULEPATH"},
+            timeout=30,
+            check=True,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        signature = json.loads(result.stdout)
+        return signature.get("valid") is True and bool(
+            re.search(r"(?:^|,\s*)O=Microsoft Corporation(?:,|$)", signature.get("subject") or "")
+        )
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return False
+
+
+def windows_runtime_origin(path: Path, digest: str) -> tuple[str, str] | None:
+    if sys.platform != "win32" or not re.fullmatch(
+        r"(?:msvcp140(?:_\d+|_atomic_wait|_codecvt_ids)?|vcruntime140(?:_\d+)?|concrt140)\.dll",
+        path.name,
+        re.IGNORECASE,
+    ):
+        return None
+    for candidate in windows_runtime_candidates(path.name):
+        if sha(candidate.read_bytes()) == digest and is_microsoft_signed(candidate):
+            # Do not disclose the build host's installation/user paths in the SBOM.
+            return "Microsoft-VC-Runtime", f"Microsoft-signed VC runtime/{path.name}"
+    return None
+
+
 def assemble(distribution: Path) -> dict:
     if not distribution.is_dir() or distribution.is_symlink():
         raise ValueError("Expected a real standalone directory")
@@ -168,6 +222,8 @@ def assemble(distribution: Path) -> dict:
                 ),
                 None,
             )
+            if match is None:
+                match = windows_runtime_origin(path, digest)
             if match:
                 component, origin = match
             elif native(path):
