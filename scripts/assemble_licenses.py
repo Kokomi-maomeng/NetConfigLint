@@ -90,7 +90,9 @@ def origins() -> dict[str, list[tuple[Path, str, str]]]:
             raise ValueError("License assembly requires the pinned Qt 6.11.2 runtime")
         for item in distribution.files or ():
             relative = item.as_posix()
-            result[item.name].append((Path(distribution.locate_file(item)), qt_component(relative), relative))
+            result[item.name.lower()].append(
+                (Path(distribution.locate_file(item)), qt_component(relative), relative)
+            )
     base = Path(sys.base_prefix)
     for folder in (base, base / "DLLs", base / "lib", base / "lib" / "python3.13" / "lib-dynload"):
         if folder.is_dir():
@@ -103,7 +105,7 @@ def origins() -> dict[str, list[tuple[Path, str, str]]]:
                         component = "Microsoft-VC-Runtime"
                     elif item.name.lower().startswith("libffi"):
                         component = "libffi"
-                    result[item.name].append((item, component, item.name))
+                    result[item.name.lower()].append((item, component, item.name))
     return result
 
 
@@ -217,7 +219,7 @@ def assemble(distribution: Path) -> dict:
             match = next(
                 (
                     (category, upstream)
-                    for p, category, upstream in indexed.get(path.name, [])
+                    for p, category, upstream in indexed.get(path.name.lower(), [])
                     if p.is_file() and sha(p.read_bytes()) == digest
                 ),
                 None,

@@ -56,7 +56,7 @@ def prune(distribution: Path) -> dict[str, object]:
             shutil.rmtree(duplicate)
             removed.append(str(duplicate.relative_to(distribution)))
     for path in pyside.glob("Qt*.pyd"):
-        if path.name not in _PYSIDE_MODULES:
+        if path.name.lower() not in {name.lower() for name in _PYSIDE_MODULES}:
             path.unlink()
             removed.append(str(path.relative_to(distribution)))
     for path in pyside.glob("Qt6*.dll"):
