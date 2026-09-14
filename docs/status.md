@@ -5,7 +5,9 @@
 All F01–F26 changes are integrated. See the [consolidated repair report](v1.5-audit-repairs.md).
 Snippet mode is the default across GUI, CLI and API. Coverage, cancellation, damaged-history
 handling, export detail and release license gates are part of the shared implementation.
-Final platform/build acceptance is recorded separately from the earlier source tests.
+The 17 Huawei follow-up repairs are integrated. Final platform/build and portable download
+acceptance is recorded in the [v1.5 acceptance report](v1.5-acceptance.md), separately from
+the earlier source tests.
 
 ## Stable architecture
 
