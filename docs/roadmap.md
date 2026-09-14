@@ -29,11 +29,12 @@ weakening the conservative Unknown behavior.
 - Persistent themes, sidebar, panel visibility/order, and isolated scratch editor.
 - Localized UI and diagnostic prose, editor menus, zoom, and explicit export scopes.
 
-## v1.5 — audit repair and Huawei correctness
+## v1.5 — delivered audit repair and Huawei correctness
 
-Close the v1.4 audit register with per-finding regression evidence. Strengthen scoped snapshot
-and ACL identities, diagnostic virtualization, input resilience, parser coverage reporting,
-and release verification. The repair report records actual completion and remaining boundaries.
+Closed all 26 v1.4 findings with per-finding regression evidence and integrated 17 Huawei
+follow-up repairs. Scoped snapshots and ACL identities, diagnostic virtualization, input
+resilience, parser coverage and release verification are covered by the
+[repair report](v1.5-audit-repairs.md) and [acceptance evidence](v1.5-acceptance.md).
 
 ## Future work (unversioned; not implemented promises)
 

@@ -78,7 +78,7 @@ The quality matrix covers Python 3.12.10/3.13.2 across Windows/Linux/macOS and
 3.12.14 on Linux, with Qt 6.9.0/6.11.2. GitHub's 3.12.14 manifest contains no
 Windows/macOS artifacts. Native platform support is qualified only after the
 actual compiled desktop smoke gates pass; authored CI is not a passed test.
-See [P2 verification and remaining platform boundaries](docs/v1.5-p2-repairs.md).
+See the [final v1.5 validation and platform boundaries](docs/v1.5-acceptance.md).
 
 ```powershell
 python -m venv .venv
@@ -297,10 +297,11 @@ See [Huawei validation notes](docs/huawei-validation.md), [status](docs/status.m
 
 - **v1.3**: three-column draggable workspace, severity-chip filtering, repaired editors and
   dialogs, unified larger typography, portable history, and no-console Windows ZIP.
-- **v1.4**: Huawei configuration reference graph and expanded policy/IPv6 semantics.
-- **v1.5**: H3C Comware vendor package using the shared core.
-- **v2.0**: Juniper Junos support.
-- **Future**: VS Code integration, configuration diff, topology/dependency graph, Batfish
+- **v1.4**: Material desktop, appearance settings, and the export workflow.
+- **v1.5**: all 26 audit findings repaired, Huawei correctness fixes, default Snippet mode,
+  and qualified desktop builds with a Windows portable release.
+- **Future**: H3C Comware and Juniper Junos plugins, VS Code integration, configuration diff,
+  topology/dependency graph, Batfish
   integration, CI validation, and migration assistance.
 
 ## Contributing
