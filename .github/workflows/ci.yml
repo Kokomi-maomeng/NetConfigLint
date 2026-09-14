@@ -139,4 +139,3 @@ jobs:
             build/desktop-native
             build/desktop-software
             dist/*.dist/SBOM.json
-            release/*.zip
