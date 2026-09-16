@@ -52,3 +52,16 @@ def test_debian_dependencies_fail_when_soname_is_unavailable(
     )
     with pytest.raises(RuntimeError, match="No Debian runtime library"):
         deb.debian_dependencies(app)
+
+
+def test_installed_size_counts_payload_but_not_control_metadata(tmp_path: Path) -> None:
+    payload = tmp_path / "opt/netconfiglint"
+    control = tmp_path / "DEBIAN"
+    payload.mkdir(parents=True)
+    control.mkdir()
+    (payload / "application.bin").write_bytes(b"a" * 2048)
+    (control / "control").write_bytes(b"x" * 1024 * 1024)
+
+    size = deb.installed_size_kib(tmp_path)
+
+    assert 2 <= size < 1024
