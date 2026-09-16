@@ -14,9 +14,10 @@ import json
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path, PurePosixPath
 from zipfile import ZipFile
 
@@ -106,7 +107,12 @@ def origins() -> dict[str, list[tuple[Path, str, str]]]:
                         component = "Microsoft-VC-Runtime"
                     elif item.name.lower().startswith("libffi"):
                         component = "libffi"
-                    result[item.name.lower()].append((item, component, item.name))
+                    names = {item.name.lower()}
+                    # Nuitka drops CPython's ABI/platform suffix when copying
+                    # standard-library extension modules into standalone builds.
+                    names.add(re.sub(r"\.cpython-\d+[^.]*\.so$", ".so", item.name.lower()))
+                    for name in names:
+                        result[name].append((item, component, item.name))
     return result
 
 
@@ -122,6 +128,185 @@ def origin_names(name: str) -> tuple[str, ...]:
     if lower.endswith(".so") and not lower.endswith(".abi3.so"):
         return lower, lower[:-3] + ".abi3.so"
     return (lower,)
+
+
+def elf_snapshot(path: Path) -> tuple[int, dict[str, bytes], list[str]] | None:
+    """Read named sections from a little-endian ELF64 file without extra dependencies."""
+    data = path.read_bytes()
+    if len(data) < 64 or data[:6] != b"\x7fELF\x02\x01":
+        return None
+    header = struct.unpack_from("<HHIQQQIHHHHHH", data, 16)
+    machine, section_offset = header[1], header[5]
+    section_size, section_count, names_index = header[10], header[11], header[12]
+    if section_size < 64 or section_count == 0 or names_index >= section_count:
+        return None
+    table_end = section_offset + section_size * section_count
+    if table_end > len(data):
+        return None
+    records = [
+        struct.unpack_from("<IIQQQQIIQQ", data, section_offset + index * section_size)
+        for index in range(section_count)
+    ]
+    names_record = records[names_index]
+    names = data[names_record[4] : names_record[4] + names_record[5]]
+    section_names: list[str] = []
+    for record in records:
+        name_offset = record[0]
+        if name_offset >= len(names):
+            return None
+        end = names.find(b"\0", name_offset)
+        if end < 0:
+            return None
+        name = names[name_offset:end].decode("ascii", errors="strict")
+        section_names.append(name)
+    sections: dict[str, bytes] = {}
+    for name, record in zip(section_names, records, strict=True):
+        _, section_type, _, _, offset, size, *_ = record
+        if not name:
+            continue
+        # SHT_NOBITS occupies memory but has no bytes in the file.
+        content = b"" if section_type == 8 else data[offset : offset + size]
+        if section_type != 8 and len(content) != size:
+            return None
+        if name in sections:
+            return None
+        sections[name] = content
+    return machine, sections, section_names
+
+
+def _elf_strings(data: bytes) -> Counter[bytes]:
+    return Counter(item for item in data.split(b"\0") if item)
+
+
+def _cstring(data: bytes, offset: int) -> bytes | None:
+    if offset < 0 or offset >= len(data):
+        return None
+    end = data.find(b"\0", offset)
+    return None if end < 0 else data[offset:end]
+
+
+def _dynamic_entries(data: bytes) -> list[tuple[int, int]] | None:
+    if len(data) % 16:
+        return None
+    return [struct.unpack_from("<QQ", data, offset) for offset in range(0, len(data), 16)]
+
+
+def _dynamic_symbols(
+    data: bytes, strings: bytes, section_names: list[str]
+) -> list[tuple[bytes, int, int, str, int, int]] | None:
+    if len(data) % 24:
+        return None
+    result = []
+    for offset in range(0, len(data), 24):
+        name_offset, info, other, section_index, value, size = struct.unpack_from("<IBBHQQ", data, offset)
+        name = _cstring(strings, name_offset)
+        if name is None:
+            return None
+        if section_index == 0:
+            section = ""
+        elif section_index >= 0xFF00:
+            section = f"#{section_index}"
+        elif section_index < len(section_names):
+            section = section_names[section_index]
+        else:
+            return None
+        result.append((name, info, other, section, value, size))
+    return result
+
+
+def _expected_deployment_rpath(source: bytes, deployed: bytes) -> bool:
+    source_parts = [item for item in source.decode("ascii", errors="strict").split(":") if item]
+    deployed_parts = [item for item in deployed.decode("ascii", errors="strict").split(":") if item]
+    extras = set(deployed_parts) - set(source_parts)
+    return set(source_parts) <= set(deployed_parts) and all(
+        re.fullmatch(r"\$ORIGIN(?:/\.\.)*", item) for item in extras
+    )
+
+
+def _normalized_dynamic(
+    entries: list[tuple[int, int]], strings: bytes
+) -> tuple[list[tuple[int, int | bytes | None]], list[bytes]] | None:
+    result: list[tuple[int, int | bytes | None]] = []
+    rpaths: list[bytes] = []
+    for tag, value in entries:
+        if tag == 0:  # Ignore spare DT_NULL slots consumed when patchelf adds RPATH.
+            continue
+        if tag in {1, 14}:  # DT_NEEDED, DT_SONAME
+            text = _cstring(strings, value)
+            if text is None:
+                return None
+            result.append((tag, text))
+        elif tag in {15, 29}:  # DT_RPATH, DT_RUNPATH
+            text = _cstring(strings, value)
+            if text is None:
+                return None
+            rpaths.append(text)
+        elif tag in {5, 6, 10, 0x6FFFFEF5}:  # relocated string/symbol/hash tables
+            result.append((tag, None))
+        else:
+            result.append((tag, value))
+    return result, rpaths
+
+
+def elf_deployment_match(source: Path, deployed: Path) -> bool:
+    """Verify a Nuitka/patchelf copy while allowing only its RPATH relocation.
+
+    Patchelf moves ``.gnu.hash`` and ``.dynstr`` and updates three dynamic
+    pointers when it adds ``$ORIGIN`` lookup locations.  Every other named ELF
+    section must remain byte-identical, all dependency strings must remain
+    identical, and the only added dynamic string may be the constrained RPATH.
+    """
+    source_snapshot = elf_snapshot(source)
+    deployed_snapshot = elf_snapshot(deployed)
+    if source_snapshot is None or deployed_snapshot is None:
+        return False
+    source_machine, source_sections, source_section_names = source_snapshot
+    deployed_machine, deployed_sections, deployed_section_names = deployed_snapshot
+    if source_machine != deployed_machine or source_sections.keys() != deployed_sections.keys():
+        return False
+    allowed_sections = {".dynstr", ".dynsym", ".dynamic"}
+    if any(
+        source_sections[name] != deployed_sections[name] for name in source_sections.keys() - allowed_sections
+    ):
+        return False
+    try:
+        source_dynstr = source_sections[".dynstr"]
+        deployed_dynstr = deployed_sections[".dynstr"]
+        source_dynamic = _dynamic_entries(source_sections[".dynamic"])
+        deployed_dynamic = _dynamic_entries(deployed_sections[".dynamic"])
+    except KeyError:
+        return False
+    if source_dynamic is None or deployed_dynamic is None:
+        return False
+    if ".dynsym" in source_sections and _dynamic_symbols(
+        source_sections[".dynsym"], source_dynstr, source_section_names
+    ) != _dynamic_symbols(deployed_sections[".dynsym"], deployed_dynstr, deployed_section_names):
+        return False
+    source_normalized = _normalized_dynamic(source_dynamic, source_dynstr)
+    deployed_normalized = _normalized_dynamic(deployed_dynamic, deployed_dynstr)
+    if source_normalized is None or deployed_normalized is None:
+        return False
+    source_entries, source_rpaths = source_normalized
+    deployed_entries, deployed_rpaths = deployed_normalized
+    if source_entries != deployed_entries or len(deployed_rpaths) != 1 or len(source_rpaths) > 1:
+        return False
+    source_rpath = source_rpaths[0] if source_rpaths else b""
+    try:
+        if not _expected_deployment_rpath(source_rpath, deployed_rpaths[0]):
+            return False
+    except UnicodeDecodeError:
+        return False
+    source_strings = _elf_strings(source_dynstr)
+    deployed_strings = _elf_strings(deployed_dynstr)
+    for value in source_rpaths:
+        source_strings[value] -= 1
+    for value in deployed_rpaths:
+        deployed_strings[value] -= 1
+    # Patchelf overwrites the old in-place RPATH with same-length filler before
+    # appending the enlarged value to the relocated string table.
+    for value in source_rpaths:
+        deployed_strings[b"X" * len(value)] -= 1
+    return +source_strings == +deployed_strings
 
 
 def windows_runtime_candidates(name: str) -> list[Path]:
@@ -242,6 +427,16 @@ def assemble(distribution: Path) -> dict:
             )
             if match is None:
                 match = windows_runtime_origin(path, digest)
+            if match is None:
+                match = next(
+                    (
+                        (category, upstream + " (verified Nuitka RPATH relocation)")
+                        for name in origin_names(path.name)
+                        for p, category, upstream in indexed.get(name, [])
+                        if p.is_file() and elf_deployment_match(p, path)
+                    ),
+                    None,
+                )
             if match:
                 component, origin = match
             elif native(path):

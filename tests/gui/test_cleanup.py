@@ -35,3 +35,20 @@ def test_remove_all_user_data_never_removes_application_directory(qapp: object, 
     remove_all_user_data(app_dir, [app_dir], user_home=tmp_path)
 
     assert executable.is_file()
+
+
+def test_remove_all_user_data_removes_unix_settings_file(
+    qapp: object, tmp_path: Path, monkeypatch: object
+) -> None:
+    app_dir = tmp_path / "installed/NetConfigLint"
+    app_dir.mkdir(parents=True)
+    settings = QSettings()
+    settings.setValue("privacy/historyEnabled", True)
+    settings.sync()
+    settings_file = Path(settings.fileName())
+    assert settings_file.is_file()
+    monkeypatch.setattr("netconfiglint.gui.app.cleanup.sys.platform", "linux")
+
+    remove_all_user_data(app_dir, user_home=tmp_path)
+
+    assert not settings_file.exists()

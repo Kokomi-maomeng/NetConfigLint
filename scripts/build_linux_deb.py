@@ -4,15 +4,57 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 import stat
 import subprocess
 from pathlib import Path
 
+if __package__:
+    from .prepare_linux_runtime import _elf_metadata
+else:
+    from prepare_linux_runtime import _elf_metadata
+
 
 def write_executable(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8", newline="\n")
     path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def debian_dependencies(app: Path) -> list[str]:
+    """Map every non-bundled ELF dependency to its Debian binary package."""
+    bundled: set[str] = set()
+    needed: set[str] = set()
+    for path in app.rglob("*"):
+        if not path.is_file():
+            continue
+        metadata = _elf_metadata(path)
+        if metadata is None:
+            continue
+        soname, dependencies = metadata
+        bundled.add(path.name)
+        if soname:
+            bundled.add(soname)
+        needed.update(dependencies)
+
+    ldconfig = subprocess.run(["/sbin/ldconfig", "-p"], text=True, capture_output=True, check=True).stdout
+    library_paths: dict[str, str] = {}
+    for line in ldconfig.splitlines():
+        match = re.match(r"^\s*(\S+) \([^)]*\) => (\S+)$", line)
+        if match and (match[1] not in library_paths or "x86_64-linux-gnu" in match[2]):
+            library_paths[match[1]] = os.path.realpath(match[2])
+
+    packages: set[str] = set()
+    for library in sorted(needed - bundled):
+        path = library_paths.get(library)
+        if path is None:
+            raise RuntimeError(f"No Debian runtime library satisfies {library}")
+        result = subprocess.run(["dpkg-query", "-S", path], text=True, capture_output=True, check=True)
+        owner = next((line.split(":", 1)[0] for line in result.stdout.splitlines() if ": " in line), None)
+        if not owner:
+            raise RuntimeError(f"No Debian package owns {path}")
+        packages.add(owner)
+    return sorted(packages)
 
 
 def main() -> None:
@@ -42,6 +84,7 @@ def main() -> None:
         ],
         check=True,
     )
+    dependencies = debian_dependencies(app)
     (stage / "DEBIAN").mkdir(parents=True)
     (stage / "DEBIAN/control").write_text(
         "\n".join(
@@ -52,7 +95,7 @@ def main() -> None:
                 "Priority: optional",
                 "Architecture: amd64",
                 "Maintainer: NetConfigLint contributors",
-                "Depends: libc6 (>= 2.36), libegl1, libgl1, libxkbcommon-x11-0, libxcb-cursor0",
+                "Depends: " + ", ".join(dependencies),
                 "Description: Offline Huawei VRP and H3C Comware configuration analyzer",
                 " Static analysis with source-linked diagnostics and explicit unknown coverage.",
                 "",
@@ -74,7 +117,7 @@ case "$answer" in
   y|Y|yes|YES) /opt/netconfiglint/NetConfigLint --remove-all-data; purge='--purge' ;;
   *) purge='' ;;
 esac
-exec sudo apt-get remove $purge netconfiglint
+exec sudo apt-get remove -y $purge netconfiglint
 """,
     )
     applications = stage / "usr/share/applications"
