@@ -60,6 +60,7 @@ def remove_all_user_data(
     Qt's platform-specific app-data, app-config, and cache locations.
     """
     settings = QSettings()
+    settings_file = Path(settings.fileName()) if sys.platform != "win32" else None
     settings.clear()
     settings.sync()
     _remove_windows_settings_key()
@@ -75,6 +76,8 @@ def remove_all_user_data(
                 QStandardPaths.StandardLocation.CacheLocation,
             )
         )
+        if settings_file is not None:
+            candidates.add(settings_file)
     adjacent_history = application_dir.resolve() / "history"
     if adjacent_history.parent == application_dir.resolve() and adjacent_history.name == "history":
         candidates.add(adjacent_history)

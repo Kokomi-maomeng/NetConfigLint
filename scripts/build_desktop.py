@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from check_build_environment import check
+from prepare_linux_runtime import prune as prune_linux_runtime
 
 APP_NAME = "NetConfigLint"
 APP_VERSION = "2.0.0"
@@ -148,6 +149,8 @@ def main() -> None:
     target = distribution / "NetConfigLint"
     if executable != target:
         executable.rename(target)
+    result = prune_linux_runtime(distribution)
+    print(f"Pruned {result['removed_count']} unused Linux runtime entries")
     print(distribution.name)
 
 
