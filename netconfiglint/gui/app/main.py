@@ -5,8 +5,8 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, QSettings, QUrl
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import QCoreApplication, QEvent, QSettings, QUrl
+from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
@@ -44,6 +44,20 @@ def create_engine(controller: AnalysisController) -> QQmlApplicationEngine:
     return engine
 
 
+def dispose_engine(
+    app: QGuiApplication, engine: QQmlApplicationEngine, controller: AnalysisController
+) -> None:
+    """Destroy QML roots while their context objects are still alive."""
+    for root in engine.rootObjects():
+        root.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    engine.clearComponentCache()
+    engine.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    controller.close()
+    app.processEvents()
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Material")
     QQuickStyle.setStyle("Material")
@@ -51,6 +65,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     QCoreApplication.setApplicationName("NetConfigLint")
     QCoreApplication.setApplicationVersion(__version__)
     arguments = list(argv) if argv is not None else list(sys.argv)
+    if "--remove-all-data" in arguments:
+        from netconfiglint.gui.app.cleanup import remove_all_user_data
+
+        app = QCoreApplication(arguments)
+        remove_all_user_data(Path(QCoreApplication.applicationDirPath()))
+        app.quit()
+        return 0
     smoke_output: Path | None = None
     if "--smoke-test" in arguments:
         index = arguments.index("--smoke-test")
@@ -66,6 +87,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(smoke_output / "settings")
         )
     app = QGuiApplication(arguments)
+    app.setWindowIcon(
+        QIcon(str(Path(__file__).resolve().parents[2] / "resources" / "icons" / "app-master.png"))
+    )
     controller = AnalysisController(
         async_enabled=smoke_output is None,
         history_store=HistoryStore(enabled=False, persist_settings=False) if smoke_output else None,
@@ -74,12 +98,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not engine.rootObjects():
         controller.close()
         return 1
-    app.aboutToQuit.connect(controller.close)
     if smoke_output is not None:
         from netconfiglint.gui.app.smoke import run_smoke
 
-        return run_smoke(app, engine, controller, smoke_output)
-    return app.exec()
+        exit_code = run_smoke(app, engine, controller, smoke_output)
+        dispose_engine(app, engine, controller)
+        return exit_code
+    exit_code = app.exec()
+    dispose_engine(app, engine, controller)
+    return exit_code
 
 
 if __name__ == "__main__":

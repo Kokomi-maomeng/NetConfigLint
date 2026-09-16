@@ -53,9 +53,9 @@ AppCard {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             wrapMode: TextEdit.WrapAnywhere
-            text: root.ruleIdentifier.startsWith("HUA-SEC-") && root.targetName === "Management plane"
+            text: (root.ruleIdentifier.startsWith("HUA-SEC-") || root.ruleIdentifier.startsWith("H3C-SEC-")) && root.targetName === "Management plane"
                   ? i18n.catalog["object.management"]
-                  : (root.ruleIdentifier === "HUA-SEC-001" && root.targetName === "Configuration" ? i18n.catalog["object.configuration"] : root.targetName)
+                  : ((root.ruleIdentifier === "HUA-SEC-001" || root.ruleIdentifier === "H3C-SEC-001") && root.targetName === "Configuration" ? i18n.catalog["object.configuration"] : root.targetName)
             color: Colors.textSecondary
             font: Typography.caption
         }
@@ -98,5 +98,5 @@ AppCard {
             }
         }
     }
-    Behavior on implicitHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+    Behavior on implicitHeight { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
 }

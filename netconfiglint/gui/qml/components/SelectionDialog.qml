@@ -54,7 +54,7 @@ AppDialog {
                            : (optionButton.hovered ? Colors.surfaceContainerHigh : Colors.surfaceContainer)
                     border.color: optionButton.modelData.value === root.selectedValue ? Colors.primary : Colors.outlineVariant
                     border.width: optionButton.modelData.value === root.selectedValue ? 2 : 1
-                    Behavior on color { ColorAnimation { duration: 130 } }
+                    Behavior on color { ColorAnimation { duration: Theme.motionShort } }
                 }
             }
         }

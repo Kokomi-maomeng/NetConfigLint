@@ -17,7 +17,7 @@ AppCard {
     property bool coverageExpanded: false
     signal cancelRequested()
     signal issueActivated(int row)
-    signal dragStarted()
+    signal dragStarted(real sceneX)
     signal dragMoved(real sceneX)
     signal dragFinished(real sceneX)
     signal stepRequested(int direction)
@@ -33,7 +33,7 @@ AppCard {
             Layout.fillWidth: true
             Layout.preferredHeight: 60
             title: i18n.catalog["analysis.diagnostics"]
-            onDragStarted: root.dragStarted()
+            onDragStarted: sceneX => root.dragStarted(sceneX)
             onDragMoved: sceneX => root.dragMoved(sceneX)
             onDragFinished: sceneX => root.dragFinished(sceneX)
             onStepRequested: direction => root.stepRequested(direction)
@@ -62,7 +62,8 @@ AppCard {
                 visible: root.resultCurrent
                 text: i18n.catalog["analysis.coverage"] + ": " + (root.coverage.recognized || 0)
                       + " / " + ((root.coverage.recognized || 0) + (root.coverage.unparsed || 0) + (root.coverage.unsupported || 0))
-                      + "  " + (root.coverage.complete === false ? i18n.catalog["analysis.incomplete"] : "")
+                      + "  " + (root.coverage.complete === false ? i18n.catalog["analysis.incomplete"]
+                          : (root.coverage.semantic_complete === false ? i18n.catalog["analysis.semantic_partial"] : ""))
                 onClicked: root.coverageExpanded = !root.coverageExpanded
             }
             SelectableText {

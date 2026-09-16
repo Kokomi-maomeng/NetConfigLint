@@ -30,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument(
         "--mode", choices=("snippet", "full", "snapshot"), default="snippet", help="default: snippet"
     )
-    check.add_argument("--vendor", choices=("auto", "huawei"), default="auto")
+    check.add_argument("--vendor", choices=("auto", "huawei", "h3c"), default="auto")
     check.add_argument("--format", choices=("text", "json"), default="text", dest="output_format")
     check.add_argument("--no-color", action="store_true")
     check.add_argument(

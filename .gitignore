@@ -14,4 +14,3 @@ history/
 *.spec
 !/pysidedeploy.spec
 *.log
-netconfiglint/resources/icons/app.ico

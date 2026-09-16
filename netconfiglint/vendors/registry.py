@@ -8,6 +8,7 @@ from netconfiglint.core.analyzer.models import VendorDetection
 from netconfiglint.core.detector import VendorDetector
 from netconfiglint.core.parser import ConfigParser
 from netconfiglint.rules import Rule
+from netconfiglint.vendors.h3c import H3C_RULES, H3CConfigParser, H3CDetector
 from netconfiglint.vendors.huawei.detector import HuaweiDetector
 from netconfiglint.vendors.huawei.parser import HuaweiConfigParser
 from netconfiglint.vendors.huawei.rules import HUAWEI_RULES
@@ -38,6 +39,15 @@ class VendorPlugin:
 
 
 VENDOR_PLUGINS: tuple[VendorPlugin, ...] = (
+    VendorPlugin(
+        key="h3c",
+        vendor_name="H3C",
+        aliases=("h3c", "comware", "comware7", "hpe-comware"),
+        detector=H3CDetector(),
+        parser=H3CConfigParser(),
+        rules=H3C_RULES,
+        default_profile_id="h3c-comware-generic",
+    ),
     VendorPlugin(
         key="huawei",
         vendor_name="Huawei",

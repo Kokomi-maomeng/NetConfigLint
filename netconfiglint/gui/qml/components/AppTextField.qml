@@ -17,6 +17,6 @@ TextField {
         border.color: control.activeFocus ? Colors.primary : Colors.outlineVariant
         border.width: control.activeFocus ? 2 : 1
         radius: Spacing.radiusMedium
-        Behavior on border.color { ColorAnimation { duration: 120 } }
+        Behavior on border.color { ColorAnimation { duration: Theme.motionShort } }
     }
 }

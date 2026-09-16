@@ -36,10 +36,19 @@ follow-up repairs. Scoped snapshots and ACL identities, diagnostic virtualizatio
 resilience, parser coverage and release verification are covered by the
 [repair report](v1.5-audit-repairs.md) and [acceptance evidence](v1.5-acceptance.md).
 
+## v2.0 — H3C and native packaging
+
+- Independent H3C Comware detection, source-preserving parsing, normalized common command forms,
+  43 registered rules, and explicit per-line UNKNOWN command accounting.
+- Live card drag proxy, integrated title/navigation surface, Material motion tokens, corrected
+  overflow indicators, and an original multi-resolution sakura-network icon.
+- Windows portable ZIP and configurable WiX MSI, Linux amd64 DEB, and macOS PKG build paths with
+  explicit signature state and keep/delete-data uninstall paths.
+
 ## Future work (unversioned; not implemented promises)
 
 - Extend the Huawei graph and documented platform profiles after fixture-backed semantic review.
-- H3C Comware and Juniper Junos plugins with independent parser/profile/rule contracts.
+- Juniper Junos plugin with an independent parser/profile/rule contract.
 - Versioned JSON/SARIF integration and optional offline configuration comparison.
 - Signed distribution and independently tested additional architectures.
 

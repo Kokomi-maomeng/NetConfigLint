@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+      Id="*"
+      Name="NetConfigLint"
+      Language="1033"
+      Version="$(var.AppVersion)"
+      Manufacturer="NetConfigLint contributors"
+      UpgradeCode="83F09B0D-638A-4A13-9D83-9C1FBB43D47A">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of NetConfigLint is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+    <Condition Message="NetConfigLint requires 64-bit Windows 10 or newer.">VersionNT64 &gt;= 1000</Condition>
+
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLBASE" />
+    <Property Id="REMOVEUSERDATA" Value="0" Secure="yes" />
+    <Icon Id="NetConfigLintIcon" SourceFile="$(var.ProjectRoot)\netconfiglint\resources\icons\app.ico" />
+    <Property Id="ARPPRODUCTICON" Value="NetConfigLintIcon" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <!-- INSTALLBASE intentionally aliases the selected base folder. The product
+             name is always appended by the INSTALLFOLDER child. -->
+        <Directory Id="INSTALLBASE" Name=".">
+          <Directory Id="INSTALLFOLDER" Name="NetConfigLint" />
+        </Directory>
+      </Directory>
+      <Directory Id="CommonProgramMenuFolder">
+        <Directory Id="ProgramMenuNetConfigLintFolder" Name="NetConfigLint" />
+      </Directory>
+      <Directory Id="CommonDesktopFolder" />
+    </Directory>
+
+    <DirectoryRef Id="ProgramMenuNetConfigLintFolder">
+      <Component Id="StartMenuShortcuts" Guid="A47EF827-D9AE-459C-B997-C83149F67A1F" Win64="yes">
+        <Shortcut Id="StartMenuApplication" Name="NetConfigLint" Target="[INSTALLFOLDER]NetConfigLint.exe" WorkingDirectory="INSTALLFOLDER" />
+        <Shortcut Id="StartMenuUninstallKeep" Name="Uninstall NetConfigLint (keep history)" Target="[System64Folder]msiexec.exe" Arguments="/x [ProductCode]" />
+        <Shortcut Id="StartMenuUninstallDelete" Name="Uninstall NetConfigLint (delete all data)" Target="[System64Folder]msiexec.exe" Arguments="/x [ProductCode] REMOVEUSERDATA=1" />
+        <RemoveFolder Id="RemoveProgramMenuFolder" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="Software\NetConfigLint" Name="StartMenuShortcuts" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="CommonDesktopFolder">
+      <Component Id="DesktopShortcut" Guid="C1D31F78-7BEF-44F6-A599-8D54FFB2645A" Win64="yes">
+        <Shortcut Id="DesktopApplication" Name="NetConfigLint" Target="[INSTALLFOLDER]NetConfigLint.exe" WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKLM" Key="Software\NetConfigLint" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <CustomAction
+        Id="CleanupAllUserData"
+        Directory="INSTALLFOLDER"
+        ExeCommand="&quot;[INSTALLFOLDER]NetConfigLint.exe&quot; --remove-all-data"
+        Execute="deferred"
+        Impersonate="yes"
+        Return="check" />
+    <InstallExecuteSequence>
+      <Custom Action="CleanupAllUserData" Before="RemoveFiles">REMOVE="ALL" AND REMOVEUSERDATA="1"</Custom>
+    </InstallExecuteSequence>
+
+    <Feature Id="ProductFeature" Title="NetConfigLint application" Level="1" Absent="disallow" Display="expand">
+      <ComponentGroupRef Id="ApplicationFiles" />
+      <Feature Id="StartMenuFeature" Title="Start menu shortcuts and uninstall choices" Level="1" Absent="allow">
+        <ComponentRef Id="StartMenuShortcuts" />
+      </Feature>
+      <Feature Id="DesktopFeature" Title="Desktop shortcut" Level="2" Absent="allow">
+        <ComponentRef Id="DesktopShortcut" />
+      </Feature>
+    </Feature>
+
+    <UIRef Id="WixUI_FeatureTree" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+  </Product>
+</Wix>

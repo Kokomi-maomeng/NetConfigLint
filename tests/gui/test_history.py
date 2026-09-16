@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from PySide6.QtCore import QStandardPaths
+
 from netconfiglint import analyze
 from netconfiglint.gui.models import HistoryStore
 from netconfiglint.gui.models.history import default_history_path
@@ -27,8 +29,10 @@ def test_history_store_recovers_from_invalid_json(tmp_path: Path, qapp: object) 
     assert HistoryStore(path, enabled=True, persist_settings=False).entries == []
 
 
-def test_source_history_uses_dedicated_project_folder(qapp: object) -> None:
+def test_installed_or_source_history_uses_platform_app_data(qapp: object) -> None:
     path = default_history_path()
     assert path.name == "history.json"
     assert path.parent.name == "history"
-    assert path.parent.parent == Path(__file__).resolve().parents[2]
+    expected = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation))
+    assert path.parent.parent == expected
+    assert Path(__file__).resolve().parents[2] not in path.parents

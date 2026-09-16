@@ -12,13 +12,13 @@ class HuaweiConfigHighlighter(QSyntaxHighlighter):
 
     _BLOCK = re.compile(
         r"^\s*(aaa|acl|bfd|bgp|bridge-domain|dfs-group|evpn|interface|ip vpn-instance|"
-        r"isis|mpls|ntp(?:-service)?|ospf|route-policy|snmp-agent|stp|traffic "
+        r"isis|local-user|mpls|ntp(?:-service)?|ospf|route-policy|snmp-agent|stp|telemetry|traffic "
         r"(?:classifier|behavior|policy)|user-interface|vlan(?: batch)?|vni)\b",
         re.IGNORECASE,
     )
     _KEYWORDS = re.compile(
         r"\b(address-family|area|authentication|behavior|classifier|description|destination|"
-        r"dhcp|enable|eth-trunk|export|group|import|inbound|l2vpn-family|lacp-static|network|"
+        r"dhcp|enable|eth-trunk|export|group|import|inbound|l2vpn-family|lacp-static|link-aggregation|network|"
         r"network-entity|outbound|peer|permit|deny|policy|route-distinguisher|route-policy|"
         r"shutdown|source|static|undo|vpn-instance|vpn-target|vni|vxlan)\b",
         re.IGNORECASE,

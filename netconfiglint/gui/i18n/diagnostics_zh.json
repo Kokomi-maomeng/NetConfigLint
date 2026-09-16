@@ -273,5 +273,21 @@
   "Check the intended VXLAN/EVPN configuration against the exact device command reference.": "请对照该设备的命令参考，核对预期的 VXLAN/EVPN 配置。",
   "Unverified EVPN VNI relationship": "尚无法验证的 EVPN VNI 关系",
   "The if-match clause has no matching IPv{0} prefix-list definition in the supplied full configuration.": "所提供的完整配置中，if-match 条件没有对应的 IPv{0} 前缀列表定义。",
-  "Define the IPv{0} prefix-list {1} or correct the if-match clause.": "定义 IPv{0} 前缀列表 {1}，或修正 if-match 条件。"
+  "Define the IPv{0} prefix-list {1} or correct the if-match clause.": "定义 IPv{0} 前缀列表 {1}，或修正 if-match 条件。",
+  "This H3C command is preserved, but its effective semantics are not verified.": "已保留这条 H3C 命令，但尚未验证它的实际语义。",
+  "No Comware semantic checker is registered for this exact command or view.": "此命令或视图还没有对应的 Comware 语义检查器。",
+  "Confirm the command against the matching H3C model/release reference before changing it.": "修改前请根据对应 H3C 型号和软件版本的命令参考进行确认。",
+  "{0} command line(s) are preserved but not semantically verified.": "已保留 {0} 行命令，但尚未进行语义验证。",
+  "Unsupported line numbers: {0}.": "暂不支持的行号: {0}。",
+  "Review H3C-CMD-001 items against the exact device model and Comware release.": "请根据准确的设备型号和 Comware 版本核对 H3C-CMD-001 诊断项。",
+  "VLAN interface {0} exists but VLAN {0} is not defined.": "VLAN 接口 {0} 已存在，但未定义 VLAN {0}。",
+  "The Layer 3 VLAN interface references a VLAN absent from the configuration.": "三层 VLAN 接口引用了配置中不存在的 VLAN。",
+  "Create VLAN {0} or remove/correct the VLAN interface.": "请创建 VLAN {0}，或删除/修正该 VLAN 接口。",
+  "Interface references undefined Bridge-Aggregation{0}.": "接口引用了未定义的 Bridge-Aggregation{0}。",
+  "Bridge-Aggregation{0} was not found in the snippet.": "配置片段中未找到 Bridge-Aggregation{0}。",
+  "The member port has no matching aggregate interface definition.": "成员端口没有对应的聚合接口定义。",
+  "Define Bridge-Aggregation{0} or correct the group number.": "请定义 Bridge-Aggregation{0}，或修正聚合组编号。",
+  "A local user permits Telnet access.": "本地用户允许使用 Telnet 登录。",
+  "The account service scope retains a cleartext remote-management protocol.": "该账户的服务范围仍包含明文远程管理协议。",
+  "Remove Telnet from the service type after confirming SSH access and rollback.": "确认 SSH 登录和回退路径后，从服务类型中移除 Telnet。"
 }

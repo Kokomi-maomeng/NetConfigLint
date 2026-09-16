@@ -22,3 +22,26 @@ def test_cli_reports_file_error(tmp_path: Path, capsys: object) -> None:
     captured = capsys.readouterr()  # type: ignore[attr-defined]
     assert exit_code == 2
     assert "missing.cfg" in captured.err
+
+
+def test_cli_h3c_json_keeps_source_and_reports_semantic_boundary(tmp_path: Path, capsys: object) -> None:
+    path = tmp_path / "h3c.cfg"
+    path.write_text(
+        "H3C Comware Software, Version 7.1.070, Release 6715P06\n"
+        "interface GigabitEthernet1/0/1\n"
+        " port trunk permit vlan 200\n"
+        " telemetry\n",
+        encoding="utf-8",
+    )
+
+    exit_code = main(["check", str(path), "--mode", "snippet", "--vendor", "auto", "--format", "json"])
+    payload = json.loads(capsys.readouterr().out)  # type: ignore[attr-defined]
+
+    assert exit_code == 0
+    assert payload["detection"]["vendor"] == "H3C"
+    assert payload["coverage"]["semantic_complete"] is False
+    assert {item["rule_id"] for item in payload["diagnostics"]} >= {
+        "H3C-VLAN-001",
+        "H3C-CMD-001",
+        "H3C-CMD-002",
+    }

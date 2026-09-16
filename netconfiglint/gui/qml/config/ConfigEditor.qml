@@ -13,7 +13,7 @@ AppCard {
     property int editorFontSize: Typography.monospace.pixelSize
     property bool zoomModified: false
     signal textEdited(string value)
-    signal dragStarted()
+    signal dragStarted(real sceneX)
     signal dragMoved(real sceneX)
     signal dragFinished(real sceneX)
     signal stepRequested(int direction)
@@ -55,7 +55,7 @@ AppCard {
             Layout.preferredHeight: 60
             title: root.title
             detail: root.currentLine + " / " + Math.max(1, editor.lineCount)
-            onDragStarted: root.dragStarted()
+            onDragStarted: sceneX => root.dragStarted(sceneX)
             onDragMoved: sceneX => root.dragMoved(sceneX)
             onDragFinished: sceneX => root.dragFinished(sceneX)
             onStepRequested: direction => root.stepRequested(direction)

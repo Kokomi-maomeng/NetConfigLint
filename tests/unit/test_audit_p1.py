@@ -111,13 +111,19 @@ def test_acl_reference_entrypoints(family: str, kind: str, value: str, consumer:
 
 @pytest.mark.parametrize("banner", ["H3C Comware Software", "HPE Comware Software", "Cisco IOS Software"])
 def test_foreign_or_mixed_vendor_requires_explicit_choice(banner: str) -> None:
-    for prefix in ["", "Huawei Versatile Routing Platform\n"]:
-        source = prefix + banner + "\nsysname SYNTHETIC\n"
-        assert HuaweiDetector().detect(source).vendor == "Unknown"
+    source = "Huawei Versatile Routing Platform\n" + banner + "\nsysname SYNTHETIC\n"
+    assert HuaweiDetector().detect(source).vendor == "Unknown"
+    with pytest.raises(ValueError, match="identify a supported vendor"):
+        analyze(source)
+    result = analyze(source, vendor="huawei")
+    assert "Vendor selected by user" in result.detection.evidence
+
+    standalone = banner + "\nsysname SYNTHETIC\n"
+    if banner.startswith(("H3C", "HPE")):
+        assert analyze(standalone).detection.vendor == "H3C"
+    else:
         with pytest.raises(ValueError, match="identify a supported vendor"):
-            analyze(source)
-        result = analyze(source, vendor="huawei")
-        assert "Vendor selected by user" in result.detection.evidence
+            analyze(standalone)
 
 
 def test_mixed_device_snapshot_does_not_prove_routes() -> None:
@@ -139,8 +145,7 @@ def test_connected_candidates_are_scoped(family: int, scope: str | None, interfa
 
 def test_explicit_foreign_banner_is_not_hidden_by_shared_commands() -> None:
     source = "H3C Comware Software\nsysname SYNTHETIC\n port trunk allow-pass vlan 100\n"
-    with pytest.raises(ValueError, match="identify a supported vendor"):
-        analyze(source)
+    assert analyze(source).detection.vendor == "H3C"
 
 
 def test_ambiguous_bannerless_snippet_does_not_select_huawei() -> None:
