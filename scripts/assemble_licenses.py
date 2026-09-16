@@ -214,12 +214,18 @@ def _dynamic_symbols(
     return result
 
 
-def _expected_deployment_rpath(source: bytes, deployed: bytes) -> bool:
+def _expected_deployment_rpath(source: bytes, deployed: bytes, source_file: Path) -> bool:
     source_parts = [item for item in source.decode("ascii", errors="strict").split(":") if item]
     deployed_parts = [item for item in deployed.decode("ascii", errors="strict").split(":") if item]
     extras = set(deployed_parts) - set(source_parts)
-    return set(source_parts) <= set(deployed_parts) and all(
-        re.fullmatch(r"\$ORIGIN(?:/\.\.)*", item) for item in extras
+    removed = set(source_parts) - set(deployed_parts)
+    return (
+        bool(deployed_parts)
+        and all(re.fullmatch(r"\$ORIGIN(?:/\.\.)*", item) for item in extras)
+        and all(
+            Path(item).is_absolute() and source_file.resolve().is_relative_to(Path(item).resolve())
+            for item in removed
+        )
     )
 
 
@@ -292,7 +298,7 @@ def elf_deployment_match(source: Path, deployed: Path) -> bool:
         return False
     source_rpath = source_rpaths[0] if source_rpaths else b""
     try:
-        if not _expected_deployment_rpath(source_rpath, deployed_rpaths[0]):
+        if not _expected_deployment_rpath(source_rpath, deployed_rpaths[0], source):
             return False
     except UnicodeDecodeError:
         return False
@@ -306,6 +312,10 @@ def elf_deployment_match(source: Path, deployed: Path) -> bool:
     # appending the enlarged value to the relocated string table.
     for value in source_rpaths:
         deployed_strings[b"X" * len(value)] -= 1
+        for deployed_value in deployed_rpaths:
+            remainder = len(value) - len(deployed_value) - 1
+            if remainder > 0:
+                deployed_strings[b"X" * remainder] -= 1
     return +source_strings == +deployed_strings
 
 

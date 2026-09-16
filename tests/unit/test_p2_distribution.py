@@ -2,6 +2,7 @@
 
 import json
 import struct
+import sys
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -174,6 +175,22 @@ def test_linux_relocated_elf_allows_only_expected_rpath_metadata(
     snapshots[source] = snapshot(None)
     snapshots[deployed] = snapshot(b"$ORIGIN")
     assert licensing.elf_deployment_match(source, deployed)
+
+    if sys.platform != "win32":
+        runtime = tmp_path / "python/lib/python3.13/lib-dynload"
+        runtime.mkdir(parents=True)
+        source = runtime / "_blake2.cpython-313-x86_64-linux-gnu.so"
+        source.write_bytes(b"source")
+        upstream_rpath = str(runtime.parents[1]).encode()
+        snapshots[source] = snapshot(upstream_rpath)
+        deployed_snapshot = snapshot(b"$ORIGIN")
+        remainder = len(upstream_rpath) - len(b"$ORIGIN") - 1
+        deployed_snapshot[1][".dynstr"] += b"X" * remainder + b"\0"
+        snapshots[deployed] = deployed_snapshot
+        assert licensing.elf_deployment_match(source, deployed)
+
+        snapshots[source] = snapshot(b"/tmp/unrelated-build-root")
+        assert not licensing.elf_deployment_match(source, deployed)
 
 
 def test_f24_zip_duplicate_or_traversal_names_fail(tmp_path: Path) -> None:
