@@ -9,14 +9,25 @@ Item {
     property var sections: [{"title": "about.project", "links": [{"url": "https://github.com/Kokomi-maomeng/NetConfigLint", "en": "Kokomi-maomeng/NetConfigLint", "zh": "Kokomi-maomeng/NetConfigLint"}, {"url": "https://github.com/Kokomi-maomeng", "en": "github.com/Kokomi-maomeng", "zh": "github.com/Kokomi-maomeng"}]}, {"title": "about.components", "links": [{"url": "https://www.python.org/psf/license/", "en": "Python", "zh": "Python"}, {"url": "https://doc.qt.io/qtforpython-6/", "en": "PySide6 / Qt 6", "zh": "PySide6 / Qt 6"}, {"url": "https://nuitka.net/", "en": "Nuitka", "zh": "Nuitka"}]}, {"title": "about.sources", "links": [{"url": "https://support.huawei.com/enterprise/en/doc/EDOC1100459384/10e85233/vxlan-configuration-commands", "en": "Huawei VRP command references", "zh": "华为 VRP 命令参考"}, {"url": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/", "en": "H3C Comware 7 command references", "zh": "H3C Comware 7 命令参考"}]}]
     ScrollView {
         id: scroll
+        objectName: "aboutScrollView"
         anchors.fill: parent
         anchors.margins: 24
         clip: true
         ScrollBar.horizontal: AppScrollBar {
             objectName: "aboutHorizontalScrollBar"
             policy: ScrollBar.AlwaysOff
+            parent: scroll
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
         }
-        ScrollBar.vertical: AppScrollBar { objectName: "aboutVerticalScrollBar" }
+        ScrollBar.vertical: AppScrollBar {
+            objectName: "aboutVerticalScrollBar"
+            parent: scroll
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+        }
         ColumnLayout {
             width: scroll.availableWidth
             spacing: 20
