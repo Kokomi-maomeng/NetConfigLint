@@ -57,6 +57,19 @@ def debian_dependencies(app: Path) -> list[str]:
     return sorted(packages)
 
 
+def installed_size_kib(stage: Path) -> int:
+    """Estimate installed payload size like Debian's Installed-Size field."""
+    total_bytes = 0
+    for path in stage.rglob("*"):
+        relative = path.relative_to(stage)
+        if relative.parts and relative.parts[0] == "DEBIAN":
+            continue
+        metadata = path.lstat()
+        blocks = getattr(metadata, "st_blocks", 0)
+        total_bytes += blocks * 512 if blocks else metadata.st_size
+    return max(1, (total_bytes + 1023) // 1024)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", default="2.0.0")
@@ -86,24 +99,6 @@ def main() -> None:
     )
     dependencies = debian_dependencies(app)
     (stage / "DEBIAN").mkdir(parents=True)
-    (stage / "DEBIAN/control").write_text(
-        "\n".join(
-            (
-                "Package: netconfiglint",
-                f"Version: {args.version}",
-                "Section: net",
-                "Priority: optional",
-                "Architecture: amd64",
-                "Maintainer: NetConfigLint contributors",
-                "Depends: " + ", ".join(dependencies),
-                "Description: Offline Huawei VRP and H3C Comware configuration analyzer",
-                " Static analysis with source-linked diagnostics and explicit unknown coverage.",
-                "",
-            )
-        ),
-        encoding="utf-8",
-        newline="\n",
-    )
     bin_dir = stage / "usr/bin"
     bin_dir.mkdir(parents=True)
     write_executable(bin_dir / "netconfiglint-gui", '#!/bin/sh\nexec /opt/netconfiglint/NetConfigLint "$@"\n')
@@ -139,6 +134,25 @@ StartupWMClass=NetConfigLint
     icons = stage / "usr/share/icons/hicolor/256x256/apps"
     icons.mkdir(parents=True)
     shutil.copy2(root / "netconfiglint/resources/icons/generated/app-256.png", icons / "netconfiglint.png")
+    (stage / "DEBIAN/control").write_text(
+        "\n".join(
+            (
+                "Package: netconfiglint",
+                f"Version: {args.version}",
+                "Section: net",
+                "Priority: optional",
+                "Architecture: amd64",
+                "Maintainer: NetConfigLint contributors",
+                f"Installed-Size: {installed_size_kib(stage)}",
+                "Depends: " + ", ".join(dependencies),
+                "Description: Offline Huawei VRP and H3C Comware configuration analyzer",
+                " Static analysis with source-linked diagnostics and explicit unknown coverage.",
+                "",
+            )
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
     release = root / "release"
     release.mkdir(exist_ok=True)
     output = release / f"NetConfigLint-{args.version}-linux-amd64.deb"
