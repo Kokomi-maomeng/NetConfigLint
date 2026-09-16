@@ -9,7 +9,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QSettings, QStandardPaths
+from PySide6.QtCore import QCoreApplication, QSettings, QStandardPaths
 
 
 def _safe_user_path(path: Path, user_home: Path | None = None) -> bool:
@@ -65,19 +65,40 @@ def remove_all_user_data(
     settings.sync()
     _remove_windows_settings_key()
     home = (user_home or Path.home()).resolve()
+    app_names = {
+        value.lower()
+        for value in (
+            QCoreApplication.organizationName(),
+            QCoreApplication.applicationName(),
+            "NetConfigLint",
+        )
+        if value
+    }
 
     candidates = set(user_paths or ())
     if user_paths is None:
-        candidates.update(
+        standard_locations = {
             Path(QStandardPaths.writableLocation(location))
             for location in (
                 QStandardPaths.StandardLocation.AppDataLocation,
                 QStandardPaths.StandardLocation.AppConfigLocation,
                 QStandardPaths.StandardLocation.CacheLocation,
             )
+        }
+        candidates.update(standard_locations)
+        # With both organization and application set to NetConfigLint, Unix Qt
+        # paths can end in NetConfigLint/NetConfigLint. The outer directory is
+        # still exclusively application-owned and must not survive a delete-all
+        # uninstall with stale or future-version files inside it.
+        candidates.update(
+            path.parent
+            for path in standard_locations
+            if path.name.lower() in app_names and path.parent.name.lower() in app_names
         )
         if settings_file is not None:
             candidates.add(settings_file)
+            if settings_file.parent.name.lower() in app_names:
+                candidates.add(settings_file.parent)
     adjacent_history = application_dir.resolve() / "history"
     if adjacent_history.parent == application_dir.resolve() and adjacent_history.name == "history":
         candidates.add(adjacent_history)

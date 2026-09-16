@@ -47,8 +47,11 @@ def test_remove_all_user_data_removes_unix_settings_file(
     settings.sync()
     settings_file = Path(settings.fileName())
     assert settings_file.is_file()
+    namespace = settings_file.parent
+    (namespace / "future-version-state.bin").write_bytes(b"synthetic")
     monkeypatch.setattr("netconfiglint.gui.app.cleanup.sys.platform", "linux")
 
     remove_all_user_data(app_dir, user_home=tmp_path)
 
     assert not settings_file.exists()
+    assert not namespace.exists()
