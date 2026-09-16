@@ -50,6 +50,10 @@ def test_integrated_title_bar_and_about_horizontal_scrollbar(gui: tuple) -> None
     QTest.qWait(300)
     horizontal = find(window, "aboutHorizontalScrollBar")
     assert not horizontal.isVisible()
+    vertical = find(window, "aboutVerticalScrollBar")
+    assert vertical.isVisible()
+    assert vertical.height() > 700
+    assert vertical.mapToScene(QPointF()).x() > window.width() - 50
 
 
 def test_drag_uses_a_full_card_proxy_then_settles(gui: tuple) -> None:
