@@ -33,10 +33,10 @@ Button {
         color: control.selected ? Colors.primaryContainer : (control.hovered ? Colors.surfaceContainerHigh : "transparent")
         radius: 24
         border.color: control.activeFocus ? Colors.primary : "transparent"
-        Behavior on color { ColorAnimation { duration: 180 } }
+        Behavior on color { ColorAnimation { duration: Theme.motionShort } }
     }
     scale: down ? 0.97 : 1
-    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+    Behavior on scale { NumberAnimation { duration: Theme.motionShort; easing.type: Easing.OutCubic } }
     ToolTip.visible: hovered && !expanded
     ToolTip.text: text
     ToolTip.delay: 400

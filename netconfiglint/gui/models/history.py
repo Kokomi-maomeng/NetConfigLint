@@ -16,6 +16,7 @@ from PySide6.QtCore import (
     QModelIndex,
     QPersistentModelIndex,
     QSettings,
+    QStandardPaths,
     Qt,
 )
 
@@ -25,13 +26,18 @@ _INVALID_INDEX = QModelIndex()
 
 
 def default_history_path() -> Path:
-    """Keep portable-build history beside the program in a dedicated folder."""
+    """Use an adjacent portable store or the platform user-data directory."""
     executable = Path(sys.executable).resolve()
     if executable.stem.lower() in {"netconfiglint", "deploy_main"}:
         root = Path(QCoreApplication.applicationDirPath()).resolve()
+        if (root / "portable.flag").is_file():
+            return root / "history" / "history.json"
     else:
         root = Path(__file__).resolve().parents[3]
-    return root / "history" / "history.json"
+        if (root / "portable.flag").is_file():
+            return root / "history" / "history.json"
+    data_root = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
+    return Path(data_root) / "history" / "history.json"
 
 
 @dataclass(frozen=True, slots=True)

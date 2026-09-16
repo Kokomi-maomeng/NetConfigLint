@@ -60,6 +60,7 @@ class AnalysisResult:
             "unsupported_lines": sorted(unsupported),
             "context_unknown_lines": sorted({item.line for item in config.context_unknown_lines}),
             "complete": not config.incomplete_reasons,
+            "semantic_complete": not (unsupported or unparsed or config.incomplete_reasons),
             "incomplete_reasons": list(config.incomplete_reasons),
             "scope": (
                 "Recognized commands are not a guarantee of complete device syntax or runtime validation."

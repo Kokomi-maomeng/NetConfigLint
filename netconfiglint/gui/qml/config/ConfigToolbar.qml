@@ -43,7 +43,7 @@ AppCard {
         AppButton {
             id: panelsButton
             objectName: "panelsButton"
-            text: i18n.catalog["panels.show"] + "  ⌄"
+            text: i18n.catalog["panels.show"]
             onClicked: panelsMenu.open()
             AppMenu {
                 id: panelsMenu

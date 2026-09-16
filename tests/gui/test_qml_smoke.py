@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QMetaObject, QObject, QPointF, Qt
@@ -173,3 +176,25 @@ def test_qml_resources_are_package_relative() -> None:
     main = (qml_root() / "Main.qml").read_text(encoding="utf-8")
     assert "C:\\Users" not in main
     assert Path(qml_root() / "Main.qml").is_file()
+
+
+def test_smoke_process_destroys_qml_before_context_objects(tmp_path: Path) -> None:
+    environment = {
+        **os.environ,
+        "QT_QPA_PLATFORM": "offscreen",
+        "QT_QUICK_BACKEND": "software",
+        "QT_QUICK_CONTROLS_STYLE": "Material",
+    }
+    process = subprocess.run(
+        [sys.executable, "-m", "netconfiglint.gui.app.main", "--smoke-test", str(tmp_path)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=environment,
+        timeout=30,
+        check=False,
+    )
+    assert process.returncode == 0, process.stderr
+    assert "TypeError" not in process.stderr
+    assert "Cannot read property" not in process.stderr

@@ -1,5 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <rect x="12" y="12" width="232" height="232" rx="52" fill="#315F9B"/>
-  <path d="M70 185V71h27l62 72V71h27v114h-25l-64-74v74z" fill="#FFFFFF"/>
-  <circle cx="202" cy="54" r="18" fill="#83D5A5" stroke="#FFFFFF" stroke-width="7"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="NetConfigLint sakura network check icon">
+  <defs>
+    <linearGradient id="petal" x1="0" y1="0" x2="0.75" y2="1">
+      <stop offset="0" stop-color="#fff8fb"/>
+      <stop offset="0.45" stop-color="#ffc2d5"/>
+      <stop offset="1" stop-color="#ee78a3"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a52258"/>
+      <stop offset="1" stop-color="#68143e"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#d94e83" stroke-width="8" stroke-linejoin="round">
+    <path id="p" d="M256 247 C215 214 184 168 194 121 C202 84 232 54 256 32 C280 54 310 84 318 121 C328 168 297 214 256 247Z" fill="url(#petal)"/>
+    <use href="#p" transform="rotate(72 256 256)"/>
+    <use href="#p" transform="rotate(144 256 256)"/>
+    <use href="#p" transform="rotate(216 256 256)"/>
+    <use href="#p" transform="rotate(288 256 256)"/>
+  </g>
+  <g stroke="url(#core)" stroke-width="20" stroke-linecap="round">
+    <path d="M256 256 L256 191 M256 256 L318 236 M256 256 L294 309 M256 256 L218 309 M256 256 L194 236" fill="none"/>
+  </g>
+  <g fill="#f34f91" stroke="#841b4b" stroke-width="12">
+    <circle cx="256" cy="184" r="24"/>
+    <circle cx="324" cy="233" r="24"/>
+    <circle cx="298" cy="316" r="24"/>
+    <circle cx="214" cy="316" r="24"/>
+    <circle cx="188" cy="233" r="24"/>
+  </g>
+  <circle cx="256" cy="256" r="53" fill="url(#core)"/>
+  <path d="M226 254 L248 278 L290 229" fill="none" stroke="#fffafb" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

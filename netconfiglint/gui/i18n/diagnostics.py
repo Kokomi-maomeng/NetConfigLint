@@ -35,6 +35,11 @@ def translate_diagnostic(value: str) -> str:
         match = pattern.fullmatch(value)
         if match:
             return _fill(translated, match)
+    if "H3C Comware" in value:
+        huawei_wording = value.replace("H3C Comware", "Huawei")
+        translated = translate_diagnostic(huawei_wording)
+        if translated != huawei_wording:
+            return translated.replace("华为", "H3C Comware")
     suffix = re.fullmatch(r"(.+) Matching configuration lines: (\d+)\.", value, re.DOTALL)
     if suffix:
         return translate_diagnostic(suffix[1]) + f" 匹配的配置行数: {suffix[2]}。"

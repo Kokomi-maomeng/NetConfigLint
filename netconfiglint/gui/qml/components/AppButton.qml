@@ -29,8 +29,8 @@ Button {
                : (control.hovered ? Colors.surfaceVariant : Colors.surfaceContainer)
         border.color: control.activeFocus ? Colors.primary : (control.prominent ? "transparent" : Colors.outlineVariant)
         border.width: control.activeFocus ? 2 : 1
-        Behavior on color { ColorAnimation { duration: 120 } }
+        Behavior on color { ColorAnimation { duration: Theme.motionShort } }
     }
     scale: control.down ? 0.97 : 1
-    Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+    Behavior on scale { NumberAnimation { duration: Theme.motionShort; easing.type: Easing.OutCubic } }
 }

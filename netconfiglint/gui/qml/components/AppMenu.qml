@@ -9,6 +9,6 @@ Menu {
     implicitWidth: 280
     delegate: MenuItem { font: Typography.body }
     background: Rectangle { radius: 16; color: Colors.surfaceContainerHigh; border.color: Colors.outlineVariant }
-    enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 150 } }
-    exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 100 } }
+    enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.motionShort } }
+    exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.motionShort } }
 }
