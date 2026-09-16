@@ -69,6 +69,34 @@ def test_windows_flattened_lowercase_library_keeps_exact_provenance(payload: Pat
         licensing.assemble(payload)
 
 
+def test_linux_abi3_suffix_normalization_still_requires_exact_bytes(
+    payload: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original = payload / "Qt6Core.dll"
+    upstream = payload.parent / "QtCore.abi3.so"
+    upstream.write_bytes(b"pinned PySide extension")
+    deployed = payload / "PySide6/QtCore.so"
+    deployed.parent.mkdir()
+    deployed.write_bytes(upstream.read_bytes())
+    monkeypatch.setattr(
+        licensing,
+        "origins",
+        lambda: {
+            "qt6core.dll": [(original, "qtbase", "PySide6/Qt6Core.dll")],
+            "qtcore.abi3.so": [(upstream, "pyside-setup", "PySide6/QtCore.abi3.so")],
+        },
+    )
+    licensing.assemble(payload)
+    deployed.write_bytes(b"changed extension")
+    with pytest.raises(ValueError, match="Unregistered native"):
+        licensing.assemble(payload)
+
+
+def test_macos_entry_name_avoids_case_insensitive_package_collision() -> None:
+    assert licensing.application_entry("Contents/MacOS/NetConfigLintApp")
+    assert "netconfiglintapp" != "netconfiglint"
+
+
 def test_f24_zip_duplicate_or_traversal_names_fail(tmp_path: Path) -> None:
     path = tmp_path / "unsafe.zip"
     with ZipFile(path, "w") as output:

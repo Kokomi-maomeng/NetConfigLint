@@ -12,6 +12,7 @@ from check_build_environment import check
 
 APP_NAME = "NetConfigLint"
 APP_VERSION = "2.0.0"
+MACOS_EXECUTABLE = "NetConfigLintApp"
 
 
 def _make_macos_icon(root: Path) -> Path:
@@ -53,7 +54,11 @@ def _qualify_macos_bundle(distribution: Path) -> Path:
     entry_path = target / "Contents/MacOS" / original_entry
     if not entry_path.is_file():
         raise RuntimeError("Compiled macOS bundle entry point missing")
-    qualified_entry = target / "Contents/MacOS" / APP_NAME
+    # The case-insensitive macOS filesystem already contains the bundled
+    # ``netconfiglint`` package directory.  Using the display name for the
+    # executable would collide with that directory, so keep a distinct bundle
+    # entry point while retaining NetConfigLint as the user-facing app name.
+    qualified_entry = target / "Contents/MacOS" / MACOS_EXECUTABLE
     if entry_path != qualified_entry:
         entry_path.rename(qualified_entry)
     info.update(
@@ -64,7 +69,7 @@ def _qualify_macos_bundle(distribution: Path) -> Path:
             "CFBundleShortVersionString": APP_VERSION,
             "CFBundleVersion": APP_VERSION,
             "CFBundleIconFile": "NetConfigLint.icns",
-            "CFBundleExecutable": APP_NAME,
+            "CFBundleExecutable": MACOS_EXECUTABLE,
             "NSHighResolutionCapable": True,
         }
     )

@@ -61,7 +61,7 @@ def main() -> None:
 set -eu
 read "answer?Delete NetConfigLint user data and history too? [y/N] "
 case "$answer" in
-  y|Y|yes|YES) /Applications/NetConfigLint.app/Contents/MacOS/NetConfigLint --remove-all-data ;;
+  y|Y|yes|YES) /Applications/NetConfigLint.app/Contents/MacOS/NetConfigLintApp --remove-all-data ;;
 esac
 sudo rm -rf -- /Applications/NetConfigLint.app '/Applications/Uninstall NetConfigLint.command'
 echo 'NetConfigLint was removed.'
