@@ -26,8 +26,8 @@ jobs:
       MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
       APP_VERSION: ${{ github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13.2"
           cache: pip
@@ -103,7 +103,7 @@ jobs:
           python scripts/build_macos_pkg.py --version "$version"
       - name: Audit source before upload
         run: python scripts/audit_release.py --baseline HEAD^ --output build/release-audit.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-${{ matrix.os }}
           path: release/*
@@ -113,7 +113,7 @@ jobs:
     needs: package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: release-*
           merge-multiple: true

@@ -41,8 +41,8 @@ jobs:
       QT_QUICK_CONTROLS_STYLE: Material
       PYTHONUTF8: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
           cache: pip
@@ -63,7 +63,7 @@ jobs:
         run: mypy netconfiglint
       - run: python -m pytest
       - run: python -m netconfiglint.gui.app.main --smoke-test build/offscreen-smoke
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: offscreen-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.qt }}
@@ -81,8 +81,8 @@ jobs:
       PYTHONUTF8: "1"
       QT_QUICK_CONTROLS_STYLE: Material
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13.2"
           cache: pip
@@ -155,7 +155,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Standalone $backend smoke failed" }
             if (-not (Get-Content -Raw "$output/smoke-result.json" | ConvertFrom-Json).passed) { throw 'Smoke rejected' }
           }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: compiled-desktop-${{ matrix.os }}
