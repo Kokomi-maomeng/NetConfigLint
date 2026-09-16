@@ -53,6 +53,7 @@ def application_entry(relative: str) -> bool:
         "NetConfigLint",
         "NetConfigLint.bin",
         "Contents/MacOS/NetConfigLint",
+        "Contents/MacOS/NetConfigLintApp",
         "Contents/MacOS/deploy_main",
     }
 
@@ -107,6 +108,20 @@ def origins() -> dict[str, list[tuple[Path, str, str]]]:
                         component = "libffi"
                     result[item.name.lower()].append((item, component, item.name))
     return result
+
+
+def origin_names(name: str) -> tuple[str, ...]:
+    """Return exact and compiler-normalized names that may share the same bytes.
+
+    Nuitka removes the CPython ``.abi3`` tag when it copies PySide extension
+    modules into a Linux standalone directory.  The byte-for-byte digest check
+    below remains authoritative; this alias only lets us locate the matching
+    file from the pinned upstream wheel.
+    """
+    lower = name.lower()
+    if lower.endswith(".so") and not lower.endswith(".abi3.so"):
+        return lower, lower[:-3] + ".abi3.so"
+    return (lower,)
 
 
 def windows_runtime_candidates(name: str) -> list[Path]:
@@ -219,7 +234,8 @@ def assemble(distribution: Path) -> dict:
             match = next(
                 (
                     (category, upstream)
-                    for p, category, upstream in indexed.get(path.name.lower(), [])
+                    for name in origin_names(path.name)
+                    for p, category, upstream in indexed.get(name, [])
                     if p.is_file() and sha(p.read_bytes()) == digest
                 ),
                 None,
