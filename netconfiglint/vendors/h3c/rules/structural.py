@@ -85,7 +85,8 @@ class UnsupportedCommandSummaryRule:
                 "H3C command coverage",
                 f"{len(lines)} command line(s) are preserved but not semantically verified.",
                 f"Unsupported line numbers: {preview}.",
-                "Review H3C-CMD-001 items against the exact device model and Comware release.",
+                "Review H3C-CMD-001 and H3C-PLATFORM-001 items against the exact device model and "
+                "Comware release.",
                 Confidence.LOW,
             ),
         )

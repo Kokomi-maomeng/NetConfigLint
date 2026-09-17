@@ -137,9 +137,10 @@ Item {
                 visible: preferences.values.panels.indexOf(panelKey) >= 0
                 SplitView.preferredWidth: 300
                 SplitView.minimumWidth: 240
-                title: i18n.catalog["editor.configuration"]
-                text: root.controller.sourceText
-                onTextEdited: value => { if (root.controller.sourceText !== value) root.controller.sourceText = value }
+                title: root.controller.editorReadOnly ? i18n.catalog["editor.bundle_preview"] : i18n.catalog["editor.configuration"]
+                text: root.controller.editorText
+                readOnly: root.controller.editorReadOnly
+                onTextEdited: value => { if (!readOnly && root.controller.sourceText !== value) root.controller.sourceText = value }
                 onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
                 onDragMoved: sceneX => root.updateDrag(sceneX)
                 onDragFinished: sceneX => root.finishDrag(sceneX)

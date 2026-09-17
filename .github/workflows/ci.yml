@@ -41,8 +41,8 @@ jobs:
       QT_QUICK_CONTROLS_STYLE: Material
       PYTHONUTF8: "1"
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: ${{ matrix.python }}
           cache: pip
@@ -61,9 +61,17 @@ jobs:
       - name: Mypy with qualified release Qt stubs
         if: matrix.qt == '6.11.2'
         run: mypy netconfiglint
-      - run: python -m pytest
+      - name: Test suite
+        if: matrix.os != 'ubuntu-latest' || matrix.python != '3.13.2' || matrix.qt != '6.11.2'
+        run: python -m pytest
+      - name: Coverage gate
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13.2' && matrix.qt == '6.11.2'
+        run: python -m pytest --ignore=tests/performance --cov=netconfiglint --cov-report=term --cov-fail-under=90
+      - name: Performance gate outside coverage instrumentation
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13.2' && matrix.qt == '6.11.2'
+        run: python -m pytest tests/performance
       - run: python -m netconfiglint.gui.app.main --smoke-test build/offscreen-smoke
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: offscreen-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.qt }}
@@ -81,8 +89,8 @@ jobs:
       PYTHONUTF8: "1"
       QT_QUICK_CONTROLS_STYLE: Material
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13.2"
           cache: pip
@@ -155,7 +163,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Standalone $backend smoke failed" }
             if (-not (Get-Content -Raw "$output/smoke-result.json" | ConvertFrom-Json).passed) { throw 'Smoke rejected' }
           }
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: compiled-desktop-${{ matrix.os }}
@@ -167,3 +175,22 @@ jobs:
             release/*.msi
             release/*.deb
             release/*.pkg
+
+  security:
+    if: github.event_name != 'workflow_dispatch' || inputs.scope == 'all'
+    name: Static and dependency security gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13.2"
+          cache: pip
+      - name: Install security scanners
+        run: python -m pip install bandit==1.9.4 pip-audit==2.10.1
+      - name: Bandit medium/high findings gate
+        run: python -m bandit -r netconfiglint scripts -q -ll
+      - name: Audit pinned quality and release dependencies
+        run: |
+          python -m pip_audit -r constraints/quality.txt --no-deps
+          python -m pip_audit -r constraints/release.txt --no-deps

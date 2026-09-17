@@ -34,6 +34,9 @@ Roboto and Noto Sans SC are bundled for offline use. Platform font rasterizers s
   or text. Full exports put complete source first by default. Diagnostics-first exports annotate code
   lines with severity counts. Confirmation opens the native save flow; Cancel/outside click aborts.
   Reports containing diagnostics require a current analysis and always include all severities.
+- Imported H3C diagnostic bundles use a responsive read-only running-configuration preview and append
+  source-mapped operational evidence excerpts after analysis. Configuration-only export selects the
+  running configuration; Full export retains the complete bundle.
 - Diagnostic prose follows the selected language; commands, source text, identifiers, addresses,
   and object names retain their original values. The OS detection field was removed from GUI,
   CLI output, vendor plugins, and the API model in v1.4.
@@ -61,9 +64,11 @@ Unknown commands retain source mapping and do not make parsing fail. Unsupported
 platforms, and releases remain Unknown rather than being guessed.
 
 The v2.0 H3C Comware plugin adds conservative Comware 7 detection, original-text preservation,
-common documented Comware-to-normalized command forms, 43 registered H3C rules, and a source-linked
+common documented Comware-to-normalized command forms, 47 registered H3C rule evaluators, and a source-linked
 `H3C-CMD-001` UNKNOWN for every unmodeled command line. It does not claim that one finite parser can
-semantically emulate every H3C product/release command. See the exact [H3C support matrix](docs/h3c-command-support.md).
+semantically emulate every H3C product/release command. It also recognizes bounded H3C diagnostic
+bundles without treating operational output as configuration. See the exact
+[H3C support matrix](docs/h3c-command-support.md).
 
 ## Privacy
 
@@ -132,7 +137,8 @@ The QML-first PySide6 desktop application provides:
 - unsupported system languages falling back to English and instant manual language switching;
 - file open, paste/edit, drag/drop, analyze, clear, and JSON export;
 - separate analyzed configuration and non-analyzed temporary editors, both with line numbers,
-  Ctrl+F, Ctrl+G, incremental Huawei/H3C syntax highlighting, and selectable text;
+  Ctrl+F, Ctrl+G, incremental Huawei/H3C syntax highlighting, source-mapped unsupported-line
+  highlighting, and selectable text;
 - detected vendor/OS inside the diagnostic card, severity filters, expandable issues, and
   source-line navigation;
 - a left-to-right analyzed configuration, diagnostics, and temporary-editor workspace with two

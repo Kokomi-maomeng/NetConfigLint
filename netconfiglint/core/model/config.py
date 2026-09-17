@@ -50,6 +50,7 @@ class Interface:
     source: SourceRange
     description: str = ""
     link_type: str | None = None
+    link_mode: str | None = None
     access_vlan: int | None = None
     pvid_vlan: int | None = None
     allowed_vlans: set[int] = field(default_factory=set)
@@ -59,6 +60,8 @@ class Interface:
     secondary_ipv4_lines: set[int] = field(default_factory=set)
     ipv6_addresses: list[tuple[str, str | None, SourceRange]] = field(default_factory=list)
     ospf_bindings: list[tuple[str, str, SourceRange]] = field(default_factory=list)
+    ospf_network_type: str | None = None
+    arp_filter_sources: list[tuple[str, str, SourceRange]] = field(default_factory=list)
     traffic_policies: list[tuple[str, str, SourceRange]] = field(default_factory=list)
     shutdown: bool = False
     eth_trunk: str | None = None
@@ -304,12 +307,16 @@ class SnapshotEvidence:
     bgp_peers: dict[str, SnapshotBgpPeer] = field(default_factory=dict)
     interfaces: dict[str, SnapshotInterface] = field(default_factory=dict)
     rib_captures: list[RibCapture] = field(default_factory=list)
+    operational: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
 class DeviceConfig:
     vendor: str
     source_lines: tuple[str, ...]
+    # Empty means the whole source is configuration. Diagnostic bundles set
+    # this to the source-mapped lines of the selected running configuration.
+    analysis_lines: set[int] = field(default_factory=set)
     blocks: list[ConfigBlock] = field(default_factory=list)
     vlans: dict[int, Vlan] = field(default_factory=dict)
     interfaces: dict[str, Interface] = field(default_factory=dict)

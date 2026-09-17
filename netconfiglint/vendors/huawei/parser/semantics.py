@@ -182,10 +182,12 @@ def acl_rule(tokens: tuple[str, ...], source: SourceRange, acl_type: str, family
             elif family == "ipv4" and rest:
                 wildcard = rest.pop(0)
                 if wildcard == "0":
-                    wildcard = "0.0.0.0"
+                    # This is ACL wildcard syntax, not a socket bind address.
+                    wildcard = "0.0.0.0"  # nosec B104
                 try:
                     ipaddress.IPv4Address(value)
                     ipaddress.IPv4Address(wildcard)
+                    # ACL wildcard semantics; this is not a socket bind address.
                     matches[key] = ("any",) if wildcard == "255.255.255.255" else (value, wildcard)
                 except ValueError:
                     known = False

@@ -42,20 +42,24 @@ class AnalysisResult:
     @property
     def coverage(self) -> dict[str, Any]:
         config = self.config
-        ignored = {item.line for item in config.ignored_lines}
+        scope = config.analysis_lines or set(range(1, len(config.source_lines) + 1))
+        ignored = {item.line for item in config.ignored_lines if item.line in scope}
         ignored.update(
             number
             for number, line in enumerate(config.source_lines, 1)
-            if not line.strip() or line.strip().lower() in {"#", "return"}
+            if number in scope and (not line.strip() or line.strip().lower() in {"#", "return"})
         )
-        unsupported = {item.line for item in config.unsupported_lines}
-        unparsed = {item.line for item in config.unparsed_lines} - unsupported - ignored
-        total = len(config.source_lines)
+        unsupported = {item.line for item in config.unsupported_lines if item.line in scope}
+        unparsed = {item.line for item in config.unparsed_lines if item.line in scope} - unsupported - ignored
+        total = len(scope)
         return {
             "recognized": max(0, total - len(ignored | unsupported | unparsed)),
             "unparsed": len(unparsed),
             "unsupported": len(unsupported),
             "ignored": len(ignored),
+            "source_total_lines": len(config.source_lines),
+            "analysis_scope_lines": total,
+            "excluded_operational_lines": len(config.source_lines) - total,
             "unparsed_lines": sorted(unparsed),
             "unsupported_lines": sorted(unsupported),
             "context_unknown_lines": sorted({item.line for item in config.context_unknown_lines}),

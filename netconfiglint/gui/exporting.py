@@ -22,6 +22,7 @@ def render_report(
     text: Callable[[str], str],
     translate: Callable[[str], str] = lambda value: value,
     coverage: dict[str, Any] | None = None,
+    input_metadata: dict[str, Any] | None = None,
 ) -> str:
     if scope not in {"full", "configuration", "diagnostics"} or format not in {"json", "md", "txt"}:
         raise ValueError("Invalid export options")
@@ -31,7 +32,9 @@ def render_report(
         for key in ("message", "explanation", "suggested_fix"):
             record[key] = translate(record[key])
         records.append(record)
-    lines = source.split("\n")
+    lines = source.splitlines()
+    if source.endswith(("\n", "\r")):
+        lines.append("")
     annotations: list[dict[str, Any]] = []
     if scope == "full" and diagnostics_first:
         by_line: dict[int, list[Diagnostic]] = {}
@@ -52,7 +55,9 @@ def render_report(
                 }
             )
     if format == "json":
-        payload: dict[str, Any] = {"schema_version": "1.4", "scope": scope, "mode": mode, "vendor": vendor}
+        payload: dict[str, Any] = {"schema_version": "2.0", "scope": scope, "mode": mode, "vendor": vendor}
+        if input_metadata:
+            payload["input"] = input_metadata
         if coverage is not None and scope != "configuration":
             payload["coverage"] = coverage
         if scope == "diagnostics" or (scope == "full" and diagnostics_first):
@@ -81,9 +86,17 @@ def render_report(
 
     def diagnostic_section() -> str:
         result = heading(text("analysis.diagnostics"))
+        if input_metadata:
+            result += fenced("Input: " + json.dumps(input_metadata, ensure_ascii=False)) + "\n"
         if coverage is not None:
+            human_coverage = dict(coverage)
+            for key in ("unparsed_lines", "unsupported_lines", "context_unknown_lines"):
+                values = human_coverage.get(key)
+                if isinstance(values, list) and len(values) > 80:
+                    human_coverage[key] = [*values[:80], f"... {len(values) - 80} more"]
             result += (
-                fenced(text("analysis.coverage") + ": " + json.dumps(coverage, ensure_ascii=False)) + "\n"
+                fenced(text("analysis.coverage") + ": " + json.dumps(human_coverage, ensure_ascii=False))
+                + "\n"
             )
         if not diagnostics:
             return result + text("analysis.no_issues") + "\n"

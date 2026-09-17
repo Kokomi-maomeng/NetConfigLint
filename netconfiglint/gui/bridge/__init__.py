@@ -1,5 +1,9 @@
 """Qt/QML bridge package."""
 
-from netconfiglint.gui.bridge.syntax import HuaweiConfigHighlighter, SyntaxHighlighterBridge
+from netconfiglint.gui.bridge.syntax import (
+    HuaweiConfigHighlighter,
+    NetworkConfigHighlighter,
+    SyntaxHighlighterBridge,
+)
 
-__all__ = ["HuaweiConfigHighlighter", "SyntaxHighlighterBridge"]
+__all__ = ["HuaweiConfigHighlighter", "NetworkConfigHighlighter", "SyntaxHighlighterBridge"]

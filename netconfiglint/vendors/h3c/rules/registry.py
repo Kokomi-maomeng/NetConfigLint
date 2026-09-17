@@ -1,6 +1,15 @@
 from netconfiglint.rules import Rule
 from netconfiglint.vendors.h3c.rules.adapter import H3CAdaptedRule
-from netconfiglint.vendors.h3c.rules.security import LocalUserTelnetRule, PlaintextPasswordRule
+from netconfiglint.vendors.h3c.rules.operational import H3COperationalEvidenceRule
+from netconfiglint.vendors.h3c.rules.security import (
+    H3COspfAuthenticationRule,
+    H3COspfExposureRule,
+    H3CSnmpCommunityRule,
+    H3CVtyInboundProtocolRule,
+    LegacyTlsVersionRule,
+    LocalUserTelnetRule,
+    PlaintextPasswordRule,
+)
 from netconfiglint.vendors.h3c.rules.structural import (
     MissingBridgeAggregationRule,
     MissingVlanInterfaceVlanRule,
@@ -39,10 +48,8 @@ from netconfiglint.vendors.huawei.rules.routes import (
 from netconfiglint.vendors.huawei.rules.security import (
     FtpServerRule,
     SensitiveConfigurationRule,
-    SnmpCommunityRule,
     TelnetServerRule,
     UnauthenticatedNtpRule,
-    VtyInboundProtocolRule,
     VtyPasswordAuthenticationRule,
 )
 from netconfiglint.vendors.huawei.rules.traffic_policy import (
@@ -92,9 +99,7 @@ _NORMALIZED_RULES: tuple[Rule, ...] = (
     SensitiveConfigurationRule(),
     TelnetServerRule(),
     FtpServerRule(),
-    SnmpCommunityRule(),
     UnauthenticatedNtpRule(),
-    VtyInboundProtocolRule(),
     VtyPasswordAuthenticationRule(),
 )
 
@@ -104,5 +109,11 @@ H3C_RULES: tuple[Rule, ...] = (
     MissingVlanInterfaceVlanRule(),
     PlaintextPasswordRule(),
     LocalUserTelnetRule(),
+    H3CSnmpCommunityRule(),
+    H3CVtyInboundProtocolRule(),
+    LegacyTlsVersionRule(),
+    H3COspfExposureRule(),
+    H3COspfAuthenticationRule(),
+    H3COperationalEvidenceRule(),
     UnsupportedCommandSummaryRule(),
 )
