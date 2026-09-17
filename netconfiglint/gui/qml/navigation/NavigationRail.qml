@@ -15,29 +15,12 @@ Rectangle {
     signal settingsRequested()
     color: Colors.surfaceContainerLow
     clip: true
-    Behavior on Layout.preferredWidth { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
+    Behavior on Layout.preferredWidth { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
     Rectangle { anchors.right: parent.right; height: parent.height; width: 1; color: Qt.alpha(Colors.outlineVariant, 0.55) }
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 14
         spacing: Spacing.xs
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 60
-            Rectangle {
-                width: 42; height: 42; radius: 14
-                color: Colors.primary
-                Text { anchors.centerIn: parent; text: "N"; color: Colors.primaryForeground; font: Typography.title }
-            }
-            Text {
-                Layout.fillWidth: true
-                visible: root.expanded
-                text: preferences.values.panelTitle
-                color: Colors.textPrimary
-                font: Typography.subtitle
-                elide: Text.ElideRight
-            }
-        }
         NavigationItem {
             objectName: "sidebarToggle"
             Layout.fillWidth: true

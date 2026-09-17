@@ -16,12 +16,18 @@ ApplicationWindow {
     title: preferences.values.panelTitle
     font: Typography.body
     color: Colors.background
+    flags: Qt.Window | Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint
+    topPadding: 0
+    leftPadding: 0
+    rightPadding: 0
+    bottomPadding: 0
     Material.theme: Theme.dark ? Material.Dark : Material.Light
     Material.accent: Colors.primary
     Material.primary: Colors.primary
     Material.background: Colors.surfaceContainer
     Material.foreground: Colors.textPrimary
     property int currentPage: 0
+    readonly property var pageTitles: [i18n.catalog["page.check"], i18n.catalog["nav.history"], i18n.catalog["nav.about"]]
     onCurrentPageChanged: pageTransition.restart()
     function clearOtherSelections(item, position) {
         if (!item) return
@@ -39,40 +45,54 @@ ApplicationWindow {
             if (navigation.compact && point.scenePosition.x > navigation.width) navigation.expandedInCompact = false
         }
     }
-    RowLayout {
+    ColumnLayout {
         anchors.fill: parent
         spacing: 0
-        Item {
-            z: 2
-            Layout.fillHeight: true
-            Layout.preferredWidth: navigation.compact ? 80 : (navigation.expanded ? 260 : 80)
-            Behavior on Layout.preferredWidth { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
-            NavigationRail {
-                id: navigation
-                objectName: "navigationRail"
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: expanded ? 260 : 80
-                Behavior on width { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
-                currentIndex: window.currentPage
-                onPageSelected: index => {
-                    window.currentPage = index
-                    expandedInCompact = false
-                }
-                onSettingsRequested: {
-                    expandedInCompact = false
-                    settingsDialog.open()
-                }
-            }
+        AppTitleBar {
+            objectName: "appTitleBar"
+            Layout.fillWidth: true
+            Layout.preferredHeight: implicitHeight
+            navigationWidth: navigationHost.width
+            pageTitle: window.pageTitles[window.currentPage] || "NetConfigLint"
+            detail: analysisController.fileName
         }
-        StackLayout {
-            id: pageStack
+        RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: window.currentPage
-            ConfigCheckPage { controller: analysisController }
-            HistoryPage { controller: analysisController }
-            AboutPage { }
+            spacing: 0
+            Item {
+                id: navigationHost
+                z: 2
+                Layout.fillHeight: true
+                Layout.preferredWidth: navigation.compact ? 80 : (navigation.expanded ? 260 : 80)
+                Behavior on Layout.preferredWidth { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
+                NavigationRail {
+                    id: navigation
+                    objectName: "navigationRail"
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: expanded ? 260 : 80
+                    Behavior on width { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
+                    currentIndex: window.currentPage
+                    onPageSelected: index => {
+                        window.currentPage = index
+                        expandedInCompact = false
+                    }
+                    onSettingsRequested: {
+                        expandedInCompact = false
+                        settingsDialog.open()
+                    }
+                }
+            }
+            StackLayout {
+                id: pageStack
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                currentIndex: window.currentPage
+                ConfigCheckPage { controller: analysisController }
+                HistoryPage { controller: analysisController }
+                AboutPage { }
+            }
         }
     }
     SettingsPage { id: settingsDialog; objectName: "settingsDialog"; controller: analysisController }
@@ -86,13 +106,9 @@ ApplicationWindow {
         target: analysisController
         function onToastRequested(key) { toast.show(i18n.catalog[key] || key) }
     }
-    NumberAnimation {
+    ParallelAnimation {
         id: pageTransition
-        target: pageStack
-        property: "opacity"
-        from: 0
-        to: 1
-        duration: Theme.motion
-        easing.type: Easing.OutCubic
+        NumberAnimation { target: pageStack; property: "opacity"; from: 0.35; to: 1; duration: Theme.motionMedium; easing.type: Easing.OutCubic }
+        NumberAnimation { target: pageStack; property: "scale"; from: 0.992; to: 1; duration: Theme.motionMedium; easing.type: Easing.OutCubic }
     }
 }

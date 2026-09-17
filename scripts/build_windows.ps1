@@ -40,11 +40,10 @@ if (-not $DryRun) {
 
 $scripts = Split-Path -Parent $deploy
 
-$svg = Join-Path $projectRoot 'netconfiglint\resources\icons\app.svg'
 $ico = Join-Path $projectRoot 'netconfiglint\resources\icons\app.ico'
-if (-not (Test-Path -LiteralPath $ico)) {
-    & $python -c "from PySide6.QtGui import QImage; import sys; image=QImage(sys.argv[1]); image=image.scaled(256,256); raise SystemExit(0 if image.save(sys.argv[2]) else 1)" $svg $ico
-    if ($LASTEXITCODE -ne 0) { throw 'Could not generate the Windows icon.' }
+& $python (Join-Path $PSScriptRoot 'generate_icons.py')
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $ico)) {
+    throw 'Could not generate the Windows icon set.'
 }
 
 $env:PATH = $scripts + [IO.Path]::PathSeparator + $env:PATH

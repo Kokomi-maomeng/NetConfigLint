@@ -6,23 +6,43 @@ import theme 1.0
 import "../components"
 Item {
     id: root
-    property var sections: [{"title": "about.project", "links": [{"url": "https://github.com/Kokomi-maomeng/NetConfigLint", "en": "Kokomi-maomeng/NetConfigLint", "zh": "Kokomi-maomeng/NetConfigLint"}, {"url": "https://github.com/Kokomi-maomeng", "en": "github.com/Kokomi-maomeng", "zh": "github.com/Kokomi-maomeng"}]}, {"title": "about.components", "links": [{"url": "https://www.python.org/psf/license/", "en": "Python", "zh": "Python"}, {"url": "https://doc.qt.io/qtforpython-6/", "en": "PySide6 / Qt 6", "zh": "PySide6 / Qt 6"}, {"url": "https://nuitka.net/", "en": "Nuitka", "zh": "Nuitka"}]}, {"title": "about.sources", "links": [{"url": "https://support.huawei.com/enterprise/en/doc/EDOC1100459384/10e85233/vxlan-configuration-commands", "en": "Huawei VXLAN command reference", "zh": "Huawei VXLAN 命令参考"}, {"url": "https://support.huawei.com/enterprise/en/doc/EDOC1100290937/379d8aea/configuring-the-ssh-server-function-and-related-parameters", "en": "Huawei SSH security configuration", "zh": "Huawei SSH 安全配置"}, {"url": "https://support.huawei.com/enterprise/en/doc/EDOC1100468733/f596198f/configuring-a-device-to-communicate-with-an-nms-through-snmpv3-usm-user", "en": "Huawei SNMPv3 configuration", "zh": "Huawei SNMPv3 配置"}, {"url": "https://support.huawei.com/enterprise/en/doc/EDOC1100380861/75f06349/fundamentals-of-ntp-access-control", "en": "Huawei NTP access control", "zh": "Huawei NTP 访问控制"}]}]
+    property var sections: [{"title": "about.project", "links": [{"url": "https://github.com/Kokomi-maomeng/NetConfigLint", "en": "Kokomi-maomeng/NetConfigLint", "zh": "Kokomi-maomeng/NetConfigLint"}, {"url": "https://github.com/Kokomi-maomeng", "en": "github.com/Kokomi-maomeng", "zh": "github.com/Kokomi-maomeng"}]}, {"title": "about.components", "links": [{"url": "https://www.python.org/psf/license/", "en": "Python", "zh": "Python"}, {"url": "https://doc.qt.io/qtforpython-6/", "en": "PySide6 / Qt 6", "zh": "PySide6 / Qt 6"}, {"url": "https://nuitka.net/", "en": "Nuitka", "zh": "Nuitka"}]}, {"title": "about.sources", "links": [{"url": "https://support.huawei.com/enterprise/en/doc/EDOC1100459384/10e85233/vxlan-configuration-commands", "en": "Huawei VRP command references", "zh": "华为 VRP 命令参考"}, {"url": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/", "en": "H3C Comware 7 command references", "zh": "H3C Comware 7 命令参考"}]}]
     ScrollView {
         id: scroll
+        objectName: "aboutScrollView"
         anchors.fill: parent
         anchors.margins: 24
         clip: true
-        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-        ScrollBar.vertical: AppScrollBar { }
+        ScrollBar.horizontal: AppScrollBar {
+            objectName: "aboutHorizontalScrollBar"
+            policy: ScrollBar.AlwaysOff
+            parent: scroll
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+        }
+        ScrollBar.vertical: AppScrollBar {
+            objectName: "aboutVerticalScrollBar"
+            parent: scroll
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+        }
         ColumnLayout {
             width: scroll.availableWidth
             spacing: 20
             SelectableText { text: i18n.catalog["nav.about"]; font: Typography.display }
             RowLayout {
                 Layout.fillWidth: true
-                Rectangle {
-                    width: 64; height: 64; radius: 22; color: Colors.primary
-                    Text { anchors.centerIn: parent; text: "N"; color: Colors.primaryForeground; font: Typography.title }
+                Image {
+                    Layout.preferredWidth: 72
+                    Layout.preferredHeight: 72
+                    source: Qt.resolvedUrl("../../../resources/icons/app-master.png")
+                    sourceSize.width: 144
+                    sourceSize.height: 144
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    mipmap: true
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -56,7 +76,7 @@ Item {
                                     radius: 16
                                     color: parent.hovered ? Colors.primaryContainer : Colors.surface
                                     border.color: Colors.outlineVariant
-                                    Behavior on color { ColorAnimation { duration: 180 } }
+                                    Behavior on color { ColorAnimation { duration: Theme.motionShort } }
                                 }
                             }
                         }

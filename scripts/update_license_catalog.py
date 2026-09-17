@@ -58,7 +58,8 @@ def collect(module: str) -> dict:
             if target.exists()
             else fetch(f"https://raw.githubusercontent.com/{repo}/v{VERSION}/{relative}")
         )
-        blob = hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+        # Git object identity is specified as SHA-1; it is not used as a security primitive.
+        blob = hashlib.sha1(f"blob {len(data)}\0".encode() + data, usedforsecurity=False).hexdigest()
         if blob != entry["sha"]:
             raise ValueError("Upstream license blob hash mismatch")
         target.parent.mkdir(parents=True, exist_ok=True)

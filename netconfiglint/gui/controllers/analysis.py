@@ -10,17 +10,26 @@ from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 
 from netconfiglint import analyze
 from netconfiglint.core.analyzer import AnalysisResult
-from netconfiglint.core.analyzer.control import AnalysisCancelled, AnalysisLimits, CancellationToken
+from netconfiglint.core.analyzer.control import (
+    AnalysisCancelled,
+    AnalysisLimitReached,
+    AnalysisLimits,
+    CancellationToken,
+)
+from netconfiglint.core.input import read_network_text
 from netconfiglint.gui.exporting import render_report
 from netconfiglint.gui.i18n import TranslationController
 from netconfiglint.gui.models import DiagnosticListModel, HistoryListModel, HistoryStore
 from netconfiglint.vendors import registry
+from netconfiglint.vendors.h3c.parser.diagnostic_bundle import extract_h3c_diagnostic_bundle
 
 Analyzer = Callable[[str, str, str], AnalysisResult]
 
 
 class AnalysisController(QObject):
     sourceTextChanged = Signal()
+    editorTextChanged = Signal()
+    editorReadOnlyChanged = Signal()
     modeChanged = Signal()
     vendorChanged = Signal()
     busyChanged = Signal()
@@ -49,6 +58,10 @@ class AnalysisController(QObject):
         self._async_enabled = async_enabled
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="netconfiglint")
         self._source_text = ""
+        self._editor_text = ""
+        self._editor_read_only = False
+        self._display_line_map: dict[int, int] = {}
+        self._bundle_configuration = ""
         self._mode = "snippet"
         self._vendor = "auto"
         self._busy = False
@@ -61,6 +74,7 @@ class AnalysisController(QObject):
         self._closing = False
         self._cancellation = CancellationToken()
         self._coverage: dict[str, Any] = {}
+        self._input_metadata: dict[str, Any] = {}
         self.translator = TranslationController(persist_settings=False)
         self._detection: dict[str, Any] = self._empty_detection()
         self._summary: dict[str, int] = {key: 0 for key in ("ERROR", "WARNING", "INFO", "UNKNOWN")}
@@ -114,10 +128,34 @@ class AnalysisController(QObject):
     def _set_source_text(self, value: str) -> None:
         if value != self._source_text:
             self._source_text = value
+            self._set_editor_text(value, read_only=False)
+            self._bundle_configuration = ""
+            self._input_metadata = {}
             self._invalidate()
             self.sourceTextChanged.emit()
 
     sourceText = Property(str, _get_source_text, _set_source_text, notify=sourceTextChanged)
+
+    def _set_editor_text(
+        self, value: str, *, read_only: bool, line_map: dict[int, int] | None = None
+    ) -> None:
+        if read_only != self._editor_read_only:
+            self._editor_read_only = read_only
+            self.editorReadOnlyChanged.emit()
+        if value != self._editor_text:
+            self._editor_text = value
+            self.editorTextChanged.emit()
+        self._display_line_map = line_map or {}
+
+    def _get_editor_text(self) -> str:
+        return self._editor_text
+
+    editorText = Property(str, _get_editor_text, notify=editorTextChanged)
+
+    def _get_editor_read_only(self) -> bool:
+        return self._editor_read_only
+
+    editorReadOnly = Property(bool, _get_editor_read_only, notify=editorReadOnlyChanged)
 
     def _get_mode(self) -> str:
         return self._mode
@@ -220,12 +258,37 @@ class AnalysisController(QObject):
     def loadFile(self, value: str) -> None:
         try:
             path = Path(QUrl(value).toLocalFile() if value.startswith("file:") else value)
-            if path.stat().st_size > AnalysisLimits().max_characters * 4:
-                raise OSError("Input size budget exceeded")
-            self._set_source_text(path.read_text(encoding="utf-8-sig"))
+            decoded = read_network_text(path, AnalysisLimits())
+            bundle = extract_h3c_diagnostic_bundle(decoded.text)
+            if bundle is None:
+                self._set_source_text(decoded.text)
+            else:
+                self._source_text = decoded.text
+                self._invalidate()
+                self.sourceTextChanged.emit()
+                lines = decoded.text.splitlines()
+                selected = sorted(bundle.analysis_lines)
+                preview = "\n".join(lines[number - 1] for number in selected)
+                if preview and decoded.text.endswith("\n"):
+                    preview += "\n"
+                self._set_editor_text(
+                    preview,
+                    read_only=True,
+                    line_map={source_line: index for index, source_line in enumerate(selected, 1)},
+                )
+                self._bundle_configuration = preview
+            self._input_metadata = {
+                "encoding": decoded.encoding,
+                "newline_style": decoded.newline_style,
+                "recovered_bytes": decoded.recovered_bytes,
+            }
             self._file_name = path.name
             self.fileNameChanged.emit()
-        except (OSError, UnicodeError):
+            if decoded.recovered:
+                self.toastRequested.emit("file.encoding_recovered")
+            if bundle is not None:
+                self.toastRequested.emit("file.bundle_preview")
+        except (OSError, UnicodeError, AnalysisLimitReached):
             self.toastRequested.emit("file.open_error")
 
     @Slot(str, str, bool, result=bool)
@@ -236,7 +299,9 @@ class AnalysisController(QObject):
         try:
             items = self._diagnostics.items
             self._export_payload = render_report(
-                self._source_text,
+                self._bundle_configuration
+                if scope == "configuration" and self._bundle_configuration
+                else self._source_text,
                 items,
                 scope=scope,
                 format=format,
@@ -246,6 +311,7 @@ class AnalysisController(QObject):
                 text=self.translator.text,
                 translate=self.translator.diagnostic,
                 coverage=self._coverage,
+                input_metadata=self._input_metadata,
             )
         except ValueError:
             return False
@@ -339,6 +405,7 @@ class AnalysisController(QObject):
         self._coverage = result.coverage
         self._detection = {"vendor": result.detection.vendor}
         self._result_current = True
+        self._extend_bundle_preview(result)
         self.resultCurrentChanged.emit()
         counts = Counter(item.severity.value for item in result.diagnostics)
         self._summary = {key: counts[key] for key in self._summary}
@@ -375,7 +442,35 @@ class AnalysisController(QObject):
     def requestJump(self, row: int) -> None:
         item = self._diagnostics.item_at(row)
         if item is not None:
-            self.jumpToLine.emit(item.source.line, item.source.end_line or item.source.line)
+            start = self._display_line_map.get(item.source.line, item.source.line)
+            source_end = item.source.end_line or item.source.line
+            end = self._display_line_map.get(source_end, start)
+            self.jumpToLine.emit(start, end)
+
+    def _extend_bundle_preview(self, result: AnalysisResult) -> None:
+        if not self._editor_read_only or not result.config.analysis_lines:
+            return
+        source_lines = result.config.source_lines
+        selected = sorted(result.config.analysis_lines)
+        preview = [source_lines[number - 1] for number in selected]
+        line_map = {source_line: index for index, source_line in enumerate(selected, 1)}
+        evidence_lines = sorted(
+            {
+                item.source.line
+                for item in result.diagnostics
+                if item.source.line not in result.config.analysis_lines
+                and 1 <= item.source.line <= len(source_lines)
+            }
+        )
+        for source_line in evidence_lines:
+            start = max(1, source_line - 1)
+            end = min(len(source_lines), source_line + 1)
+            preview.extend(("", f"===== Source lines {start}-{end} ====="))
+            for number in range(start, end + 1):
+                if number == source_line:
+                    line_map[number] = len(preview) + 1
+                preview.append(source_lines[number - 1])
+        self._set_editor_text("\n".join(preview) + "\n", read_only=True, line_map=line_map)
 
     @Slot()
     def clearHistory(self) -> None:

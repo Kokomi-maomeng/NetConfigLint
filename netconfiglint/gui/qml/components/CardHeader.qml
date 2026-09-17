@@ -6,7 +6,7 @@ Rectangle {
     id: root
     property string title
     property string detail: ""
-    signal dragStarted()
+    signal dragStarted(real sceneX)
     signal dragMoved(real sceneX)
     signal dragFinished(real sceneX)
     signal stepRequested(int direction)
@@ -26,13 +26,30 @@ Rectangle {
             activeFocusOnTab: true
             Accessible.name: i18n.catalog["panels.reorder"] + " " + root.title
             Accessible.role: Accessible.Grip
-            Text { anchors.centerIn: parent; text: "⠿"; color: gripHover.hovered ? Colors.primary : Colors.outline; font.pixelSize: 22 }
+            Grid {
+                anchors.centerIn: parent
+                columns: 2
+                spacing: 3
+                Repeater {
+                    model: 6
+                    Rectangle {
+                        required property int index
+                        width: 3
+                        height: 3
+                        radius: 2
+                        color: gripHover.hovered || handler.active ? Colors.primary : Colors.outline
+                        scale: handler.active ? 1.25 : 1
+                        Behavior on color { ColorAnimation { duration: Theme.motionShort } }
+                        Behavior on scale { NumberAnimation { duration: Theme.motionShort } }
+                    }
+                }
+            }
             HoverHandler { id: gripHover; cursorShape: handler.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor }
             DragHandler {
                 id: handler
                 target: null
                 onActiveChanged: {
-                    if (active) root.dragStarted()
+                    if (active) root.dragStarted(centroid.scenePosition.x)
                     else root.dragFinished(centroid.scenePosition.x)
                 }
                 onCentroidChanged: if (active) root.dragMoved(centroid.scenePosition.x)
