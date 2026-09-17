@@ -22,18 +22,21 @@ class AnalysisLimitReached(Exception):
 
 @dataclass(frozen=True, slots=True)
 class AnalysisLimits:
-    max_characters: int = 4_000_000
-    max_lines: int = 100_000
+    # Diagnostic bundles can be much larger than their embedded configuration.
+    max_input_bytes: int = 64_000_000
+    max_characters: int = 16_000_000
+    max_lines: int = 300_000
     max_line_length: int = 32_768
     max_diagnostics: int = 2_000
-    max_work: int = 5_000_000
+    max_work: int = 20_000_000
     max_vlan_memberships: int = 250_000
-    max_seconds: float = 30.0
+    max_seconds: float = 60.0
 
     def __post_init__(self) -> None:
         if (
             min(
                 self.max_characters,
+                self.max_input_bytes,
                 self.max_lines,
                 self.max_line_length,
                 self.max_diagnostics,

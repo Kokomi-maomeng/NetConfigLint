@@ -468,7 +468,8 @@ def effective_blocks(blocks: list[ConfigBlock]) -> tuple[list[ConfigBlock], list
                 position = positions.get(marker)
                 if position is not None and active[position] is not None:
                     old_command = active[position]
-                    assert old_command is not None
+                    if old_command is None:  # pragma: no cover - narrowed by the condition above
+                        continue
                     ignored.append(old_command.source)
                     active[position] = None
                 positions[marker] = len(active)

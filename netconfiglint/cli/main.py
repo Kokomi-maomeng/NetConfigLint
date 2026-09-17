@@ -11,6 +11,7 @@ from typing import TextIO
 from netconfiglint import __version__, analyze
 from netconfiglint.core.analyzer.control import AnalysisLimits
 from netconfiglint.core.diagnostics import Diagnostic, Severity
+from netconfiglint.core.input import read_network_text
 
 _COLORS = {
     Severity.ERROR: "\033[31m",
@@ -78,12 +79,16 @@ def _write_text(result: object, stream: TextIO, *, color: bool) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        with args.path.open("r", encoding="utf-8-sig") as stream:
-            source = stream.read(AnalysisLimits().max_characters + 1)
-        result = analyze(source, args.mode, args.vendor, initial_view=args.initial_view)
+        decoded = read_network_text(args.path, AnalysisLimits())
+        result = analyze(decoded.text, args.mode, args.vendor, initial_view=args.initial_view)
     except (OSError, UnicodeError, ValueError) as exc:
         _error(f"Cannot read or analyze {args.path.name!r} ({type(exc).__name__}).")
         return 2
+    if decoded.recovered:
+        _error(
+            f"Input used {decoded.encoding}; {decoded.recovered_bytes} undecodable byte(s) "
+            "are shown as visible markers."
+        )
     try:
         if args.output_format == "json":
             # ASCII is also valid UTF-8 and survives legacy Windows output encodings.

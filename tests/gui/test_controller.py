@@ -46,3 +46,54 @@ def test_controller_loads_utf8_file(tmp_path: Path, qapp: object) -> None:
     assert controller.sourceText == "sysname SYNTHETIC-LAB\n"
     assert controller.fileName == "synthetic.cfg"
     controller.close()
+
+
+def test_controller_uses_bounded_read_only_preview_for_diagnostic_bundle(
+    tmp_path: Path, qapp: object
+) -> None:
+    source = "\n".join(
+        (
+            "===============display current-configuration===============",
+            "#",
+            " version 7.1.070, Release 6715P06",
+            " telnet server enable",
+            "#",
+            "return",
+            "================================================",
+            "===============display logbuffer size 512===============",
+            "Overwritten messages: 2",
+            "================================================",
+        )
+    )
+    path = tmp_path / "diagnostic.txt"
+    path.write_text(source, encoding="utf-8")
+    controller = AnalysisController(async_enabled=False)
+    jumps: list[tuple[int, int]] = []
+    controller.jumpToLine.connect(lambda start, end: jumps.append((start, end)))
+
+    controller.loadFile(str(path))
+    assert controller.sourceText == source
+    assert controller.editorReadOnly is True
+    assert "display logbuffer" not in controller.editorText
+    assert controller.prepareExport("configuration", "txt", False)
+    configuration_path = tmp_path / "configuration.txt"
+    controller.exportReport(str(configuration_path))
+    exported = configuration_path.read_text(encoding="utf-8")
+    assert "sysname SYNTHETIC" not in exported
+    assert "telnet server enable" in exported
+    assert "display logbuffer" not in exported
+    controller.mode = "snapshot"
+    controller.vendor = "h3c"
+    controller.analyzeConfig()
+
+    assert "Source lines 8-10" in controller.editorText
+    assert controller.prepareExport("full", "txt", False)
+    full_path = tmp_path / "full.txt"
+    controller.exportReport(str(full_path))
+    assert "display logbuffer size 512" in full_path.read_text(encoding="utf-8")
+    row = next(
+        index for index, item in enumerate(controller.diagnosticsModel.items) if item.rule_id == "H3C-OPS-010"
+    )
+    controller.requestJump(row)
+    assert jumps[-1][0] > 5
+    controller.close()
