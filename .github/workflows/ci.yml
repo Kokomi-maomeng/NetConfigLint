@@ -117,6 +117,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/build_msi.ps1 -SkipAppBuild
+      - name: Install and uninstall Windows MSI twice
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/test_windows_msi.ps1
       - name: Build Debian package
         if: runner.os == 'Linux'
         run: python scripts/build_linux_deb.py

@@ -72,6 +72,10 @@ jobs:
           version="${APP_VERSION#v}"
           python scripts/build_desktop.py
           python scripts/build_linux_deb.py --version "$version"
+      - name: Accept Windows MSI installation and both uninstall choices
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/test_windows_msi.ps1 -Version $env:APP_VERSION.TrimStart('v')
       - name: Import Apple certificates
         if: runner.os == 'macOS' && env.MACOS_APPLICATION_IDENTITY != ''
         env:

@@ -3,7 +3,7 @@
 ## Delivered source scope
 
 - Huawei VRP remains at its v1.5 conservative parser/rule scope.
-- H3C Comware 7 has independent detection, parsing, rule IDs, command accounting, and 43 registered rules.
+- H3C Comware 7 has independent detection, parsing, rule IDs, command accounting, and 47 registered rules.
 - Every non-empty H3C line is preserved. Lines without implemented semantics are reported as
   source-linked UNKNOWN rather than silently accepted.
 - The three workspace cards use a live full-card drag proxy and Material motion. The title bar,
