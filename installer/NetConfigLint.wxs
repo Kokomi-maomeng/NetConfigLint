@@ -10,8 +10,12 @@
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64" />
     <MajorUpgrade DowngradeErrorMessage="A newer version of NetConfigLint is already installed." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
-    <!-- VersionNT64 is 603 on Windows 8.1 and Windows 10; use the OS build too. -->
-    <Condition Message="NetConfigLint requires 64-bit Windows 10 or newer.">VersionNT64 &gt;= 603 AND WindowsBuild &gt;= 10240</Condition>
+    <!-- VersionNT64 and WindowsBuild are compatibility values (603/9600 even on
+         current Windows). Read the actual build from the 64-bit system key. -->
+    <Property Id="OSBUILDNUMBER" Secure="yes">
+      <RegistrySearch Id="FindActualWindowsBuild" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion" Name="CurrentBuildNumber" Type="raw" Win64="yes" />
+    </Property>
+    <Condition Message="NetConfigLint requires 64-bit Windows 10 or newer.">Installed OR (VersionNT64 &gt;= 603 AND OSBUILDNUMBER &gt;= 10240)</Condition>
 
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLBASE" />
     <Property Id="REMOVEUSERDATA" Value="0" Secure="yes" />

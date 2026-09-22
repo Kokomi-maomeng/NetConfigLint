@@ -33,7 +33,11 @@ function Get-InstalledProduct {
 function Invoke-Msi([string[]]$Arguments, [string]$LogName) {
     $log = Join-Path $env:RUNNER_TEMP $LogName
     $process = Start-Process -FilePath "$env:SystemRoot\System32\msiexec.exe" -ArgumentList ($Arguments + @('/qn', '/norestart', '/L*v', ('"' + $log + '"'))) -Wait -PassThru -WindowStyle Hidden
-    Assert-State ($process.ExitCode -eq 0) "msiexec failed with $($process.ExitCode); see $log"
+    if ($process.ExitCode -ne 0) {
+        Select-String -LiteralPath $log -Pattern 'Return value 3', 'Product: NetConfigLint --', 'Error ', 'OSBUILDNUMBER =', 'WindowsBuild =' |
+            Select-Object -Last 20 | ForEach-Object { Write-Output "MSI log $($_.LineNumber): $($_.Line)" }
+        throw "msiexec failed with $($process.ExitCode); see $log"
+    }
 }
 
 Assert-State (@(Get-InstalledProduct).Count -eq 0) 'An existing NetConfigLint installation is present.'
