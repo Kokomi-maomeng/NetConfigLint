@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -46,6 +47,8 @@ def test_integrated_title_bar_and_about_horizontal_scrollbar(gui: tuple) -> None
     flags = window.flags()
     assert flags & Qt.WindowType.ExpandedClientAreaHint
     assert flags & Qt.WindowType.NoTitleBarBackgroundHint
+    if sys.platform == "win32":
+        assert title_bar.property("titleInset") >= 32
     window.setProperty("currentPage", 2)
     QTest.qWait(300)
     horizontal = find(window, "aboutHorizontalScrollBar")

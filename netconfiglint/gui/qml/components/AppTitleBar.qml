@@ -8,7 +8,10 @@ Item {
     property real navigationWidth: 260
     property string pageTitle: ""
     property string detail: ""
-    implicitHeight: 54 + SafeArea.margins.top
+    // Expanded client area retains the native Windows caption and its controls.
+    // Qt's SafeArea top margin can be zero there, so reserve that caption row.
+    readonly property real titleInset: Math.max(SafeArea.margins.top, Qt.platform.os === "windows" ? 32 : 0)
+    implicitHeight: 54 + titleInset
 
     Rectangle {
         anchors.fill: parent
@@ -60,7 +63,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.topMargin: SafeArea.margins.top
+        anchors.topMargin: root.titleInset
         height: 54
         spacing: 0
         Item {
