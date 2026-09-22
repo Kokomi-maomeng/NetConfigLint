@@ -30,10 +30,13 @@
           <Directory Id="INSTALLFOLDER" Name="NetConfigLint" />
         </Directory>
       </Directory>
-      <Directory Id="CommonProgramMenuFolder">
+      <!-- With this per-machine package, Windows Installer resolves these
+           standard folders to the all-users locations. The Common* IDs were
+           observed resolving to the source drive root instead. -->
+      <Directory Id="ProgramMenuFolder">
         <Directory Id="ProgramMenuNetConfigLintFolder" Name="NetConfigLint" />
       </Directory>
-      <Directory Id="CommonDesktopFolder" />
+      <Directory Id="DesktopFolder" />
     </Directory>
 
     <DirectoryRef Id="ProgramMenuNetConfigLintFolder">
@@ -46,7 +49,7 @@
       </Component>
     </DirectoryRef>
 
-    <DirectoryRef Id="CommonDesktopFolder">
+    <DirectoryRef Id="DesktopFolder">
       <Component Id="DesktopShortcut" Guid="C1D31F78-7BEF-44F6-A599-8D54FFB2645A" Win64="yes">
         <Shortcut Id="DesktopApplication" Name="NetConfigLint" Target="[INSTALLFOLDER]NetConfigLint.exe" WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKLM" Key="Software\NetConfigLint" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />

@@ -15,6 +15,9 @@ $localRoot = Join-Path $env:LOCALAPPDATA 'NetConfigLint'
 $settingsKey = 'HKCU:\Software\NetConfigLint'
 $menuRoot = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\NetConfigLint'
 $desktopShortcut = Join-Path $env:PUBLIC 'Desktop\NetConfigLint.lnk'
+$sourceDriveRoot = [IO.Path]::GetPathRoot($msi)
+$strayMenuRoot = Join-Path $sourceDriveRoot 'NetConfigLint'
+$strayDesktopShortcut = Join-Path $sourceDriveRoot 'NetConfigLint.lnk'
 $customBase = Join-Path $env:ProgramFiles 'NetConfigLintCITest'
 $customExe = Join-Path $customBase 'NetConfigLint\NetConfigLint.exe'
 $defaultExe = Join-Path $env:ProgramFiles 'NetConfigLint\NetConfigLint.exe'
@@ -41,7 +44,7 @@ function Invoke-Msi([string[]]$Arguments, [string]$LogName) {
 }
 
 Assert-State (@(Get-InstalledProduct).Count -eq 0) 'An existing NetConfigLint installation is present.'
-foreach ($path in @($roamingRoot, $localRoot, $settingsKey, $customBase, $defaultExe, $unrelated)) {
+foreach ($path in @($roamingRoot, $localRoot, $settingsKey, $customBase, $defaultExe, $unrelated, $strayMenuRoot, $strayDesktopShortcut)) {
     Assert-State (-not (Test-Path -LiteralPath $path)) "Pre-existing test target: $path"
 }
 
@@ -49,6 +52,8 @@ Invoke-Msi -Arguments @('/i', ('"' + $msi + '"'), ('INSTALLBASE="' + $customBase
 Assert-State (Test-Path -LiteralPath $customExe) 'Custom install did not append the product folder.'
 Assert-State (Test-Path -LiteralPath (Join-Path $menuRoot 'NetConfigLint.lnk')) 'Start Menu shortcut missing.'
 Assert-State (Test-Path -LiteralPath $desktopShortcut) 'Optional Desktop shortcut missing.'
+Assert-State (-not (Test-Path -LiteralPath $strayMenuRoot)) 'MSI placed a Start Menu folder at the source drive root.'
+Assert-State (-not (Test-Path -LiteralPath $strayDesktopShortcut)) 'MSI placed a Desktop shortcut at the source drive root.'
 & $customExe --smoke-test (Join-Path $env:RUNNER_TEMP 'msi-smoke-custom')
 Assert-State ($LASTEXITCODE -eq 0) 'Custom-install executable smoke failed.'
 
