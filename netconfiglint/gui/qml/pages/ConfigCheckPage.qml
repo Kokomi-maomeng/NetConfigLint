@@ -12,6 +12,14 @@ Item {
     property var controller
     property string draggedKey: ""
     property real dragSceneX: 0
+    property real dragStartSceneX: 0
+    property real dragSourceX: 0
+    property real dragProxyX: 0
+    property real dragProxyY: 0
+    property real dragProxyWidth: 0
+    property real dragProxyHeight: 0
+    property real dragProxyScale: 1
+    property var dragSourceItem: null
     property int dropIndex: -1
     function panel(key) { return key === "configuration" ? configEditor : (key === "diagnostics" ? analysisPanel : temporaryEditor) }
     function syncOrder() {
@@ -31,23 +39,61 @@ Item {
         for (var j = 0; j < workspaceSplit.count; ++j) order.push(workspaceSplit.itemAt(j).panelKey)
         preferences.setValue("panelOrder", order)
     }
-    function startDrag(key) { draggedKey = key; dropIndex = -1 }
-    function updateDrag(sceneX) {
+    function startDrag(key, sceneX) {
+        var item = panel(key)
+        if (!item || !item.visible) return
+        settleAnimation.stop()
+        draggedKey = key
+        dragSourceItem = item
+        dragStartSceneX = sceneX
         dragSceneX = sceneX
+        var position = item.mapToItem(root, 0, 0)
+        dragSourceX = position.x
+        dragProxyX = position.x
+        dragProxyY = position.y
+        dragProxyWidth = item.width
+        dragProxyHeight = item.height
+        dragProxyScale = 0.985
+        updateDrag(sceneX)
+    }
+    function updateDrag(sceneX) {
+        if (!dragSourceItem) return
+        dragSceneX = sceneX
+        dragProxyX = Math.max(0, Math.min(root.width - dragProxyWidth, dragSourceX + sceneX - dragStartSceneX))
         var x = workspaceSplit.mapFromItem(null, sceneX, 0).x
         var target = -1
         for (var i = 0; i < workspaceSplit.count; ++i) {
             var item = workspaceSplit.itemAt(i)
-            if (item.visible && x >= item.x && x <= item.x + item.width) target = i
+            if (item.visible && x >= item.x && x <= item.x + item.width) {
+                target = i
+                break
+            }
         }
         dropIndex = target
     }
     function finishDrag(sceneX) {
+        if (!dragSourceItem) return
         updateDrag(sceneX)
         var key = draggedKey
-        draggedKey = ""
         if (dropIndex >= 0) movePanel(key, dropIndex)
         dropIndex = -1
+        Qt.callLater(function() {
+            var item = panel(key)
+            if (!item) { resetDrag(); return }
+            var position = item.mapToItem(root, 0, 0)
+            settleX.from = dragProxyX
+            settleX.to = position.x
+            settleY.from = dragProxyY
+            settleY.to = position.y
+            settleScale.from = dragProxyScale
+            settleScale.to = 1
+            settleAnimation.restart()
+        })
+    }
+    function resetDrag() {
+        draggedKey = ""
+        dragSourceItem = null
+        dragProxyScale = 1
     }
     function step(key, direction) {
         var order = preferences.values.panelOrder
@@ -61,20 +107,6 @@ Item {
         anchors.fill: parent
         anchors.margins: 24
         spacing: 20
-        RowLayout {
-            Layout.fillWidth: true
-            SelectableText { objectName: "checkPageTitle"; text: i18n.catalog["page.check"]; font: Typography.display }
-            Item { Layout.fillWidth: true }
-            SelectableText {
-                Layout.maximumWidth: Math.max(160, root.width * 0.34)
-                text: root.controller.fileName
-                visible: text.length > 0
-                color: Colors.textSecondary
-                font: Typography.caption
-                wrapMode: TextEdit.NoWrap
-                clip: true
-            }
-        }
         ConfigToolbar {
             Layout.fillWidth: true
             controller: root.controller
@@ -94,7 +126,7 @@ Item {
                     anchors.centerIn: parent
                     width: 3; height: Math.min(parent.height, 64); radius: 2
                     color: parent.SplitHandle.pressed ? Colors.primary : (parent.SplitHandle.hovered ? Colors.outline : Colors.outlineVariant)
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: Theme.motionShort } }
                 }
             }
             ConfigEditor {
@@ -105,16 +137,14 @@ Item {
                 visible: preferences.values.panels.indexOf(panelKey) >= 0
                 SplitView.preferredWidth: 300
                 SplitView.minimumWidth: 240
-                title: i18n.catalog["editor.configuration"]
-                text: root.controller.sourceText
-                onTextEdited: value => { if (root.controller.sourceText !== value) root.controller.sourceText = value }
-                onDragStarted: root.startDrag(panelKey)
+                title: root.controller.editorReadOnly ? i18n.catalog["editor.bundle_preview"] : i18n.catalog["editor.configuration"]
+                text: root.controller.editorText
+                readOnly: root.controller.editorReadOnly
+                onTextEdited: value => { if (!readOnly && root.controller.sourceText !== value) root.controller.sourceText = value }
+                onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
                 onDragMoved: sceneX => root.updateDrag(sceneX)
                 onDragFinished: sceneX => root.finishDrag(sceneX)
                 onStepRequested: direction => root.step(panelKey, direction)
-                opacity: root.draggedKey === panelKey ? 0.5 : 1
-                Behavior on opacity { NumberAnimation { duration: 180 } }
-                Behavior on x { enabled: !workspaceSplit.resizing; NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
             }
             AnalysisPanel {
                 id: analysisPanel
@@ -132,13 +162,10 @@ Item {
                 resultCurrent: root.controller.resultCurrent
                 busy: root.controller.busy
                 onIssueActivated: row => { root.showConfiguration(); root.controller.requestJump(row) }
-                onDragStarted: root.startDrag(panelKey)
+                onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
                 onDragMoved: sceneX => root.updateDrag(sceneX)
                 onDragFinished: sceneX => root.finishDrag(sceneX)
                 onStepRequested: direction => root.step(panelKey, direction)
-                opacity: root.draggedKey === panelKey ? 0.5 : 1
-                Behavior on opacity { NumberAnimation { duration: 180 } }
-                Behavior on x { enabled: !workspaceSplit.resizing; NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
             }
             ConfigEditor {
                 id: temporaryEditor
@@ -149,34 +176,57 @@ Item {
                 SplitView.preferredWidth: 300
                 SplitView.minimumWidth: 240
                 title: i18n.catalog["editor.temporary"]
-                onDragStarted: root.startDrag(panelKey)
+                onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
                 onDragMoved: sceneX => root.updateDrag(sceneX)
                 onDragFinished: sceneX => root.finishDrag(sceneX)
                 onStepRequested: direction => root.step(panelKey, direction)
-                opacity: root.draggedKey === panelKey ? 0.5 : 1
-                Behavior on opacity { NumberAnimation { duration: 180 } }
-                Behavior on x { enabled: !workspaceSplit.resizing; NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
             }
         }
     }
-    Rectangle {
+    Item {
+        id: dragProxy
+        objectName: "panelDragProxy"
         visible: root.draggedKey.length > 0
-        x: Math.max(0, Math.min(root.width - width, root.mapFromItem(null, root.dragSceneX, 0).x - width / 2))
-        y: workspaceSplit.y - 8
-        width: 180; height: 52; radius: 20
-        color: Colors.primaryContainer
-        border.color: Colors.primary
-        z: 10
-        Text { anchors.centerIn: parent; text: i18n.catalog["panel." + root.draggedKey] || ""; color: Colors.primary; font: Typography.label }
+        x: root.dragProxyX
+        y: root.dragProxyY
+        width: root.dragProxyWidth
+        height: root.dragProxyHeight
+        scale: root.dragProxyScale
+        z: 100
+        transformOrigin: Item.Center
+        Rectangle {
+            anchors.fill: parent
+            anchors.topMargin: 12
+            anchors.leftMargin: 8
+            anchors.rightMargin: -8
+            anchors.bottomMargin: -12
+            radius: Spacing.radiusCard
+            color: Qt.alpha("#000000", Theme.dark ? 0.34 : 0.15)
+        }
+        Rectangle {
+            anchors.fill: parent
+            anchors.topMargin: 5
+            anchors.leftMargin: 3
+            anchors.rightMargin: -3
+            anchors.bottomMargin: -5
+            radius: Spacing.radiusCard
+            color: Qt.alpha("#000000", Theme.dark ? 0.24 : 0.10)
+        }
+        ShaderEffectSource {
+            anchors.fill: parent
+            sourceItem: root.dragSourceItem
+            hideSource: root.draggedKey.length > 0
+            live: true
+            recursive: true
+            smooth: true
+        }
     }
-    Rectangle {
-        visible: root.draggedKey.length > 0 && root.dropIndex >= 0
-        x: workspaceSplit.x + (root.dropIndex >= 0 ? workspaceSplit.itemAt(root.dropIndex).x : 0)
-        y: workspaceSplit.y
-        width: root.dropIndex >= 0 ? workspaceSplit.itemAt(root.dropIndex).width : 0
-        height: workspaceSplit.height
-        radius: 24; color: "transparent"; border.color: Colors.primary; border.width: 2
-        Behavior on x { NumberAnimation { duration: 180 } }
+    ParallelAnimation {
+        id: settleAnimation
+        NumberAnimation { id: settleX; target: root; property: "dragProxyX"; duration: Theme.motionMedium; easing.type: Easing.OutCubic }
+        NumberAnimation { id: settleY; target: root; property: "dragProxyY"; duration: Theme.motionMedium; easing.type: Easing.OutCubic }
+        NumberAnimation { id: settleScale; target: root; property: "dragProxyScale"; duration: Theme.motionMedium; easing.type: Easing.OutCubic }
+        onFinished: root.resetDrag()
     }
     FileDialog {
         id: openDialog

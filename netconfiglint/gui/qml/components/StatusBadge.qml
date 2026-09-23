@@ -42,7 +42,7 @@ Rectangle {
     Keys.onSpacePressed: if (interactive) root.clicked()
     Keys.onReturnPressed: if (interactive) root.clicked()
     scale: interactive && pointerArea.pressed ? 0.97 : 1
-    Behavior on color { ColorAnimation { duration: 120 } }
-    Behavior on border.color { ColorAnimation { duration: 120 } }
-    Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+    Behavior on color { ColorAnimation { duration: Theme.motionShort } }
+    Behavior on border.color { ColorAnimation { duration: Theme.motionShort } }
+    Behavior on scale { NumberAnimation { duration: Theme.motionShort; easing.type: Easing.OutCubic } }
 }

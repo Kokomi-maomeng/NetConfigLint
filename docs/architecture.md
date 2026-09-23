@@ -66,7 +66,9 @@ ProfileDatabase resolves source-linked metadata only; the capability repair is t
 - `snippet` (default in GUI, CLI, and API): missing global references are not definitive;
   diagnostics become INFO/UNKNOWN.
 - `full`: the supplied configuration is treated as the complete candidate configuration.
-- `snapshot`: parses bounded Huawei IPv4/IPv6 RIB, BGP peer, and interface-status sections.
+- `snapshot`: parses bounded Huawei IPv4/IPv6 RIB, BGP peer, and interface-status sections, plus
+  bounded H3C diagnostic-bundle hardware/environment, aggregation, M-LAG/DRCP, OSPF, route-count,
+  LLDP, transceiver-alarm, and log-buffer evidence.
   Exact prefix evidence must match the VPN and address family. Absence requires a successful,
   complete, unfiltered capture with a recognized table and a closing device prompt. Failed,
   filtered, paginated, unterminated, or mixed-device captures cannot verify absence.
@@ -101,7 +103,7 @@ otherwise rules remain generic or return UNKNOWN instead of asserting incompatib
 
 ## Analysis budgets, coverage and experimental grammar
 
-A per-call ContextVar carries cooperative cancellation and character, line, line-length,
+A per-call ContextVar carries cooperative cancellation and byte, character, line, line-length,
 work, diagnostic, VLAN-membership and elapsed-time limits. Parser state belongs to
 DeviceConfig, so the shared vendor parser cannot cross-contaminate OSPF area context.
 Partial rule output remains available with SYS-LIMIT-001; parse-stage limits return
@@ -115,6 +117,12 @@ condition has been checked. Description/banner metadata is explicitly ignored.
 An optional initial_view is available to API/CLI snippet callers; the original source
 and line numbers are retained. Unsupported undo forms and OSPFv3 remain explicit
 unsupported coverage, not guessed effective configuration.
+
+File adapters share one bounded decoder. Strict UTF-8 is attempted first, then strict GB18030;
+remaining invalid bytes are rendered as visible byte markers rather than silently dropped. Newlines
+are normalized before analysis and the original encoding/newline classification is carried into
+explicit exports. H3C diagnostic bundles retain full source line numbers while an analysis-line set
+restricts configuration coverage to the running-configuration section.
 
 CommandTree and CommandProfile/ProfileOverlay are isolated in
 experiments/huawei_grammar, outside the shipped package. They have no active parser

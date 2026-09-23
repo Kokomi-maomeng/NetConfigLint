@@ -1,4 +1,4 @@
-# NetConfigLint v1.5
+# NetConfigLint v2.0
 
 > A fast, offline, extensible static analyzer for network device configurations.
 
@@ -9,10 +9,10 @@ source-linked diagnostics to the CLI and QML desktop application through one sha
 It is not a complete VRP emulator, network simulator, migration engine, or replacement for
 vendor-supported validation and lab testing.
 
-See the [v1.5 audit repair report](docs/v1.5-audit-repairs.md) for all 26 findings,
-fixes and retained validation evidence.
+See the [v2.0 release notes](docs/release-v2.0.0.md), [H3C coverage contract](docs/h3c-command-support.md),
+and [v2.0 acceptance report](docs/v2.0-acceptance.md).
 
-## Desktop v1.5
+## Desktop v2.0
 
 The desktop adopts the Material 3 typography, palettes, rounded navigation, cards, and motion
 of [Material-Design-CastoriceUI](https://github.com/Kokomi-maomeng/Material-Design-CastoriceUI).
@@ -21,8 +21,9 @@ Roboto and Noto Sans SC are bundled for offline use. Platform font rasterizers s
 - Open and Export sit together; Mode and Vendor show their current values; Analyze is on the right.
 - Settings opens from the bottom-left sidebar. Customize the panel title, language, system/light/dark
   appearance, and ten theme colors. About remains a separate page with link cards.
-- Use View to hide or restore each workspace card. Drag the dotted header grip to reorder the three
-  cards, or focus the grip and use arrow keys. Drag separators to resize cards. Hiding/reordering
+- Use View to hide or restore each workspace card. Drag the dotted header grip to pick up a live
+  image of the complete card, move it horizontally, and let Material motion settle it into its new
+  position; keyboard arrow reordering remains available. Drag separators to resize cards. Hiding/reordering
   retains text and editor zoom; panel visibility/order and appearance persist between launches.
 - Ctrl+mouse wheel zooms the active editor. Its localized context menu includes Restore default text
   size after zooming. Line-number gutters grow with the digit count. Ctrl+F and Ctrl+G act only in
@@ -33,13 +34,19 @@ Roboto and Noto Sans SC are bundled for offline use. Platform font rasterizers s
   or text. Full exports put complete source first by default. Diagnostics-first exports annotate code
   lines with severity counts. Confirmation opens the native save flow; Cancel/outside click aborts.
   Reports containing diagnostics require a current analysis and always include all severities.
+- Imported H3C diagnostic bundles use a responsive read-only running-configuration preview and append
+  source-mapped operational evidence excerpts after analysis. Configuration-only export selects the
+  running configuration; Full export retains the complete bundle.
 - Diagnostic prose follows the selected language; commands, source text, identifiers, addresses,
   and object names retain their original values. The OS detection field was removed from GUI,
   CLI output, vendor plugins, and the API model in v1.4.
+- The custom title bar shares one surface and divider system with the navigation rail and workspace.
+  The app/about/title-bar icon is an original scalable sakura-network mark, with generated 16–1024 px
+  PNG variants plus Windows ICO and macOS ICNS packaging inputs.
 
 ## Supported scope
 
-The v1.5 Huawei VRP implementation includes:
+The Huawei VRP implementation includes:
 
 - registry-driven vendor detection in the desktop interface;
 - an auditable profile catalog whose facts link to official Huawei documents;
@@ -55,6 +62,13 @@ The v1.5 Huawei VRP implementation includes:
 
 Unknown commands retain source mapping and do not make parsing fail. Unsupported vendors,
 platforms, and releases remain Unknown rather than being guessed.
+
+The v2.0 H3C Comware plugin adds conservative Comware 7 detection, original-text preservation,
+common documented Comware-to-normalized command forms, 47 registered H3C rule evaluators, and a source-linked
+`H3C-CMD-001` UNKNOWN for every unmodeled command line. It does not claim that one finite parser can
+semantically emulate every H3C product/release command. It also recognizes bounded H3C diagnostic
+bundles without treating operational output as configuration. See the exact
+[H3C support matrix](docs/h3c-command-support.md).
 
 ## Privacy
 
@@ -78,7 +92,7 @@ The quality matrix covers Python 3.12.10/3.13.2 across Windows/Linux/macOS and
 3.12.14 on Linux, with Qt 6.9.0/6.11.2. GitHub's 3.12.14 manifest contains no
 Windows/macOS artifacts. Native platform support is qualified only after the
 actual compiled desktop smoke gates pass; authored CI is not a passed test.
-See the [final v1.5 validation and platform boundaries](docs/v1.5-acceptance.md).
+See the [v2.0 validation and platform boundaries](docs/v2.0-acceptance.md).
 
 ```powershell
 python -m venv .venv
@@ -101,6 +115,7 @@ route, peer, or interface command output.
 netconfiglint check examples/huawei-basic.cfg
 netconfiglint check config.txt --mode snippet --vendor auto --format text
 netconfiglint check config.txt --mode full --vendor huawei --format json
+netconfiglint check h3c.cfg --mode full --vendor h3c --format json
 netconfiglint check snapshot.txt --mode snapshot
 ```
 
@@ -122,14 +137,15 @@ The QML-first PySide6 desktop application provides:
 - unsupported system languages falling back to English and instant manual language switching;
 - file open, paste/edit, drag/drop, analyze, clear, and JSON export;
 - separate analyzed configuration and non-analyzed temporary editors, both with line numbers,
-  Ctrl+F, Ctrl+G, incremental Huawei syntax highlighting, and selectable text;
+  Ctrl+F, Ctrl+G, incremental Huawei/H3C syntax highlighting, source-mapped unsupported-line
+  highlighting, and selectable text;
 - detected vendor/OS inside the diagnostic card, severity filters, expandable issues, and
   source-line navigation;
 - a left-to-right analyzed configuration, diagnostics, and temporary-editor workspace with two
   visible mouse-draggable split handles;
 - click-to-filter ERROR/WARNING/INFO/UNKNOWN severity chips that toggle back to the full result;
-- optional privacy-minimized local history stored in a dedicated `history` directory beside the
-  portable executable, with an explicit clear action;
+- optional privacy-minimized local history beside the executable only in portable mode, or in the
+  operating system application-data location after installation, with an explicit clear action;
 - asynchronous analysis so large configuration input does not block the GUI thread.
 
 ### Screenshot
@@ -228,7 +244,7 @@ CLI and GUI use this same entry point. See [architecture](docs/architecture.md).
 The benchmark is synthetic and contains no production data. It measures parser/analyzer
 throughput, not device behavior. Headless GUI tests use the Qt offscreen platform.
 
-## Windows packaging and signing
+## Native packages and signing
 
 The standalone build uses `pyside6-deploy`/Nuitka, then resolves the recursive PE import graph
 from only the required PySide6/Shiboken roots. It prunes unused QML modules and Qt plug-ins before
@@ -237,22 +253,32 @@ checking the final dependency closure.
 ```powershell
 .\scripts\build_windows.ps1
 .\scripts\build_portable.ps1 -SkipAppBuild
-.\scripts\build_installer.ps1 -SkipAppBuild
+.\scripts\build_msi.ps1 -SkipAppBuild
 ```
 
-The portable command creates `release/NetConfigLint-1.5.0-windows-x64-portable.zip`. Extract the
+The portable command creates `release/NetConfigLint-2.0.0-windows-x64-portable.zip`. Extract the
 single top-level folder and start `NetConfigLint.exe`; the Nuitka build uses the Windows GUI
 subsystem and therefore does not open a console window.
 
-Unsigned builds are named `*-setup-unsigned.exe`. A trusted signed build requires a valid code
+The WiX MSI lets the user choose the base installation directory (the `NetConfigLint` child is
+appended automatically), Start-menu shortcuts, and a desktop shortcut. Its Start menu exposes
+separate uninstall entries for keeping history or deleting all current-user data.
+
+Unsigned installers are named `*-unsigned.msi` or `*-unsigned.pkg`. A trusted signed build requires a valid code
 signing certificate with private key and Windows SDK SignTool:
 
 ```powershell
-.\scripts\build_installer.ps1 -CertificateThumbprint '<certificate-thumbprint>'
+.\scripts\build_msi.ps1 -CertificateThumbprint '<certificate-thumbprint>' -SkipAppBuild
 ```
 
-The script signs the installer and uninstaller with SHA-256, uses an RFC 3161 timestamp, and fails
+The script signs the contained executable before MSI assembly and then signs the MSI with SHA-256,
+uses an RFC 3161 timestamp, and fails
 the build unless Authenticode validation succeeds. See [Windows signing](docs/windows-signing.md).
+
+On Linux, run `python scripts/build_desktop.py` followed by `python scripts/build_linux_deb.py`;
+the package includes `netconfiglint-gui` and an interactive `netconfiglint-uninstall` keep/delete
+helper. On macOS, run `python scripts/build_desktop.py` and `python scripts/build_macos_pkg.py`;
+Developer ID signing and notarization activate only when the documented protected identities exist.
 
 ## Dependencies and licenses
 
@@ -263,7 +289,7 @@ NetConfigLint is Apache-2.0 licensed.
 | PySide6 / Qt for Python | Optional GUI/runtime | LGPLv3, GPLv3, or Qt commercial | Official Qt 6 Python/QML bindings |
 | Nuitka 4.2 | Compiler and generated runtime | AGPLv3 + Runtime Library Exception 1.0 | Complete texts and exception are included; independent compiled modules retain their own terms |
 | pefile | Build only | MIT | Verifiable recursive Windows PE import resolution |
-| Inno Setup | Build machine | Modified BSD-style | Windows installer generation |
+| WiX Toolset 3 | Build machine | Microsoft Reciprocal License | Windows MSI generation |
 | pytest, Ruff, mypy | Development only | MIT | Test, lint, and type validation |
 
 Original project SVG assets are Apache-2.0. No vendor firmware, private software, documentation
@@ -276,8 +302,8 @@ replacement instructions](THIRD_PARTY_NOTICES.md).
 
 ## Known limitations
 
-- The parser and rules are a bounded static analyzer, not a complete VRP command-line emulator.
-  All configuration blocks retain source mapping, but not every Huawei feature has a semantic
+- The parsers and rules are bounded static analyzers, not complete VRP/Comware command-line emulators.
+  All configuration blocks retain source mapping, but not every Huawei or H3C feature has a semantic
   rule; unknown facts remain unasserted instead of being guessed.
 - Profile matches require explicit model/version evidence; generic VRP stays generic.
 - Profile facts prove only cited command forms, not every model/version combination.
@@ -300,7 +326,9 @@ See [Huawei validation notes](docs/huawei-validation.md), [status](docs/status.m
 - **v1.4**: Material desktop, appearance settings, and the export workflow.
 - **v1.5**: all 26 audit findings repaired, Huawei correctness fixes, default Snippet mode,
   and qualified desktop builds with a Windows portable release.
-- **Future**: H3C Comware and Juniper Junos plugins, VS Code integration, configuration diff,
+- **v2.0**: H3C Comware plugin, live card dragging, integrated title/navigation surface, animation
+  unification, original sakura icon, MSI/DEB/PKG packaging, and explicit keep/delete uninstall paths.
+- **Future**: Juniper Junos plugin, VS Code integration, configuration diff,
   topology/dependency graph, Batfish
   integration, CI validation, and migration assistance.
 

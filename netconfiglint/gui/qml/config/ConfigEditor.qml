@@ -6,6 +6,7 @@ import "../components"
 AppCard {
     id: root
     property alias text: editor.text
+    property alias readOnly: editor.readOnly
     property alias editor: editor
     property string editorObjectName: "configEditorTextArea"
     property string title: i18n.catalog["editor.configuration"]
@@ -13,7 +14,7 @@ AppCard {
     property int editorFontSize: Typography.monospace.pixelSize
     property bool zoomModified: false
     signal textEdited(string value)
-    signal dragStarted()
+    signal dragStarted(real sceneX)
     signal dragMoved(real sceneX)
     signal dragFinished(real sceneX)
     signal stepRequested(int direction)
@@ -55,7 +56,7 @@ AppCard {
             Layout.preferredHeight: 60
             title: root.title
             detail: root.currentLine + " / " + Math.max(1, editor.lineCount)
-            onDragStarted: root.dragStarted()
+            onDragStarted: sceneX => root.dragStarted(sceneX)
             onDragMoved: sceneX => root.dragMoved(sceneX)
             onDragFinished: sceneX => root.dragFinished(sceneX)
             onStepRequested: direction => root.stepRequested(direction)
@@ -151,6 +152,12 @@ AppCard {
     Shortcut { sequence: "Ctrl+G"; enabled: root.visible && editor.activeFocus; onActivated: jumpDialog.open() }
     Component.onCompleted: { syntaxHighlighter.attach(editor.textDocument); syntaxHighlighter.setDark(Theme.dark) }
     Connections { target: Theme; function onDarkChanged() { syntaxHighlighter.setDark(Theme.dark) } }
+    Connections {
+        target: analysisController
+        function onResultCurrentChanged() {
+            syntaxHighlighter.setUnsupportedLines(analysisController.coverage.unsupported_lines || [])
+        }
+    }
     AppDialog {
         id: jumpDialog
         title: i18n.catalog["editor.goto"]

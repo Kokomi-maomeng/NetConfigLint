@@ -1,9 +1,4 @@
-"""Compile Linux/macOS runtimes for CI smoke tests, not release redistribution.
-
-The release artifact is the Windows portable ZIP. Unix compiler relocation and
-signing change library bytes, so its ephemeral smoke builds must not claim the
-Windows exact-wheel provenance/license qualification.
-"""
+"""Compile a platform-native Linux directory or macOS application bundle."""
 
 import configparser
 import os
@@ -14,6 +9,75 @@ import sys
 from pathlib import Path
 
 from check_build_environment import check
+from prepare_linux_runtime import prune as prune_linux_runtime
+
+APP_NAME = "NetConfigLint"
+APP_VERSION = "2.0.0"
+MACOS_EXECUTABLE = "NetConfigLintApp"
+
+
+def _make_macos_icon(root: Path) -> Path:
+    source = root / "netconfiglint/resources/icons/generated"
+    iconset = root / "build/NetConfigLint.iconset"
+    if iconset.exists():
+        shutil.rmtree(iconset)
+    iconset.mkdir(parents=True)
+    mappings = {
+        "icon_16x16.png": "app-16.png",
+        "icon_16x16@2x.png": "app-32.png",
+        "icon_32x32.png": "app-32.png",
+        "icon_32x32@2x.png": "app-64.png",
+        "icon_128x128.png": "app-128.png",
+        "icon_128x128@2x.png": "app-256.png",
+        "icon_256x256.png": "app-256.png",
+        "icon_256x256@2x.png": "app-512.png",
+        "icon_512x512.png": "app-512.png",
+        "icon_512x512@2x.png": "app-1024.png",
+    }
+    for destination, original in mappings.items():
+        shutil.copy2(source / original, iconset / destination)
+    target = root / "build/NetConfigLint.icns"
+    subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(target)], check=True)
+    return target
+
+
+def _qualify_macos_bundle(distribution: Path) -> Path:
+    root = Path(__file__).resolve().parents[1]
+    target = distribution.with_name(f"{APP_NAME}.app")
+    if target.exists() and target != distribution:
+        shutil.rmtree(target)
+    if target != distribution:
+        distribution.rename(target)
+    plist_path = target / "Contents/Info.plist"
+    with plist_path.open("rb") as stream:
+        info = plistlib.load(stream)
+    original_entry = info["CFBundleExecutable"]
+    entry_path = target / "Contents/MacOS" / original_entry
+    if not entry_path.is_file():
+        raise RuntimeError("Compiled macOS bundle entry point missing")
+    # The case-insensitive macOS filesystem already contains the bundled
+    # ``netconfiglint`` package directory.  Using the display name for the
+    # executable would collide with that directory, so keep a distinct bundle
+    # entry point while retaining NetConfigLint as the user-facing app name.
+    qualified_entry = target / "Contents/MacOS" / MACOS_EXECUTABLE
+    if entry_path != qualified_entry:
+        entry_path.rename(qualified_entry)
+    info.update(
+        {
+            "CFBundleName": APP_NAME,
+            "CFBundleDisplayName": APP_NAME,
+            "CFBundleIdentifier": "online.castorice.netconfiglint",
+            "CFBundleShortVersionString": APP_VERSION,
+            "CFBundleVersion": APP_VERSION,
+            "CFBundleIconFile": "NetConfigLint.icns",
+            "CFBundleExecutable": MACOS_EXECUTABLE,
+            "NSHighResolutionCapable": True,
+        }
+    )
+    with plist_path.open("wb") as stream:
+        plistlib.dump(info, stream, sort_keys=True)
+    shutil.copy2(root / "build/NetConfigLint.icns", target / "Contents/Resources/NetConfigLint.icns")
+    return target
 
 
 def main() -> None:
@@ -29,7 +93,7 @@ def main() -> None:
     spec["app"]["project_dir"] = str(root)
     spec["app"]["input_file"] = str(root / "netconfiglint/deploy_main.py")
     spec["app"]["exec_directory"] = str(root / "dist")
-    spec["app"]["icon"] = ""
+    spec["app"]["icon"] = str(_make_macos_icon(root)) if sys.platform == "darwin" else ""
     spec["python"]["python_path"] = sys.executable
     spec["nuitka"]["extra_args"] = (
         " ".join(
@@ -68,10 +132,7 @@ def main() -> None:
         raise RuntimeError("Expected exactly one compiled standalone distribution")
     distribution = distributions[0]
     if sys.platform == "darwin":
-        with (distribution / "Contents/Info.plist").open("rb") as stream:
-            entry = plistlib.load(stream)["CFBundleExecutable"]
-        if not (distribution / "Contents/MacOS" / entry).is_file():
-            raise RuntimeError("Compiled macOS bundle entry point missing")
+        distribution = _qualify_macos_bundle(distribution)
         print(distribution.name)
         return
     executable = next(
@@ -88,6 +149,8 @@ def main() -> None:
     target = distribution / "NetConfigLint"
     if executable != target:
         executable.rename(target)
+    result = prune_linux_runtime(distribution)
+    print(f"Pruned {result['removed_count']} unused Linux runtime entries")
     print(distribution.name)
 
 
