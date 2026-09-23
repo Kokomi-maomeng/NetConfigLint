@@ -29,3 +29,12 @@ def test_shortcuts_use_tested_standard_folders_and_user_keypaths() -> None:
         value = root.find(f".//w:Component[@Id='{component_id}']/w:RegistryValue", namespace)
         assert value is not None
         assert value.attrib["Root"] == "HKCU"
+
+
+def test_msi_acceptance_waits_for_gui_smoke_process() -> None:
+    script = (Path(__file__).resolve().parents[2] / "scripts" / "test_windows_msi.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert "Start-Process -FilePath $Executable" in script
+    assert "-Wait -PassThru -WindowStyle Hidden" in script
+    assert "$LASTEXITCODE" not in script
