@@ -56,6 +56,21 @@ def test_archive_gate_accepts_exact_resources(tmp_path: Path) -> None:
     assert auditor.audit_archive(tmp_path, archive)["passed"]
 
 
+def test_archive_gate_accepts_only_line_ending_changes_for_text_resources(tmp_path: Path) -> None:
+    auditor = load_auditor()
+    qml = tmp_path / "netconfiglint/gui/qml/Main.qml"
+    qml.parent.mkdir(parents=True)
+    qml.write_bytes(b"import QtQuick\r\nItem {}\r\n")
+    archive = tmp_path / "portable.zip"
+    with zipfile.ZipFile(archive, "w") as package:
+        package.writestr("portable/netconfiglint/gui/qml/Main.qml", b"import QtQuick\nItem {}\n")
+    assert auditor.audit_archive(tmp_path, archive)["passed"]
+
+    with zipfile.ZipFile(archive, "w") as package:
+        package.writestr("portable/netconfiglint/gui/qml/Main.qml", b"import QtQuick\nItem {x: 1}\n")
+    assert not auditor.audit_archive(tmp_path, archive)["passed"]
+
+
 def test_reviewed_upstream_needs_exact_wheel_and_binary_bytes(tmp_path: Path) -> None:
     auditor = load_auditor()
     wheel = tmp_path / "synthetic-review-only.whl"
@@ -72,6 +87,11 @@ def test_reviewed_upstream_needs_exact_wheel_and_binary_bytes(tmp_path: Path) ->
     report = auditor.audit_archive(tmp_path, archive, upstream=hashes)
     assert report["passed"]
     assert len(report["reviewed_upstream_matches"]) == 1
+    with zipfile.ZipFile(archive, "w") as package:
+        package.writestr("portable/qt6core.dll", binary)
+    relocated = auditor.audit_archive(tmp_path, archive, upstream=hashes)
+    assert relocated["passed"]
+    assert len(relocated["reviewed_upstream_matches"]) == 1
     with zipfile.ZipFile(archive, "w") as package:
         package.writestr("portable/PySide6/Qt6Core.dll", binary + b"modified")
     assert not auditor.audit_archive(tmp_path, archive, upstream=hashes)["passed"]

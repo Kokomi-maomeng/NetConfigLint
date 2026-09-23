@@ -137,6 +137,7 @@ def audit_repository(root: Path, baseline: str) -> dict[str, Any]:
 
 def upstream_binary_hashes(wheels: list[Path]) -> dict[str, str]:
     result = {}
+    basename_hashes: dict[str, set[str]] = {}
     for wheel in wheels:
         expected = REVIEWED_UPSTREAM_WHEELS.get(wheel.name)
         if expected is None or hashlib.sha256(wheel.read_bytes()).hexdigest() != expected:
@@ -146,9 +147,23 @@ def upstream_binary_hashes(wheels: list[Path]) -> dict[str, str]:
                 if entry.filename.startswith("PySide6/") and entry.filename.endswith(".dll"):
                     digest = hashlib.sha256(package.read(entry)).hexdigest()
                     result[entry.filename] = digest
+                    basename = PurePosixPath(entry.filename).name.lower()
+                    basename_hashes.setdefault(basename, set()).add(digest)
                     if entry.filename.startswith("PySide6/plugins/"):
                         result[entry.filename.replace("PySide6/plugins/", "PySide6/qt-plugins/", 1)] = digest
+    # Nuitka relocates Qt runtime DLLs from PySide6/ to the application root and
+    # normalizes their names to lowercase. Accept that layout only when a basename
+    # maps to exactly one byte-identical reviewed upstream binary.
+    for basename, digests in basename_hashes.items():
+        if len(digests) == 1:
+            result[f"basename:{basename}"] = next(iter(digests))
     return result
+
+
+def resource_bytes_equal(path: str, packaged: bytes, source: bytes) -> bool:
+    if PurePosixPath(path).suffix.lower() in {".json", ".qml", ".svg"}:
+        return packaged.replace(b"\r\n", b"\n") == source.replace(b"\r\n", b"\n")
+    return packaged == source
 
 
 def audit_archive(root: Path, archive: Path, *, upstream: dict[str, str] | None = None) -> dict[str, Any]:
@@ -174,7 +189,13 @@ def audit_archive(root: Path, archive: Path, *, upstream: dict[str, str] | None 
             data = package.read(entry)
             categories = scan_bytes(data)
             relative_binary = name[name.index("PySide6/") :] if "PySide6/" in name else ""
-            if categories and upstream and upstream.get(relative_binary) == hashlib.sha256(data).hexdigest():
+            digest = hashlib.sha256(data).hexdigest()
+            upstream_digest = None
+            if upstream:
+                upstream_digest = upstream.get(relative_binary)
+                if upstream_digest is None:
+                    upstream_digest = upstream.get(f"basename:{PurePosixPath(name).name.lower()}")
+            if categories and upstream_digest == digest:
                 reviewed_upstream.append(
                     {"path": name, "categories": categories, "reason": "exact-reviewed-official-wheel-binary"}
                 )
@@ -185,7 +206,7 @@ def audit_archive(root: Path, archive: Path, *, upstream: dict[str, str] | None 
             relative = name[name.index("netconfiglint/") :] if "netconfiglint/" in name else ""
             if relative in expected:
                 seen.add(relative)
-                if data != expected[relative].read_bytes():
+                if not resource_bytes_equal(relative, data, expected[relative].read_bytes()):
                     resource_mismatches.append(relative)
             elif (
                 relative

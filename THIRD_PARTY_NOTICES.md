@@ -3,7 +3,7 @@
 NetConfigLint and its original SVG/QML assets are provided under the complete
 Apache License 2.0 in `LICENSE`. Copyright NetConfigLint contributors.
 
-Each Windows release package includes `SBOM.json`: actual relative file paths, SHA256,
+Each release payload includes `SBOM.json`: actual relative file paths, SHA256,
 sizes, component identities, license copies and corresponding source locations.
 `licenses/components.json` is the reviewed catalog, not a claim that every listed
 component is shipped. The inventory selects components found in that package.
@@ -14,7 +14,7 @@ component is shipped. The inventory selects components found in that package.
 | PySide6, Shiboken6 and Qt 6.11.2 | LGPLv3/GPLv3/commercial alternatives; this build uses the LGPL option for the selected Qt Core, GUI, Network, OpenGL, QML, Quick, Quick Controls, SVG and associated plugins |
 | Qt source dependencies | Full upstream `LICENSES`, attribution records and every referenced license file under `licenses/upstream`; this is a conservative source-module superset, not proof that every source dependency is linked |
 | Nuitka 4.2 generated runtime | AGPLv3 with Runtime Library Exception 1.0; full license, exception and notice in `licenses/Nuitka-4.2-*`. The exception permits eligible independent compiled modules to be conveyed under their own terms |
-| OpenSSL / libffi | Actual Windows CPython dependency material in `licenses`; hashes identify the distributed DLLs |
+| OpenSSL / libffi | Actual Windows CPython dependency material in `licenses`; hashes identify the distributed DLLs. The Debian package uses Debian 13's declared system-library dependencies instead of redistributing build-VM copies |
 | Microsoft Visual C++ runtime | Full Microsoft 2015–2022 Runtime terms in `licenses/Microsoft-VC-Runtime-2015-2022.txt`; these apply to the Microsoft binaries |
 | Mesa llvmpipe / LLVM | Qt's Windows `opengl32sw.dll`; full MIT, Boost and LLVM notices in `licenses/Mesa-llvmpipe.txt` and `licenses/LLVM-Qt-attribution.txt` |
 | Roboto / Noto Sans SC | Full SIL OFL 1.1 notices beside the font files in `netconfiglint/resources/fonts` |

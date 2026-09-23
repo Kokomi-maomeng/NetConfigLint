@@ -28,5 +28,5 @@ Rectangle {
         wrapMode: Text.Wrap
     }
     Timer { id: hideTimer; interval: 3500; onTriggered: root.visible = false }
-    Behavior on opacity { NumberAnimation { duration: 150 } }
+    Behavior on opacity { NumberAnimation { duration: Theme.motionShort } }
 }
