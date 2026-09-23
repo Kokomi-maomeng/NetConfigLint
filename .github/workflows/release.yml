@@ -3,6 +3,12 @@ name: Release packages
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing tag to package and publish
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -24,9 +30,12 @@ jobs:
       MACOS_INSTALLER_IDENTITY: ${{ secrets.MACOS_INSTALLER_IDENTITY }}
       MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
       MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
-      APP_VERSION: ${{ github.ref_name }}
+      APP_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+          fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13.2"
@@ -75,7 +84,9 @@ jobs:
       - name: Accept Windows MSI installation and both uninstall choices
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./scripts/test_windows_msi.ps1 -Version $env:APP_VERSION.TrimStart('v')
+        run: |
+          $version = $env:APP_VERSION.TrimStart('v')
+          ./scripts/test_windows_msi.ps1 -Version $version
       - name: Import Apple certificates
         if: runner.os == 'macOS' && env.MACOS_APPLICATION_IDENTITY != ''
         env:
@@ -126,5 +137,6 @@ jobs:
         run: cd release && sha256sum * > SHA256SUMS.txt
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
           files: release/*
           generate_release_notes: true
