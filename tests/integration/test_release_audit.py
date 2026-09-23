@@ -33,7 +33,9 @@ def test_public_github_merge_exception_is_limited_to_release_head() -> None:
     assert auditor.is_public_github_merge(*arguments, "merge")
     assert not auditor.is_public_github_merge(*arguments, "later-release")
     assert not auditor.is_public_github_merge("merge", "parent1", *arguments[2:], "merge")
-    assert not auditor.is_public_github_merge("merge", arguments[1], "person@example.com", arguments[3], "merge")
+    assert not auditor.is_public_github_merge(
+        "merge", arguments[1], "person@example.com", arguments[3], "merge"
+    )
     assert not auditor.is_public_github_merge("merge", arguments[1], arguments[2], "Manual merge", "merge")
 
 
