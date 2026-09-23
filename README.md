@@ -1,5 +1,7 @@
 # NetConfigLint v2.0
 
+Project versions, local release files, rollback records, and the consolidated task entry are mapped in [PROJECT_INDEX.md](PROJECT_INDEX.md).
+
 > A fast, offline, extensible static analyzer for network device configurations.
 
 NetConfigLint is a local static-analysis tool for network engineers. It converts supported
