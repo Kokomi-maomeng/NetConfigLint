@@ -43,6 +43,12 @@ function Invoke-Msi([string[]]$Arguments, [string]$LogName) {
     }
 }
 
+function Invoke-AppSmoke([string]$Executable, [string]$OutputDirectory) {
+    $process = Start-Process -FilePath $Executable -ArgumentList @('--smoke-test', ('"' + $OutputDirectory + '"')) -Wait -PassThru -WindowStyle Hidden
+    Assert-State ($process.ExitCode -eq 0) "Installed executable smoke failed with $($process.ExitCode)."
+    Assert-State (Test-Path -LiteralPath (Join-Path $OutputDirectory 'smoke-result.json')) 'Installed executable smoke did not write its result.'
+}
+
 Assert-State (@(Get-InstalledProduct).Count -eq 0) 'An existing NetConfigLint installation is present.'
 foreach ($path in @($roamingRoot, $localRoot, $settingsKey, $customBase, $defaultExe, $unrelated, $strayMenuRoot, $strayDesktopShortcut)) {
     Assert-State (-not (Test-Path -LiteralPath $path)) "Pre-existing test target: $path"
@@ -54,8 +60,7 @@ Assert-State (Test-Path -LiteralPath (Join-Path $menuRoot 'NetConfigLint.lnk')) 
 Assert-State (Test-Path -LiteralPath $desktopShortcut) 'Optional Desktop shortcut missing.'
 Assert-State (-not (Test-Path -LiteralPath $strayMenuRoot)) 'MSI placed a Start Menu folder at the source drive root.'
 Assert-State (-not (Test-Path -LiteralPath $strayDesktopShortcut)) 'MSI placed a Desktop shortcut at the source drive root.'
-& $customExe --smoke-test (Join-Path $env:RUNNER_TEMP 'msi-smoke-custom')
-Assert-State ($LASTEXITCODE -eq 0) 'Custom-install executable smoke failed.'
+Invoke-AppSmoke -Executable $customExe -OutputDirectory (Join-Path $env:RUNNER_TEMP 'msi-smoke-custom')
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $history), $localRoot, $unrelated -Force | Out-Null
 Set-Content -LiteralPath $history -Value '{"synthetic_msi_test":true}' -Encoding UTF8
@@ -76,8 +81,7 @@ Invoke-Msi -Arguments @('/i', ('"' + $msi + '"')) -LogName 'msi-install-default.
 Assert-State (Test-Path -LiteralPath $defaultExe) 'Default installation executable missing.'
 Assert-State (Test-Path -LiteralPath (Join-Path $menuRoot 'NetConfigLint.lnk')) 'Default Start Menu shortcut missing.'
 Assert-State (-not (Test-Path -LiteralPath $desktopShortcut)) 'Optional Desktop shortcut unexpectedly installed.'
-& $defaultExe --smoke-test (Join-Path $env:RUNNER_TEMP 'msi-smoke-default')
-Assert-State ($LASTEXITCODE -eq 0) 'Default-install executable smoke failed.'
+Invoke-AppSmoke -Executable $defaultExe -OutputDirectory (Join-Path $env:RUNNER_TEMP 'msi-smoke-default')
 $product = @(Get-InstalledProduct)
 Assert-State ($product.Count -eq 1) 'Expected one installed product after default installation.'
 Invoke-Msi -Arguments @('/x', $product[0].PSChildName, 'REMOVEUSERDATA=1') -LogName 'msi-uninstall-delete.log'
