@@ -9,13 +9,19 @@ on:
         description: Existing tag to package and publish
         required: true
         type: string
+      source_run_id:
+        description: Completed release run with successful package jobs (reuse artifacts)
+        required: false
+        type: string
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
   package:
     name: Package / ${{ matrix.os }}
+    if: ${{ inputs.source_run_id == '' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 75
     strategy:
@@ -125,22 +131,60 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-${{ matrix.os }}
-          path: release/*
+          path: |
+            release/*.zip
+            release/*.msi
+            release/*.deb
+            release/*.pkg
 
   publish:
     name: Publish GitHub release
     needs: package
+    if: ${{ always() && (needs.package.result == 'success' || inputs.source_run_id != '') }}
     runs-on: ubuntu-latest
     steps:
+      - name: Verify reusable package run
+        if: inputs.source_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          workflow_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/release.yml" --jq .id)"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" \
+            --jq "select(.workflow_id == ${workflow_id} and .status == \"completed\") | .id" | grep -Fx "$SOURCE_RUN_ID"
+          jobs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/jobs?per_page=100")"
+          for os in windows-latest ubuntu-latest macos-latest; do
+            jq -e --arg name "Package / $os" \
+              '.jobs | any(.[]; .name == $name and .conclusion == "success")' <<< "$jobs" | grep -Fx true
+          done
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
+          run-id: ${{ inputs.source_run_id || github.run_id }}
+          github-token: ${{ github.token }}
           pattern: release-*
           merge-multiple: true
           path: release
       - name: Build checksums
-        run: cd release && sha256sum * > SHA256SUMS.txt
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+        run: |
+          cd release
+          version="${RELEASE_TAG#v}"
+          for extension in zip msi deb pkg; do
+            matches=(NetConfigLint-${version}-*.${extension})
+            test "${#matches[@]}" -eq 1 && test -f "${matches[0]}"
+          done
+          find . -maxdepth 1 -type f -name "NetConfigLint-${version}-*" \
+            \( -name '*.zip' -o -name '*.msi' -o -name '*.deb' -o -name '*.pkg' \) \
+            -print0 | sort -z | xargs -0 -r sha256sum > SHA256SUMS.txt
+          test "$(wc -l < SHA256SUMS.txt)" -eq 4
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
-          files: release/*
+          files: |
+            release/*.zip
+            release/*.msi
+            release/*.deb
+            release/*.pkg
+            release/SHA256SUMS.txt
           generate_release_notes: true
