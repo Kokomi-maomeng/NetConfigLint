@@ -27,6 +27,16 @@ def test_secret_gate_checks_binary_utf16_and_does_not_echo_values() -> None:
     assert auditor.scan_bytes(b"password cipher SYNTHETIC-ONLY-NOT-A-SECRET") == []
 
 
+def test_public_github_merge_exception_is_limited_to_release_head() -> None:
+    auditor = load_auditor()
+    arguments = ("merge", "parent1 parent2", "noreply@github.com", "Merge pull request #4 from owner/branch")
+    assert auditor.is_public_github_merge(*arguments, "merge")
+    assert not auditor.is_public_github_merge(*arguments, "later-release")
+    assert not auditor.is_public_github_merge("merge", "parent1", *arguments[2:], "merge")
+    assert not auditor.is_public_github_merge("merge", arguments[1], "person@example.com", arguments[3], "merge")
+    assert not auditor.is_public_github_merge("merge", arguments[1], arguments[2], "Manual merge", "merge")
+
+
 def test_archive_gate_rejects_old_qml_missing_resources_and_private_files(tmp_path: Path) -> None:
     auditor = load_auditor()
     qml = tmp_path / "netconfiglint/gui/qml/Main.qml"
