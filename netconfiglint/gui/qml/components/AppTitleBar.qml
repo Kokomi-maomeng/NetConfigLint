@@ -2,12 +2,16 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import theme 1.0
+import "../config"
 
 Item {
     id: root
     property real navigationWidth: 260
-    property string pageTitle: ""
-    property string detail: ""
+    property var controller
+    signal toggleRequested()
+    signal openRequested()
+    signal exportRequested()
+    signal aboutRequested()
     // Expanded client area retains the native Windows caption and its controls.
     // Qt's SafeArea top margin can be zero there, so reserve that caption row.
     readonly property real titleInset: Math.max(SafeArea.margins.top, Qt.platform.os === "windows" ? 32 : 0)
@@ -77,23 +81,12 @@ Item {
                 anchors.rightMargin: 14
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 10
-                Image {
-                    source: Qt.resolvedUrl("../../../resources/icons/app-master.png")
-                    sourceSize.width: 36
-                    sourceSize.height: 36
-                    Layout.preferredWidth: 36
-                    Layout.preferredHeight: 36
-                    fillMode: Image.PreserveAspectFit
-                    smooth: true
-                    mipmap: true
-                }
-                Text {
-                    Layout.fillWidth: true
-                    visible: root.navigationWidth > 120
-                    text: preferences.values.panelTitle
-                    color: Colors.textPrimary
-                    font: Typography.subtitle
-                    elide: Text.ElideRight
+                ToolButton {
+                    objectName: "sidebarToggle"
+                    icon.source: Qt.resolvedUrl("../../../resources/icons/menu.svg")
+                    icon.color: Colors.textPrimary
+                    Accessible.name: i18n.catalog["nav.collapse"]
+                    onClicked: root.toggleRequested()
                 }
             }
         }
@@ -103,30 +96,37 @@ Item {
             Layout.leftMargin: Spacing.lg
             Layout.rightMargin: Math.max(Spacing.lg, SafeArea.margins.right + Spacing.sm)
             spacing: Spacing.sm
-            SelectableText {
-                objectName: "checkPageTitle"
+            ConfigToolbar {
+                id: topToolbar
                 Layout.preferredWidth: implicitWidth
-                Layout.maximumWidth: implicitWidth
-                text: root.pageTitle
-                font: Typography.subtitle
-                color: Colors.textPrimary
-            }
-            Rectangle {
-                width: 5
-                height: 5
-                radius: 3
-                color: Colors.primary
-                visible: root.detail.length > 0
-            }
-            SelectableText {
-                text: root.detail
-                visible: text.length > 0
-                color: Colors.textSecondary
-                font: Typography.caption
-                wrapMode: TextEdit.NoWrap
-                clip: true
+                Layout.preferredHeight: 42
+                controller: root.controller
+                onOpenRequested: root.openRequested()
+                onExportRequested: root.exportRequested()
             }
             Item { Layout.fillWidth: true }
+            Button {
+                objectName: "brandAboutButton"
+                flat: true
+                onClicked: root.aboutRequested()
+                Accessible.name: i18n.catalog["nav.about"]
+                contentItem: RowLayout {
+                    spacing: 8
+                    Image {
+                        source: Qt.resolvedUrl("../../../resources/icons/app-master.png")
+                        sourceSize.width: 28; sourceSize.height: 28
+                        Layout.preferredWidth: 28; Layout.preferredHeight: 28
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true; mipmap: true
+                    }
+                    Text {
+                        text: preferences.values.panelTitle
+                        color: Colors.textPrimary
+                        font: Typography.label
+                        elide: Text.ElideRight
+                    }
+                }
+            }
         }
     }
 }

@@ -10,18 +10,22 @@ from PySide6.QtGui import QColor, QSyntaxHighlighter, QTextCharFormat, QTextDocu
 class NetworkConfigHighlighter(QSyntaxHighlighter):
     """Huawei/H3C highlighter with source-mapped unsupported-line feedback."""
 
+    _COMMAND_HEAD = re.compile(r"^\s*(?:<[^>]+>|\[[^]]+\])?\s*((?:undo\s+)?[A-Za-z][\w-]*)")
     _BLOCK = re.compile(
-        r"^\s*(aaa|acl|arp|bfd|bgp|bridge-domain|clock|dfs-group|domain|evpn|ftth|"
+        r"^\s*(?:<[^>]+>|\[[^]]+\])?\s*(aaa|acl|arp|bfd|bgp|bridge-domain|clock|"
+        r"display|dfs-group|domain|evpn|ftth|irf|irf-port(?:-configuration)?|"
         r"info-center|interface|ip vpn-instance|isis|line|local-user|m-lag|mpls|ntp(?:-service)?|"
         r"onu|ospf|role|route-policy|scheduler|security-enhanced|snmp-agent|stp|sysname|system-working-mode|"
-        r"tcsm|telemetry|traffic (?:classifier|behavior|policy)|user-group|user-interface|"
+        r"port group interface|reset|sys|system-view|tcsm|telemetry|"
+        r"traffic (?:classifier|behavior|policy)|user-group|user-interface|"
         r"version|vlan(?: batch)?|vni|xbar|mdc)\b",
         re.IGNORECASE,
     )
     _KEYWORDS = re.compile(
-        r"\b(access|address-family|area|authentication|authorization-attribute|behavior|bridge|"
+        r"\b(access|active|address-family|area|authentication|authorization-attribute|behavior|bridge|"
         r"classifier|description|destination|dhcp|disable|edge(?:d-port)?|enable|eth-trunk|export|"
-        r"filter|group|import|inbound|l2vpn-family|lacp-static|link-aggregation|link-mode|network|"
+        r"filter|group|import|inbound|irf|l2vpn-family|lacp-static|link-aggregation|link-mode|"
+        r"member|network|priority|renumber|persistent|"
         r"network-entity|outbound|peer|permit|deny|policy|route-distinguisher|route-policy|"
         r"server|service-type|shutdown|source|ssl|static|telnet|tls1\.[0123]|trunk|undo|user-role|"
         r"vpn-instance|vpn-target|vni|vxlan)\b",
@@ -32,11 +36,14 @@ class NetworkConfigHighlighter(QSyntaxHighlighter):
         r"[0-9a-f]{0,4}:[0-9a-f:]+(?:/\d{1,3})?)(?![\w:])",
         re.IGNORECASE,
     )
+    _NUMBER = re.compile(r"(?<![\w./:])\d+(?:\.\d+)?(?![\w./:])")
+    _QUOTED = re.compile(r"(?:\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')")
     _SENSITIVE = re.compile(
         r"\b(password|cipher|community|pre-shared-key|secret|private-key)\b", re.IGNORECASE
     )
     _CURRENT_CONFIG_HEADER = re.compile(r"^\s*=+\s*display current-configuration\s*=+\s*$", re.IGNORECASE)
     _SECTION_BOUNDARY = re.compile(r"^\s*=+\s*$")
+    _ANNOTATION = re.compile(r"^\s*(?:#|!|//|(?:说明|备注|注意)\s*[:：])")  # noqa: RUF001
 
     def __init__(self, document: QTextDocument, *, dark: bool = False) -> None:
         super().__init__(document)
@@ -49,6 +56,8 @@ class NetworkConfigHighlighter(QSyntaxHighlighter):
             "keyword": "#9BCBFF" if self._dark else "#315F9B",
             "block": "#D3B8F6" if self._dark else "#71558E",
             "address": "#83D5A5" if self._dark else "#1B6D43",
+            "number": "#E2BD82" if self._dark else "#8A5B17",
+            "quoted": "#C5D98B" if self._dark else "#42691A",
             "section": "#8C9199" if self._dark else "#74777F",
             "sensitive": "#FFB4AB" if self._dark else "#BA1A1A",
             "unsupported": "#5B2020" if self._dark else "#FFF0EE",
@@ -96,20 +105,34 @@ class NetworkConfigHighlighter(QSyntaxHighlighter):
         for character in text:
             offsets.append(offsets[-1] + (2 if ord(character) > 0xFFFF else 1))
 
-        def apply(start: int, end: int, kind: str) -> None:
-            self.setFormat(offsets[start], offsets[end] - offsets[start], self._formats[kind])
+        unsupported = self.currentBlock().blockNumber() + 1 in self._unsupported_lines
 
-        if self.currentBlock().blockNumber() + 1 in self._unsupported_lines:
+        def apply(start: int, end: int, kind: str) -> None:
+            value = QTextCharFormat(self._formats[kind])
+            if unsupported and kind != "unsupported":
+                value.setBackground(self._formats["unsupported"].background())
+            self.setFormat(offsets[start], offsets[end] - offsets[start], value)
+
+        if unsupported:
             apply(0, len(text), "unsupported")
         if text.strip() in {"#", "return"}:
             apply(0, len(text), "section")
             return
+        if self._ANNOTATION.match(text):
+            apply(0, len(text), "section")
+            return
+        if match := self._COMMAND_HEAD.search(text):
+            apply(match.start(1), match.end(1), "keyword")
         if match := self._BLOCK.search(text):
             apply(match.start(), match.end(), "block")
         for match in self._KEYWORDS.finditer(text):
             apply(match.start(), match.end(), "keyword")
         for match in self._ADDRESS.finditer(text):
             apply(match.start(), match.end(), "address")
+        for match in self._NUMBER.finditer(text):
+            apply(match.start(), match.end(), "number")
+        for match in self._QUOTED.finditer(text):
+            apply(match.start(), match.end(), "quoted")
         for match in self._SENSITIVE.finditer(text):
             apply(match.start(), match.end(), "sensitive")
 
@@ -138,8 +161,10 @@ class SyntaxHighlighterBridge(QObject):
         for highlighter in self._highlighters:
             highlighter.set_dark(dark)
 
-    @Slot("QVariantList")
-    def setUnsupportedLines(self, lines: list[object]) -> None:
+    @Slot(QObject, "QVariantList")
+    def setUnsupportedLinesFor(self, document: QObject, lines: list[object]) -> None:
         parsed = {int(value) for value in lines if isinstance(value, int) and value > 0}
         for highlighter in self._highlighters:
-            highlighter.set_unsupported_lines(parsed)
+            if highlighter.document() is document:
+                highlighter.set_unsupported_lines(parsed)
+                break

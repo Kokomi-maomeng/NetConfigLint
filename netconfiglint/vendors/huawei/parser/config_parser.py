@@ -13,6 +13,7 @@ from dataclasses import asdict, replace
 
 from netconfiglint.core.analyzer.control import charge_vlan_memberships, checkpoint
 from netconfiglint.core.analyzer.models import AnalysisMode, VendorDetection
+from netconfiglint.core.analyzer.operational_input import mask_operational_output
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
 from netconfiglint.core.lexer import SourceLine, lex_lines
 from netconfiglint.core.model import (
@@ -49,8 +50,16 @@ class HuaweiConfigParser:
     def parse(
         self, source: str, mode: AnalysisMode, detection: VendorDetection, *, initial_view: str | None = None
     ) -> DeviceConfig:
-        lines = lex_lines(textwrap.dedent(source) if mode == AnalysisMode.SNIPPET else source)
+        parser_source, analysis_scope = (
+            mask_operational_output(source)
+            if mode in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT}
+            else (source, set())
+        )
+        lines = lex_lines(textwrap.dedent(parser_source) if mode == AnalysisMode.SNIPPET else parser_source)
         config = DeviceConfig(vendor=detection.vendor, source_lines=tuple(source.splitlines()))
+        if mode in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT}:
+            config.analysis_lines = analysis_scope
+            config.metadata["analysis_scope_explicit"] = "true"
         if initial_view is not None:
             if (
                 mode != AnalysisMode.SNIPPET
@@ -108,7 +117,7 @@ class HuaweiConfigParser:
             consumer.acl_references = [
                 (config.acl_aliases.get(key, key), source) for key, source in consumer.acl_references
             ]
-        if mode == AnalysisMode.SNAPSHOT:
+        if mode in {AnalysisMode.SNAPSHOT, AnalysisMode.FULL}:
             config.snapshot = HuaweiSnapshotParser().parse(source)
         return config
 

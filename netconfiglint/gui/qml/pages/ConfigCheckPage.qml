@@ -21,6 +21,10 @@ Item {
     property real dragProxyScale: 1
     property var dragSourceItem: null
     property int dropIndex: -1
+    property int pendingDropIndex: -1
+    property string pendingDropKey: ""
+    function openFileDialog() { openDialog.open() }
+    function openExportDialog() { exportOptions.open() }
     function panel(key) { return key === "configuration" ? configEditor : (key === "diagnostics" ? analysisPanel : temporaryEditor) }
     function syncOrder() {
         var order = preferences.values.panelOrder
@@ -74,21 +78,18 @@ Item {
     function finishDrag(sceneX) {
         if (!dragSourceItem) return
         updateDrag(sceneX)
-        var key = draggedKey
-        if (dropIndex >= 0) movePanel(key, dropIndex)
+        pendingDropKey = draggedKey
+        pendingDropIndex = dropIndex
+        var target = dropIndex >= 0 ? workspaceSplit.itemAt(dropIndex) : dragSourceItem
+        var position = target.mapToItem(root, 0, 0)
         dropIndex = -1
-        Qt.callLater(function() {
-            var item = panel(key)
-            if (!item) { resetDrag(); return }
-            var position = item.mapToItem(root, 0, 0)
-            settleX.from = dragProxyX
-            settleX.to = position.x
-            settleY.from = dragProxyY
-            settleY.to = position.y
-            settleScale.from = dragProxyScale
-            settleScale.to = 1
-            settleAnimation.restart()
-        })
+        settleX.from = dragProxyX
+        settleX.to = position.x
+        settleY.from = dragProxyY
+        settleY.to = position.y
+        settleScale.from = dragProxyScale
+        settleScale.to = 1
+        settleAnimation.restart()
     }
     function resetDrag() {
         draggedKey = ""
@@ -99,21 +100,10 @@ Item {
         var order = preferences.values.panelOrder
         movePanel(key, Math.max(0, Math.min(2, order.indexOf(key) + direction)))
     }
-    function showConfiguration() {
-        var panels = preferences.values.panels.slice()
-        if (panels.indexOf("configuration") < 0) { panels.push("configuration"); preferences.setValue("panels", panels) }
-    }
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 24
         spacing: 20
-        ConfigToolbar {
-            Layout.fillWidth: true
-            controller: root.controller
-            onOpenRequested: openDialog.open()
-            onAnalyzeRequested: root.controller.analyzeConfig()
-            onExportRequested: exportOptions.open()
-        }
         SplitView {
             id: workspaceSplit
             objectName: "workspaceSplitView"
@@ -134,12 +124,16 @@ Item {
                 property string panelKey: "configuration"
                 objectName: "configurationEditor"
                 editorObjectName: "configurationTextArea"
-                visible: preferences.values.panels.indexOf(panelKey) >= 0
+                visible: true
                 SplitView.preferredWidth: 300
                 SplitView.minimumWidth: 240
                 title: root.controller.editorReadOnly ? i18n.catalog["editor.bundle_preview"] : i18n.catalog["editor.configuration"]
+                titleObjectName: "checkPageTitle"
                 text: root.controller.editorText
                 readOnly: root.controller.editorReadOnly
+                showAnalyze: true
+                analysisBusy: root.controller.busy
+                onAnalyzeRequested: root.controller.analyzeConfig()
                 onTextEdited: value => { if (!readOnly && root.controller.sourceText !== value) root.controller.sourceText = value }
                 onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
                 onDragMoved: sceneX => root.updateDrag(sceneX)
@@ -161,7 +155,7 @@ Item {
                 onCancelRequested: root.controller.cancelAnalysis()
                 resultCurrent: root.controller.resultCurrent
                 busy: root.controller.busy
-                onIssueActivated: row => { root.showConfiguration(); root.controller.requestJump(row) }
+                onIssueActivated: row => root.controller.requestJump(row)
                 onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
                 onDragMoved: sceneX => root.updateDrag(sceneX)
                 onDragFinished: sceneX => root.finishDrag(sceneX)
@@ -226,10 +220,16 @@ Item {
         NumberAnimation { id: settleX; target: root; property: "dragProxyX"; duration: Theme.motionMedium; easing.type: Easing.OutCubic }
         NumberAnimation { id: settleY; target: root; property: "dragProxyY"; duration: Theme.motionMedium; easing.type: Easing.OutCubic }
         NumberAnimation { id: settleScale; target: root; property: "dragProxyScale"; duration: Theme.motionMedium; easing.type: Easing.OutCubic }
-        onFinished: root.resetDrag()
+        onFinished: {
+            if (root.pendingDropIndex >= 0) root.movePanel(root.pendingDropKey, root.pendingDropIndex)
+            root.pendingDropIndex = -1
+            root.pendingDropKey = ""
+            root.resetDrag()
+        }
     }
     FileDialog {
         id: openDialog
+        options: FileDialog.DontUseNativeDialog
         title: i18n.catalog["dialog.open"]
         nameFilters: [i18n.catalog["file.config_filter"], i18n.catalog["file.all_filter"]]
         onAccepted: root.controller.loadFile(selectedFile)
@@ -247,6 +247,7 @@ Item {
     }
     FileDialog {
         id: saveDialog
+        options: FileDialog.DontUseNativeDialog
         objectName: "exportSaveDialog"
         title: i18n.catalog["dialog.export"]
         fileMode: FileDialog.SaveFile

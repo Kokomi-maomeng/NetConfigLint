@@ -16,6 +16,7 @@ from netconfiglint.core.analyzer.control import (
     AnalysisLimits,
     CancellationToken,
 )
+from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
 from netconfiglint.core.input import read_network_text
 from netconfiglint.gui.exporting import render_report
 from netconfiglint.gui.i18n import TranslationController
@@ -38,6 +39,7 @@ class AnalysisController(QObject):
     summaryChanged = Signal()
     fileNameChanged = Signal()
     historyEnabledChanged = Signal()
+    historyOpened = Signal()
     resultCurrentChanged = Signal()
     analysisFinished = Signal()
     analysisFailed = Signal(str)
@@ -81,6 +83,7 @@ class AnalysisController(QObject):
         self._diagnostics = DiagnosticListModel()
         self._history_store = history_store or HistoryStore()
         self._history_model = HistoryListModel(self._history_store.entries)
+        self._active_history_id: str | None = None
         self._workerSucceeded.connect(self._apply_result)
         self._workerFailed.connect(self._apply_error)
 
@@ -127,6 +130,7 @@ class AnalysisController(QObject):
 
     def _set_source_text(self, value: str) -> None:
         if value != self._source_text:
+            self._active_history_id = None
             self._source_text = value
             self._set_editor_text(value, read_only=False)
             self._bundle_configuration = ""
@@ -161,7 +165,8 @@ class AnalysisController(QObject):
         return self._mode
 
     def _set_mode(self, value: str) -> None:
-        if value in {"snippet", "full", "snapshot"} and value != self._mode:
+        if value in {"snippet", "message", "view", "full", "snapshot"} and value != self._mode:
+            self._active_history_id = None
             self._mode = value
             self._invalidate()
             self.modeChanged.emit()
@@ -173,6 +178,7 @@ class AnalysisController(QObject):
 
     def _set_vendor(self, value: str) -> None:
         if value in {"auto", *(p.key for p in registry.VENDOR_PLUGINS)} and value != self._vendor:
+            self._active_history_id = None
             self._vendor = value
             self._invalidate()
             self.vendorChanged.emit()
@@ -219,7 +225,11 @@ class AnalysisController(QObject):
 
     def _set_history_enabled(self, value: bool) -> None:
         if value != self._history_store.enabled:
-            self._history_store.set_enabled(value)
+            try:
+                self._history_store.set_enabled(value)
+            except OSError:
+                self.toastRequested.emit("history.clear_error")
+                return
             self._history_model.replace(self._history_store.entries)
             self.historyEnabledChanged.emit()
 
@@ -245,6 +255,7 @@ class AnalysisController(QObject):
         if self._busy:
             return
         self._set_source_text("")
+        self._active_history_id = None
         self._diagnostics.replace(())
         self._detection = self._empty_detection()
         self._summary = {key: 0 for key in self._summary}
@@ -410,7 +421,10 @@ class AnalysisController(QObject):
         counts = Counter(item.severity.value for item in result.diagnostics)
         self._summary = {key: counts[key] for key in self._summary}
         try:
-            self._history_store.append(result)
+            if self._active_history_id is None:
+                self._history_store.append(result, self._source_text, self._vendor)
+                if self._history_store.enabled and self._history_store.entries:
+                    self._active_history_id = self._history_store.entries[0].entry_id
             self._history_model.replace(self._history_store.entries)
         except OSError:
             self.toastRequested.emit("history.write_error")
@@ -479,6 +493,69 @@ class AnalysisController(QObject):
             self._history_model.replace([])
             self.historyEnabledChanged.emit()
             self.toastRequested.emit("history.cleared")
+        except OSError:
+            self.toastRequested.emit("history.clear_error")
+
+    @Slot(str)
+    def openHistory(self, entry_id: str) -> None:
+        entry = self._history_store.get(entry_id)
+        if entry is None or not entry.source_text or self._busy:
+            return
+        try:
+            restored = tuple(
+                Diagnostic(
+                    Severity(item["severity"]),
+                    str(item["rule_id"]),
+                    SourceRange(**item["source"]),
+                    str(item["object_name"]),
+                    str(item["message"]),
+                    str(item["explanation"]),
+                    str(item["suggested_fix"]),
+                    Confidence(item["confidence"]),
+                )
+                for item in entry.diagnostics
+            )
+        except (KeyError, TypeError, ValueError):
+            self.toastRequested.emit("history.recovery_warning")
+            return
+        self._source_text = entry.source_text
+        self._set_editor_text(entry.source_text, read_only=False)
+        self._invalidate()
+        self._mode = entry.mode
+        self._vendor = entry.selected_vendor
+        self._diagnostics.replace(restored)
+        self._coverage = dict(entry.coverage or {})
+        self._summary = dict(entry.summary)
+        self._detection = {"vendor": entry.vendor}
+        self._result_current = True
+        self._active_history_id = entry_id
+        self._set_status("analysis.completed")
+        for signal in (
+            self.sourceTextChanged,
+            self.modeChanged,
+            self.vendorChanged,
+            self.resultCurrentChanged,
+            self.detectionChanged,
+            self.summaryChanged,
+        ):
+            signal.emit()
+        self.historyOpened.emit()
+
+    @Slot(str)
+    def removeHistory(self, entry_id: str) -> None:
+        self.removeHistories([entry_id])
+
+    @Slot(int, int, result="QVariantList")
+    def historyIdsBetween(self, first: int, last: int) -> list[str]:
+        return self._history_model.ids_between(first, last)
+
+    @Slot("QVariantList")
+    def removeHistories(self, entry_ids: list[str]) -> None:
+        try:
+            self._history_store.remove_ids(set(entry_ids))
+            self._history_model.replace(self._history_store.entries)
+            if self._active_history_id in entry_ids:
+                self._active_history_id = None
         except OSError:
             self.toastRequested.emit("history.clear_error")
 

@@ -8,10 +8,11 @@ AppCard {
     id: root
     property var controller
     signal openRequested()
-    signal analyzeRequested()
     signal exportRequested()
     implicitHeight: toolbarFlow.implicitHeight + padding * 2
-    padding: 12
+    padding: 0
+    color: "transparent"
+    border.color: "transparent"
     function vendorOptions() {
         return controller.vendorOptions.map(function(option) {
             return { value: option.value, label: i18n.catalog["vendor." + option.value] || option.label }
@@ -50,7 +51,7 @@ AppCard {
                 y: panelsButton.height + 6
                 width: 240
                 Repeater {
-                    model: ["configuration", "diagnostics", "temporary"]
+                    model: ["diagnostics", "temporary"]
                     delegate: MenuItem {
                         required property string modelData
                         objectName: "panelToggle-" + modelData
@@ -69,13 +70,6 @@ AppCard {
             }
         }
         Item { Layout.fillWidth: true }
-        AppButton {
-            objectName: "analyzeButton"
-            text: root.controller.busy ? i18n.catalog["toolbar.analyzing"] : i18n.catalog["toolbar.analyze"]
-            prominent: true
-            enabled: !root.controller.busy && root.controller.sourceText.trim().length > 0
-            onClicked: root.analyzeRequested()
-        }
     }
     SelectionDialog {
         id: modeDialog
@@ -85,8 +79,9 @@ AppCard {
         selectedValue: root.controller.mode
         options: [
             { label: i18n.catalog["mode.snippet"], value: "snippet", description: i18n.catalog["mode.snippet.detail"] },
+            { label: i18n.catalog["mode.message"], value: "message", description: i18n.catalog["mode.message.detail"] },
+            { label: i18n.catalog["mode.view"], value: "view", description: i18n.catalog["mode.view.detail"] },
             { label: i18n.catalog["mode.full"], value: "full", description: i18n.catalog["mode.full.detail"] },
-            { label: i18n.catalog["mode.snapshot"], value: "snapshot", description: i18n.catalog["mode.snapshot.detail"] }
         ]
         onValueSelected: value => root.controller.mode = value
     }

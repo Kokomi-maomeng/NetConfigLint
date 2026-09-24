@@ -1,6 +1,6 @@
 # H3C Comware command support contract
 
-NetConfigLint v2.0 preserves every non-empty H3C configuration line and never rejects a file merely
+NetConfigLint v2.1 preserves every non-empty H3C configuration line and never rejects a file merely
 because it contains an unknown command. This is complete **content retention**, not a claim that a
 finite static analyzer can emulate every command across every H3C model, card, license, and Comware
 release.
@@ -23,6 +23,11 @@ evidence supports a narrower future profile.
 - H3C diagnostic bundles with source-mapped running/saved configuration comparison, cards, fans,
   power, temperature, link aggregation, M-LAG/DRCP, OSPF neighbors, IPv4 route counts, LLDP,
   transceiver alarms, and log-buffer overwrite evidence.
+- Common IRF member/port/binding commands, session `sys`/`system-view` input, and Chinese annotation
+  lines. A two-member input using the same IRF port index on both members produces an inferred
+  topology warning. Actual cable endpoints must be verified using `display irf link`.
+- LLDP list rows can produce source-linked observed neighbor edges when the documented columns
+  are present. Column order varies by release; unsupported layouts remain unverified.
 
 The plugin exposes 47 registered `H3C-*` rule evaluators. Shared normalized checks are wrapped with H3C-only
 IDs and wording; H3C analysis never emits a `HUA-*` rule ID.
@@ -49,3 +54,8 @@ Acceptance requires exact source preservation, deterministic detection, no Huawe
 supported-command valid/invalid fixtures, and source-linked UNKNOWN output for all unmodeled lines.
 Hardware behavior, hidden defaults, feature licensing, and release-specific syntax still require the
 matching H3C reference and lab/device validation.
+
+IRF numbering and peer-port restrictions follow the official
+[H3C IRF configuration guide](https://www.h3c.com/en/d_201906/1192536_294551_0.htm).
+The parsed LLDP list columns follow the official
+[H3C LLDP command reference](https://www.h3c.com/en/d_202603/2792651_294551_0.htm).

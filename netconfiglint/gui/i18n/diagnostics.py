@@ -27,6 +27,8 @@ def _fill(translated: str, match: re.Match[str]) -> str:
 
 
 def translate_diagnostic(value: str) -> str:
+    if message := re.fullmatch(r"(.+) message: (.+)\.", value):
+        return f"{message[1]} 信息\uff1a{translate_diagnostic(message[2])}。"
     if value.endswith(" Starting view was not supplied."):
         return (
             translate_diagnostic(value.removesuffix(" Starting view was not supplied.")) + " 未提供起始视图。"
