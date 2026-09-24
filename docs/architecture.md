@@ -65,8 +65,13 @@ ProfileDatabase resolves source-linked metadata only; the capability repair is t
 
 - `snippet` (default in GUI, CLI, and API): missing global references are not definitive;
   diagnostics become INFO/UNKNOWN.
-- `full`: the supplied configuration is treated as the complete candidate configuration.
-- `snapshot`: parses bounded Huawei IPv4/IPv6 RIB, BGP peer, and interface-status sections, plus
+- `message`: interprets bounded log, prompt, and command-error event families with source lines
+  and investigative causes. Unmatched input remains visible as needing attention.
+- `view`: parses available operational evidence without assuming hidden configuration is faulty.
+- `full`: combines configuration, display output, and recognized log events in one source-mapped
+  result. The supplied configuration remains a candidate, not a device-behavior proof.
+- `snapshot` remains a CLI/API compatibility value for older scripts. The parsers handle
+  bounded Huawei IPv4/IPv6 RIB, BGP peer, and interface-status sections, plus
   bounded H3C diagnostic-bundle hardware/environment, aggregation, M-LAG/DRCP, OSPF, route-count,
   LLDP, transceiver-alarm, and log-buffer evidence.
   Exact prefix evidence must match the VPN and address family. Absence requires a successful,
@@ -80,7 +85,7 @@ controller runs analysis through a worker thread so large inputs cannot freeze t
 QML receives display-ready roles and jump targets; it never parses commands or evaluates a
 rule.
 
-Translation catalogs, optional privacy-minimized history, and block-based syntax highlighting
+Translation catalogs, default-on source-restorable history, and block-based syntax highlighting
 also sit behind QObject/list-model boundaries. QML does not access the filesystem directly.
 
 ## Version/profile evidence
