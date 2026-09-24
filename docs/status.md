@@ -1,27 +1,28 @@
-# v2.0 implementation status
+# v2.1 implementation status
 
-## Delivered source scope
+## Current scope
 
-- Huawei VRP remains at its v1.5 conservative parser/rule scope.
-- H3C Comware 7 has independent detection, parsing, rule IDs, command accounting, and 47 registered rules.
-- Every non-empty H3C line is preserved. Lines without implemented semantics are reported as
-  source-linked UNKNOWN rather than silently accepted.
-- The three workspace cards use a live full-card drag proxy and Material motion. The title bar,
-  navigation rail, and workspace form one coherent surface.
-- The meaningless About horizontal thumb and text glyph substitutes were removed; scrollbar
-  visibility now follows actual overflow.
-- The original sakura-network icon has generated 16–1024 px variants and native package assets.
-- Portable history stays adjacent to the executable; installed history uses platform app data.
-  Uninstall helpers expose keep-history and delete-all-data choices.
+- The GUI offers configuration snippet, message, View, and full-configuration modes. The CLI
+  continues accepting `snapshot` for older scripts.
+- Huawei VRP and H3C Comware retain source-linked, conservative diagnostics. H3C adds common IRF
+  command recognition and an inferred peer-port warning; operational LLDP rows expose observed
+  neighbor edges. Message interpretation covers bounded event families and leaves unclassified
+  text explicit.
+- Full mode combines supported configuration, display and log evidence. Hidden defaults, physical
+  cabling, and device behavior remain outside static verification.
+- History is on by default, stores source and diagnostics locally, and can restore an earlier
+  workspace. Turning it off confirms deletion. The Windows portable ZIP places application-owned
+  settings, history, cache and temporary data beside the executable.
+- The desktop uses a top toolbar, collapsible history rail, unified Material cards, and live
+  syntax highlighting in both editors. Configuration content remains a required card.
 
-## Release boundaries
+## Release boundary
 
-- Windows portable ZIP and WiX MSI, Linux amd64 DEB, and macOS PKG build paths are automated.
-- Trusted Windows/macOS signatures require external code-signing identities. Missing credentials
-  produce explicitly named unsigned installers; the build never labels them signed.
-- Windows and Debian acceptance require real installed/portable smoke evidence. macOS authored
-  packaging or CI smoke is not evidence for user-hardware compatibility.
-- Static analysis cannot prove device behavior, every platform-specific command, or live network correctness.
+The v2.1 GitHub Release publishes only a Windows x64 portable ZIP and its SHA-256 checksum.
+Linux, macOS, and Windows installer builds remain CI validation paths. Cross-platform CI, the
+Windows extracted-package acceptance, and the source/archive privacy scan are release gates.
+The command families are bounded by documented fixtures; device-specific acceptance requires
+the matching platform, software release, and a controlled network validation.
 
-See [H3C support](h3c-command-support.md), [v2.0 release notes](release-v2.0.0.md), and
-[v2.0 acceptance](v2.0-acceptance.md).
+See [v2.1 scope](v2.1-change-scope.md), [H3C support](h3c-command-support.md), and the
+[v2.0 acceptance record](v2.0-acceptance.md) for prior release evidence.
