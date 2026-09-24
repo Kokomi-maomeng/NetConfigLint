@@ -5,7 +5,11 @@ import theme 1.0
 Rectangle {
     id: root
     property string title
+    property string titleObjectName: ""
     property string detail: ""
+    property string actionText: ""
+    property bool actionEnabled: true
+    signal actionClicked()
     signal dragStarted(real sceneX)
     signal dragMoved(real sceneX)
     signal dragFinished(real sceneX)
@@ -59,7 +63,21 @@ Rectangle {
             ToolTip.visible: gripHover.hovered
             ToolTip.text: i18n.catalog["panels.reorder"]
         }
-        SelectableText { text: root.title; Layout.fillWidth: true; font: Typography.subtitle; wrapMode: TextEdit.NoWrap; clip: true }
+        SelectableText {
+            objectName: root.titleObjectName
+            text: root.title
+            Layout.fillWidth: true
+            font: Typography.subtitle
+            wrapMode: TextEdit.NoWrap
+            clip: true
+        }
+        Button {
+            objectName: "analyzeButton"
+            visible: root.actionText.length > 0
+            text: root.actionText
+            enabled: root.actionEnabled
+            onClicked: root.actionClicked()
+        }
         SelectableText { text: root.detail; visible: text.length > 0; color: Colors.textSecondary; font: Typography.caption }
     }
 }

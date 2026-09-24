@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '2.0.0',
+    [string]$Version = '2.1.0',
     [string]$CertificateThumbprint = '',
     [string]$PfxPath = '',
     [switch]$SkipAppBuild
@@ -40,8 +40,8 @@ $history = Join-Path $stagingRoot 'history'
 New-Item -ItemType Directory -Path $history | Out-Null
 Set-Content -LiteralPath (Join-Path $stagingRoot 'portable.flag') -Encoding ASCII -Value 'portable'
 Set-Content -LiteralPath (Join-Path $history 'README.txt') -Encoding UTF8 -Value @(
-    'NetConfigLint stores optional privacy-minimized local history in this directory.'
-    'Configuration text, filenames, object names, and addresses are not stored here.'
+    'NetConfigLint stores analysis history here by default, including source configuration and diagnostics.'
+    'Disable history in Settings to delete saved entries. Treat this folder as sensitive.'
 )
 
 $python = Join-Path $projectRoot '.venv\Scripts\python.exe'

@@ -9,8 +9,8 @@ import "pages"
 ApplicationWindow {
     id: window
     visible: true
-    width: 1440
-    height: 900
+    width: preferences.values.windowWidth
+    height: preferences.values.windowHeight
     minimumWidth: 960
     minimumHeight: 600
     title: preferences.values.panelTitle
@@ -27,7 +27,14 @@ ApplicationWindow {
     Material.background: Colors.surfaceContainer
     Material.foreground: Colors.textPrimary
     property int currentPage: 0
-    readonly property var pageTitles: [i18n.catalog["page.check"], i18n.catalog["nav.history"], i18n.catalog["nav.about"]]
+    Component.onCompleted: {
+        if (preferences.values.windowPositionSaved) {
+            x = preferences.values.windowX
+            y = preferences.values.windowY
+        }
+        if (preferences.values.windowMaximized) showMaximized()
+    }
+    onClosing: preferences.saveWindowGeometry(x, y, width, height, visibility === Window.Maximized)
     onCurrentPageChanged: pageTransition.restart()
     function clearOtherSelections(item, position) {
         if (!item) return
@@ -53,8 +60,18 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.preferredHeight: implicitHeight
             navigationWidth: navigationHost.width
-            pageTitle: window.pageTitles[window.currentPage] || "NetConfigLint"
-            detail: analysisController.fileName
+            controller: analysisController
+            onToggleRequested: {
+                var nextExpanded = !navigation.expanded
+                navigation.expandedInCompact = nextExpanded
+                preferences.setValue("sidebarExpanded", nextExpanded)
+            }
+            onOpenRequested: { window.currentPage = 0; checkPage.openFileDialog() }
+            onExportRequested: { window.currentPage = 0; checkPage.openExportDialog() }
+            onAboutRequested: {
+                window.currentPage = 1
+                navigation.expandedInCompact = false
+            }
         }
         RowLayout {
             Layout.fillWidth: true
@@ -74,6 +91,11 @@ ApplicationWindow {
                     width: expanded ? 260 : 80
                     Behavior on width { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
                     currentIndex: window.currentPage
+                    controller: analysisController
+                    onHistorySelected: entryId => {
+                        analysisController.openHistory(entryId)
+                        window.currentPage = 0
+                    }
                     onPageSelected: index => {
                         window.currentPage = index
                         expandedInCompact = false
@@ -84,14 +106,20 @@ ApplicationWindow {
                     }
                 }
             }
-            StackLayout {
-                id: pageStack
+            Rectangle {
+                id: workspaceSurface
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                currentIndex: window.currentPage
-                ConfigCheckPage { controller: analysisController }
-                HistoryPage { controller: analysisController }
-                AboutPage { }
+                color: Colors.background
+                topLeftRadius: 28
+                clip: true
+                StackLayout {
+                    id: pageStack
+                    anchors.fill: parent
+                    currentIndex: window.currentPage
+                    ConfigCheckPage { id: checkPage; controller: analysisController }
+                    AboutPage { }
+                }
             }
         }
     }

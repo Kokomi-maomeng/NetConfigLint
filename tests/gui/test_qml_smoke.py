@@ -151,7 +151,7 @@ def test_mode_dialog_stays_inside_window_and_options_have_room(qapp: object) -> 
 
     assert dialog.property("visible") is True
     assert dialog.property("width") <= window.width() - 32
-    for value in ("snippet", "full", "snapshot"):
+    for value in ("snippet", "message", "view", "full"):
         option = _visual_by_name(window, f"modeOption-{value}")
         assert option.width() > 480
         assert option.height() >= 52

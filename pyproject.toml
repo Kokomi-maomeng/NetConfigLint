@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "netconfiglint"
-version = "2.0.0"
+version = "2.1.0"
 description = "A fast, offline, extensible static analyzer for network device configurations."
 readme = "README.md"
 requires-python = ">=3.12,<3.14"

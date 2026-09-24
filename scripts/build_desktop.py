@@ -12,7 +12,7 @@ from check_build_environment import check
 from prepare_linux_runtime import prune as prune_linux_runtime
 
 APP_NAME = "NetConfigLint"
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.1.0"
 MACOS_EXECUTABLE = "NetConfigLintApp"
 
 

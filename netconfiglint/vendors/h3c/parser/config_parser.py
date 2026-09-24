@@ -11,6 +11,7 @@ import re
 from dataclasses import replace
 
 from netconfiglint.core.analyzer.models import AnalysisMode, VendorDetection
+from netconfiglint.core.analyzer.operational_input import mask_operational_output
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
 from netconfiglint.core.model import DeviceConfig
 from netconfiglint.vendors.h3c.parser.diagnostic_bundle import extract_h3c_diagnostic_bundle
@@ -51,6 +52,18 @@ _SEMANTIC_PATTERNS = tuple(
     )
 )
 _PLATFORM_SPECIFIC = re.compile(r"^(?:system-working-mode\b|xbar\b|ftth\b|onu\b)", re.IGNORECASE)
+_IRF_COMMAND = re.compile(
+    r"^(?:irf-port\s+\d+/[12]|irf-port-configuration\s+active|"
+    r"irf\s+(?:member\s+\d+\s+(?:renumber|priority|description)\b.*|domain\s+\d+|"
+    r"mac-address\s+persistent\b.*|auto-update\s+enable|link-delay\s+\d+)|"
+    r"(?:undo\s+)?port\s+group\s+interface\s+\S+)$",
+    re.I,
+)
+_SESSION_COMMAND = re.compile(r"^(?:sys|system-view|quit|return|save(?:\s+.*)?)$", re.I)
+_ANNOTATION = re.compile(
+    r"^(?:[/;]|(?:说明|备注|注意|配置示例|设备[一二三四1234])\s*[:\uff1a]|"
+    r"[\u4e00-\u9fff]+[\uff0c\u3002\uff1b\uff1a])"
+)
 
 
 def _normalize_body(body: str) -> str:
@@ -117,7 +130,12 @@ class H3CConfigParser:
         initial_view: str | None = None,
     ) -> DeviceConfig:
         bundle = extract_h3c_diagnostic_bundle(source)
-        parser_source = bundle.masked_configuration if bundle is not None else source
+        if bundle is not None:
+            parser_source, analysis_scope = bundle.masked_configuration, set(bundle.analysis_lines)
+        elif mode in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT}:
+            parser_source, analysis_scope = mask_operational_output(source)
+        else:
+            parser_source, analysis_scope = source, set()
         normalized = _normalize_source(parser_source)
         delegate_mode = AnalysisMode.FULL if bundle is not None else mode
         config = self._normalized.parse(
@@ -132,7 +150,7 @@ class H3CConfigParser:
         config.metadata["profile_id"] = detection.profile_id
         config.metadata["command_accounting"] = "source-preserving"
         if bundle is not None:
-            config.analysis_lines = set(bundle.analysis_lines)
+            config.analysis_lines = analysis_scope
             config.metadata["diagnostic_bundle_sections"] = str(bundle.section_count)
             config.metadata["saved_configuration_present"] = str(bundle.saved_present).lower()
             config.metadata["saved_configuration_matches"] = (
@@ -140,6 +158,10 @@ class H3CConfigParser:
                 if bundle.saved_matches_current is None
                 else str(bundle.saved_matches_current).lower()
             )
+            config.snapshot = H3CSnapshotParser().parse(source)
+        elif mode in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT}:
+            config.analysis_lines = analysis_scope
+            config.metadata["analysis_scope_explicit"] = "true"
             config.snapshot = H3CSnapshotParser().parse(source)
 
         # The normalized model is already populated. Restore the exact Comware text for
@@ -155,6 +177,39 @@ class H3CConfigParser:
             ]
 
         semantic_lines: set[int] = set()
+        irf_ports: dict[int, tuple[int, int]] = {}
+        irf_bindings: set[int] = set()
+        for number, line in enumerate(originals, 1):
+            if mode in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT} and number not in analysis_scope:
+                continue
+            body = line.strip()
+            if _IRF_COMMAND.fullmatch(body):
+                semantic_lines.add(number)
+                if match := re.fullmatch(r"irf-port\s+(\d+)/([12])", body, re.I):
+                    irf_ports[int(match.group(1))] = (int(match.group(2)), number)
+                elif re.fullmatch(r"port\s+group\s+interface\s+\S+", body, re.I):
+                    irf_bindings.add(number)
+            elif _SESSION_COMMAND.fullmatch(body) or _ANNOTATION.match(body):
+                config.ignored_lines.append(SourceRange(number))
+                semantic_lines.add(number)
+        # A two-member sample with both peer ports on the same side cannot form
+        # the direct adjacency described by the H3C IRF configuration guide.
+        if len(irf_ports) == 2 and len({side for side, _ in irf_ports.values()}) == 1 and irf_bindings:
+            members = sorted(irf_ports)
+            side, source_line = irf_ports[members[1]]
+            config.parse_issues.append(
+                Diagnostic(
+                    Severity.WARNING,
+                    "H3C-IRF-001",
+                    SourceRange(source_line),
+                    "IRF peer port",
+                    f"Members {members[0]} and {members[1]} both use IRF port index {side}.",
+                    "If these are the two directly connected peers, their IRF port indices must differ "
+                    "(for example 1/2 to 2/1). The supplied text does not prove the cabling topology.",
+                    "Verify display irf link and both bindings; connect a /1 port to a peer /2 port.",
+                    Confidence.INFERRED,
+                )
+            )
         command_families: dict[str, list[int]] = {}
         for block in config.blocks:
             commands = [(block.header, block.source), *((item.text, item.source) for item in block.commands)]
