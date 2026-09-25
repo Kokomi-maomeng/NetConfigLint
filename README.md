@@ -1,4 +1,6 @@
-# NetConfigLint v2.0
+# NetConfigLint v2.1
+
+Project versions, local release files, rollback records, and the consolidated task entry are mapped in [PROJECT_INDEX.md](PROJECT_INDEX.md).
 
 > A fast, offline, extensible static analyzer for network device configurations.
 
@@ -9,19 +11,21 @@ source-linked diagnostics to the CLI and QML desktop application through one sha
 It is not a complete VRP emulator, network simulator, migration engine, or replacement for
 vendor-supported validation and lab testing.
 
-See the [v2.0 release notes](docs/release-v2.0.0.md), [H3C coverage contract](docs/h3c-command-support.md),
-and [v2.0 acceptance report](docs/v2.0-acceptance.md).
+See the [v2.1 change scope](docs/v2.1-change-scope.md), [H3C coverage contract](docs/h3c-command-support.md),
+and [v2.0 acceptance report](docs/v2.0-acceptance.md) for earlier release evidence.
 
-## Desktop v2.0
+## Desktop v2.1
 
 The desktop adopts the Material 3 typography, palettes, rounded navigation, cards, and motion
 of [Material-Design-CastoriceUI](https://github.com/Kokomi-maomeng/Material-Design-CastoriceUI).
 Roboto and Noto Sans SC are bundled for offline use. Platform font rasterizers still differ.
 
-- Open and Export sit together; Mode and Vendor show their current values; Analyze is on the right.
+- Open, Export, Mode, Vendor, and Display are in the top bar. Analyze is inside Configuration.
+  The sidebar toggle is at the far left; the logo/title at the right opens About.
 - Settings opens from the bottom-left sidebar. Customize the panel title, language, system/light/dark
-  appearance, and ten theme colors. About remains a separate page with link cards.
-- Use View to hide or restore each workspace card. Drag the dotted header grip to pick up a live
+  appearance, and ten theme colors. History entries expand in the sidebar.
+- Use Display to hide or restore Diagnostics and Temporary Editor; Configuration remains visible.
+  Drag the dotted header grip to pick up a live
   image of the complete card, move it horizontally, and let Material motion settle it into its new
   position; keyboard arrow reordering remains available. Drag separators to resize cards. Hiding/reordering
   retains text and editor zoom; panel visibility/order and appearance persist between launches.
@@ -32,7 +36,7 @@ Roboto and Noto Sans SC are bundled for offline use. Platform font rasterizers s
   results from an outdated background analysis are discarded. Status appears within Diagnostics.
 - Export configuration plus diagnostics, configuration only, or diagnostics only as JSON, Markdown,
   or text. Full exports put complete source first by default. Diagnostics-first exports annotate code
-  lines with severity counts. Confirmation opens the native save flow; Cancel/outside click aborts.
+  lines with severity counts. Confirmation opens a Qt Quick save dialog; Cancel/outside click aborts.
   Reports containing diagnostics require a current analysis and always include all severities.
 - Imported H3C diagnostic bundles use a responsive read-only running-configuration preview and append
   source-mapped operational evidence excerpts after analysis. Configuration-only export selects the
@@ -57,7 +61,7 @@ The Huawei VRP implementation includes:
   rule families that do not yet require a dedicated normalized object;
 - operational snapshot parsing for IPv4/IPv6 RIB, BGP peer, and interface state;
 - exact BGP network-to-RIB checks when the matching routing table is supplied;
-- Snippet, Full Configuration, and Snapshot analysis semantics;
+- Snippet, Message, View, and Full analysis semantics;
 - 50 Huawei rules with synthetic valid/invalid regression fixtures.
 
 Unknown commands retain source mapping and do not make parsing fail. Unsupported vendors,
@@ -76,9 +80,10 @@ All analysis runs locally. NetConfigLint has no cloud backend and does not uploa
 text. Default logs do not contain the complete configuration. Sensitive-data diagnostics expose
 only a rule, line, and generic warning, never the detected value.
 
-Local history is optional and disabled by default. When enabled it stores only time, mode,
-detected vendor, source line count, diagnostic counts, and Rule IDs. It does not store
-configuration text, filenames, object names, or network addresses.
+Local history is enabled by default and stores configuration text and full diagnostics so a
+past analysis can be reopened. This file can contain passwords and network details; keep the
+portable folder private. Disable history in Settings to delete all stored entries. An unchanged
+historical input reanalysis keeps the original entry; editing it creates a new entry.
 
 Explicit configuration/full exports contain the requested source text. Diagnostic reports can
 also disclose network design; review exported files before sharing.
@@ -108,15 +113,16 @@ python3 -m venv .venv
 
 The desktop, CLI, and Python API default to **Snippet** mode. Paste part of a configuration
 to check it without treating omitted settings as confirmed missing. Select **Full** when
-providing the whole device configuration, or **Snapshot** when also providing supported
-route, peer, or interface command output.
+providing the whole device configuration and any available operational output. Use **View**
+for operational output without configuration, or **Message** for logs and command errors.
 
 ```console
 netconfiglint check examples/huawei-basic.cfg
 netconfiglint check config.txt --mode snippet --vendor auto --format text
 netconfiglint check config.txt --mode full --vendor huawei --format json
 netconfiglint check h3c.cfg --mode full --vendor h3c --format json
-netconfiglint check snapshot.txt --mode snapshot
+netconfiglint check log.txt --mode message --vendor h3c
+netconfiglint check display.txt --mode view --vendor huawei
 ```
 
 Exit code `0` means no ERROR diagnostic, `1` means at least one ERROR, and `2` means an
@@ -144,8 +150,8 @@ The QML-first PySide6 desktop application provides:
 - a left-to-right analyzed configuration, diagnostics, and temporary-editor workspace with two
   visible mouse-draggable split handles;
 - click-to-filter ERROR/WARNING/INFO/UNKNOWN severity chips that toggle back to the full result;
-- optional privacy-minimized local history beside the executable only in portable mode, or in the
-  operating system application-data location after installation, with an explicit clear action;
+- default-enabled, source-restorable history beside the executable in portable mode, or in the
+  operating system application-data location after installation; disabling clears saved entries;
 - asynchronous analysis so large configuration input does not block the GUI thread.
 
 ### Screenshot
@@ -156,10 +162,12 @@ _Release screenshots are reserved for `docs/screenshots/`._
 
 - **Snippet**: unresolved definitions become UNKNOWN because they may exist outside the input;
   unused-object rules are suppressed.
-- **Full**: input is treated as a complete candidate configuration, enabling definitive
-  normalized reference checks.
-- **Snapshot**: configuration plus recognized `display` output can prove RIB presence, peer
-  state, and interface state. Missing operational sections remain unknown rather than failing.
+- **Message**: interprets recognized prompts, logs, and errors; possible causes are hypotheses.
+- **View**: inspects supported route, peer, interface, LLDP, and H3C operational output without
+  assuming configuration access.
+- **Full**: treats the supplied configuration as a complete candidate for supported reference
+  checks and combines recognized `display` output and log messages.
+  The older CLI `snapshot` value remains accepted for existing scripts.
 
 ## Rule catalog
 
@@ -256,7 +264,7 @@ checking the final dependency closure.
 .\scripts\build_msi.ps1 -SkipAppBuild
 ```
 
-The portable command creates `release/NetConfigLint-2.0.0-windows-x64-portable.zip`. Extract the
+The portable command creates `release/NetConfigLint-2.1.0-windows-x64-portable.zip`. Extract the
 single top-level folder and start `NetConfigLint.exe`; the Nuitka build uses the Windows GUI
 subsystem and therefore does not open a console window.
 
@@ -328,6 +336,8 @@ See [Huawei validation notes](docs/huawei-validation.md), [status](docs/status.m
   and qualified desktop builds with a Windows portable release.
 - **v2.0**: H3C Comware plugin, live card dragging, integrated title/navigation surface, animation
   unification, original sakura icon, MSI/DEB/PKG packaging, and explicit keep/delete uninstall paths.
+- **v2.1**: four visible analysis modes, source-restorable history, IRF peer-port check, LLDP view
+  evidence, combined config/display input, revised toolbar and portable state paths.
 - **Future**: Juniper Junos plugin, VS Code integration, configuration diff,
   topology/dependency graph, Batfish
   integration, CI validation, and migration assistance.

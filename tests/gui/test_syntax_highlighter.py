@@ -1,6 +1,13 @@
+from PySide6.QtCore import QObject
 from PySide6.QtGui import QTextDocument
 
-from netconfiglint.gui.bridge import HuaweiConfigHighlighter, NetworkConfigHighlighter
+from netconfiglint.gui.app.main import create_engine
+from netconfiglint.gui.bridge import (
+    HuaweiConfigHighlighter,
+    NetworkConfigHighlighter,
+    SyntaxHighlighterBridge,
+)
+from netconfiglint.gui.controllers import AnalysisController
 
 
 def test_huawei_syntax_highlighter_formats_incremental_blocks(qapp: object) -> None:
@@ -35,3 +42,33 @@ def test_h3c_keywords_and_unsupported_lines_are_highlighted(qapp: object) -> Non
     assert all(document.findBlockByNumber(index).layout().formats() for index in range(5))
     unsupported = document.findBlockByNumber(3).layout().formats()
     assert any(item.format.background().color().isValid() for item in unsupported)
+
+
+def test_both_live_editors_rehighlight_irf_while_typing(qapp: object) -> None:
+    controller = AnalysisController(async_enabled=False)
+    engine = create_engine(controller)
+    window = engine.rootObjects()[0]
+    bridge = engine.rootContext().contextProperty("syntaxHighlighter")
+    assert len(bridge._highlighters) == 2
+    controller.sourceText = "irf-port 1/1\n port group interface Ten-GigabitEthernet1/0/1"
+    temporary = window.findChild(QObject, "temporaryTextArea")
+    assert temporary is not None
+    temporary.setProperty("text", "sys\nirf member 1 priority 32")
+    for highlighter in bridge._highlighters:
+        document = highlighter.document()
+        assert document.firstBlock().layout().formats()
+    window.close()
+    controller.close()
+
+
+def test_unsupported_line_feedback_only_marks_source_editor(qapp: object) -> None:
+    source = QTextDocument("unknown command")
+    temporary = QTextDocument("unknown command")
+    bridge = SyntaxHighlighterBridge()
+    bridge.attach(source)
+    bridge.attach(temporary)
+    bridge.setUnsupportedLinesFor(source, [1])
+    marked = source.firstBlock().layout().formats()
+    unmarked = temporary.firstBlock().layout().formats()
+    assert any(item.format.background().color().isValid() for item in marked)
+    assert not any(item.format.background().color().isValid() for item in unmarked)

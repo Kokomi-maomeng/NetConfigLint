@@ -9,6 +9,7 @@ from netconfiglint.core.model import SnapshotEvidence
 
 _HEADER = re.compile(r"^\s*=+\s*(.*?)\s*=+\s*$")
 _BOUNDARY = re.compile(r"^\s*=+\s*$")
+_PROMPT = re.compile(r"^\s*(?:<[^>]+>|\[[^]]+\])\s*(display\s+.+?)\s*$", re.I)
 
 
 def _sections(source: str) -> dict[str, tuple[int, list[tuple[int, str]]]]:
@@ -24,6 +25,20 @@ def _sections(source: str) -> dict[str, tuple[int, list[tuple[int, str]]]]:
             len(lines),
         )
         result.setdefault(name, (index + 1, [(i + 1, lines[i]) for i in range(index + 1, end)]))
+    for index, line in enumerate(lines):
+        match = _PROMPT.fullmatch(line)
+        if match is None:
+            continue
+        name = match.group(1).strip().lower()
+        end = next(
+            (
+                i
+                for i in range(index + 1, len(lines))
+                if _PROMPT.fullmatch(lines[i]) or _HEADER.fullmatch(lines[i])
+            ),
+            len(lines),
+        )
+        result.setdefault(name, (index + 1, [(i + 1, lines[i]) for i in range(index + 1, end)]))
     return result
 
 
@@ -32,6 +47,7 @@ class H3CSnapshotParser:
         evidence = SnapshotEvidence()
         sections = _sections(source)
         facts: dict[str, Any] = {}
+        facts["observed_sections"] = len(sections)
 
         def section(name: str) -> list[tuple[int, str]]:
             return sections.get(name, (0, []))[1]
@@ -138,11 +154,23 @@ class H3CSnapshotParser:
                 break
         facts["ipv4_routing_table"] = routes
 
-        lldp = 0
-        for _number, line in section("display lldp neighbor-information list"):
-            if re.match(r"^\s*\S+\s+[0-9a-f]{4}(?:-[0-9a-f]{4}){2}\s+\S+\s+\S+", line, re.I):
-                lldp += 1
-        facts["lldp"] = {"neighbors": lldp}
+        lldp_edges: list[dict[str, Any]] = []
+        lldp_section = section("display lldp neighbor-information list")
+        reverse_columns = any(line.strip().lower().startswith("system name") for _, line in lldp_section)
+        for number, line in lldp_section:
+            columns = line.split()
+            if len(columns) < 4:
+                continue
+            local, chassis, port, remote = (
+                (columns[1], columns[2], columns[3], columns[0])
+                if reverse_columns
+                else (columns[0], columns[1], columns[2], columns[3])
+            )
+            if re.fullmatch(r"[0-9a-f]{4}(?:-[0-9a-f]{4}){2}", chassis, re.I):
+                lldp_edges.append(
+                    {"local": local, "chassis": chassis, "port": port, "remote": remote, "line": number}
+                )
+        facts["lldp"] = {"neighbors": len(lldp_edges), "edges": lldp_edges}
 
         active_alarms: list[int] = []
         alarm_section = section("display transceiver alarm interface")

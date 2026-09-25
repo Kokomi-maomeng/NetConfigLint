@@ -7,6 +7,8 @@ Button {
     property url iconSource
     property bool selected: false
     property bool expanded: true
+    property bool expandable: false
+    property bool expandedState: false
     implicitHeight: 48
     topInset: 0
     bottomInset: 0
@@ -34,6 +36,23 @@ Button {
         radius: 24
         border.color: control.activeFocus ? Colors.primary : "transparent"
         Behavior on color { ColorAnimation { duration: Theme.motionShort } }
+    }
+    Item {
+        width: 14; height: 14
+        anchors.right: parent.right
+        anchors.rightMargin: 18
+        anchors.verticalCenter: parent.verticalCenter
+        visible: control.expanded && control.expandable
+        rotation: control.expandedState ? 0 : -90
+        Behavior on rotation { NumberAnimation { duration: Theme.motionShort } }
+        Rectangle {
+            x: 2; y: 6; width: 7; height: 2; radius: 1
+            rotation: 45; color: Colors.textSecondary
+        }
+        Rectangle {
+            x: 7; y: 6; width: 7; height: 2; radius: 1
+            rotation: -45; color: Colors.textSecondary
+        }
     }
     scale: down ? 0.97 : 1
     Behavior on scale { NumberAnimation { duration: Theme.motionShort; easing.type: Easing.OutCubic } }

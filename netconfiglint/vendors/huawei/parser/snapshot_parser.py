@@ -84,6 +84,9 @@ class HuaweiSnapshotParser:
                 elif command.lower() in {"display ip interface brief", "display interface brief"}:
                     section = "interface-ip" if command.lower().startswith("display ip ") else "interface"
                     evidence.interface_table_present = True
+                elif command.lower() == "display lldp neighbor brief":
+                    section = "lldp"
+                    evidence.operational.setdefault("lldp", {"edges": []})
                 continue
             if re.search(
                 r"^(?:%\s*)?(?:error\b|failed\b|permission\b|access denied\b|"
@@ -139,6 +142,21 @@ class HuaweiSnapshotParser:
                 )
                 if interface is not None:
                     interfaces.append((record_id, interface))
+            elif section == "lldp":
+                row = re.fullmatch(
+                    r"\s*([A-Za-z][A-Za-z-]*\s*\d[\d/.:]*)\s+(\S+)\s+"
+                    r"([A-Za-z][A-Za-z-]*\s*\d[\d/.:]*)\s+(\d+)\s*",
+                    text,
+                )
+                if row:
+                    evidence.operational["lldp"]["edges"].append(
+                        {
+                            "local": row.group(1),
+                            "remote": row.group(2),
+                            "port": row.group(3),
+                            "line": line.number,
+                        }
+                    )
         if pending_ipv6 is not None and capture is not None:
             capture.truncated = True
         conflicting_scopes: set[tuple[int, str | None]] = set()

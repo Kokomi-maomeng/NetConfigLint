@@ -49,7 +49,7 @@ def test_integrated_title_bar_and_about_horizontal_scrollbar(gui: tuple) -> None
     assert flags & Qt.WindowType.NoTitleBarBackgroundHint
     if sys.platform == "win32":
         assert title_bar.property("titleInset") >= 32
-    window.setProperty("currentPage", 2)
+    window.setProperty("currentPage", 1)
     QTest.qWait(300)
     horizontal = find(window, "aboutHorizontalScrollBar")
     assert not horizontal.isVisible()

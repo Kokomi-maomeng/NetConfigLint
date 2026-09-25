@@ -3,7 +3,6 @@ from dataclasses import asdict
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QPointF
 from PySide6.QtTest import QTest
 
 from netconfiglint import analyze
@@ -28,7 +27,7 @@ def test_f15_isolates_bad_history_and_preserves_original(tmp_path: Path, qapp: o
     assert path.read_bytes() == data
     store.clear()
     store.append(analyze("sysname SYNTHETIC", vendor="huawei"))
-    assert json.loads(path.read_text("utf-8"))["schema_version"] == 1
+    assert json.loads(path.read_text("utf-8"))["schema_version"] == 2
 
 
 @pytest.mark.parametrize(
@@ -73,7 +72,7 @@ def descendants(item):
 
 @pytest.mark.parametrize("language", ["en", "zh_CN"])
 @pytest.mark.parametrize("width", [960, 1440])
-def test_f16_history_long_rules_fit_and_disabled_state_is_visible(
+def test_f16_sidebar_history_fits_and_disabled_state_is_visible(
     tmp_path: Path, qapp: object, language: str, width: int
 ) -> None:
     store = HistoryStore(tmp_path / "history.json", enabled=True, persist_settings=False)
@@ -95,13 +94,15 @@ def test_f16_history_long_rules_fit_and_disabled_state_is_visible(
     window.setWidth(width)
     window.setHeight(800)
     engine.rootContext().contextProperty("i18n").language = language
-    window.setProperty("currentPage", 1)
+    rail = next(i for i in descendants(window.contentItem()) if i.objectName() == "navigationRail")
+    if width == 960:
+        QTest.qWait(120)
+        engine.rootContext().contextProperty("preferences").setValue("sidebarExpanded", True)
+        rail.setProperty("expandedInCompact", True)
     QTest.qWait(400)
-    card = next(i for i in descendants(window.contentItem()) if i.objectName() == "historyCard")
-    rules = next(i for i in descendants(card) if i.objectName() == "historyRules")
-    bottom = rules.mapToItem(card, QPointF(rules.width(), rules.height()))
-    assert bottom.x() <= card.width() and bottom.y() <= card.height()
-    assert card.height() > 92
+    card = next(i for i in descendants(window.contentItem()) if i.objectName() == "historyEntry-synthetic")
+    assert card.isVisible() and card.width() <= rail.width()
+    assert card.height() == 56
     assert window.grabWindow().save(str(tmp_path / "history-long.png"))
     controller.historyEnabled = False
     QTest.qWait(120)

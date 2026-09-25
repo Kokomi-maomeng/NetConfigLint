@@ -51,6 +51,7 @@ _DEBIAN_SYSTEM_LIBRARIES = {
     "libffi.so.8",
     "liblzma.so.5",
     "libssl.so.3",
+    "libuuid.so.1",
     "libzstd.so.1",
 }
 

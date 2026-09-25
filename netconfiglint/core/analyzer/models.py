@@ -11,7 +11,10 @@ if TYPE_CHECKING:
 
 class AnalysisMode(StrEnum):
     SNIPPET = "snippet"
+    MESSAGE = "message"
+    VIEW = "view"
     FULL = "full"
+    # Accepted by the CLI for older reports; the GUI offers the four modes above.
     SNAPSHOT = "snapshot"
 
 
@@ -42,7 +45,11 @@ class AnalysisResult:
     @property
     def coverage(self) -> dict[str, Any]:
         config = self.config
-        scope = config.analysis_lines or set(range(1, len(config.source_lines) + 1))
+        scope = (
+            config.analysis_lines
+            if config.metadata.get("analysis_scope_explicit") == "true"
+            else config.analysis_lines or set(range(1, len(config.source_lines) + 1))
+        )
         ignored = {item.line for item in config.ignored_lines if item.line in scope}
         ignored.update(
             number

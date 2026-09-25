@@ -15,8 +15,8 @@ class H3COperationalEvidenceRule:
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
         facts = context.config.snapshot.operational
-        if not facts:
-            if context.mode.value != "snapshot":
+        if not facts or not facts.get("observed_sections"):
+            if context.mode.value not in {"snapshot", "view"}:
                 return ()
             return (
                 Diagnostic(
@@ -52,6 +52,19 @@ class H3COperationalEvidenceRule:
                 Confidence.DOCUMENTED,
             )
         ]
+        for edge in lldp.get("edges", []):
+            result.append(
+                Diagnostic(
+                    Severity.INFO,
+                    "H3C-OPS-013",
+                    _line(edge.get("line")),
+                    str(edge["local"]),
+                    f"LLDP shows {edge['local']} connected to {edge['remote']} {edge['port']}.",
+                    f"Peer chassis ID: {edge['chassis']}. Observed adjacency does not prove forwarding.",
+                    "Compare peer-side LLDP and the intended cabling/topology plan.",
+                    Confidence.DOCUMENTED,
+                )
+            )
 
         for key, label, rule_id in (
             ("hardware", "installed card", "H3C-OPS-001"),
