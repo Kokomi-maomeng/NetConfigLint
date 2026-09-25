@@ -30,6 +30,7 @@ def test_linux_runtime_prunes_broad_qt_payload_by_dependency_closure(
     xcb = _file(distribution, "libQt6XcbQpa.so.6")
     unused = _file(distribution, "libQt63DCore.so.6")
     system_library = _file(distribution, "libbz2.so.1.0")
+    uuid_library = _file(distribution, "libuuid.so.1")
 
     graph = {
         app: (None, ("libQt6Core.so.6",)),
@@ -48,6 +49,7 @@ def test_linux_runtime_prunes_broad_qt_payload_by_dependency_closure(
     assert xcb.is_file()
     assert not unused.exists()
     assert not system_library.exists()
+    assert not uuid_library.exists()
     assert not (distribution / "PySide6/Qt3DCore.so").exists()
     assert not (distribution / "PySide6/qml/Qt3D").exists()
     assert not (distribution / "PySide6/qml/QtQuick/Controls/Universal").exists()

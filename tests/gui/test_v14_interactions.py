@@ -102,23 +102,24 @@ def test_compact_sidebar_expands_over_workspace_and_dismisses(gui: tuple) -> Non
     wait_until(lambda: rail.width() == 80)
     assert rail.width() == 80
     click(window, "sidebarToggle")
-    click(window, "navigation-2")
+    click(window, "brandAboutButton")
     wait_until(lambda: rail.width() == 80)
-    assert window.property("currentPage") == 2
+    assert window.property("currentPage") == 1
     assert rail.width() == 80
 
 
-def test_hide_and_restore_all_panels_preserves_both_editors(gui: tuple) -> None:
+def test_configuration_stays_visible_while_optional_panels_toggle(gui: tuple) -> None:
     window, controller, engine = gui
     controller.sourceText = "sysname SOURCE\n"
     scratch = find(window, "temporaryTextArea")
     scratch.setProperty("text", "scratch text only")
     preferences = engine.rootContext().contextProperty("preferences")
-    for key in ("configuration", "diagnostics", "temporary"):
+    for key in ("diagnostics", "temporary"):
         click(window, "panelsButton")
         click(window, "panelToggle-" + key)
-    assert preferences.values["panels"] == []
-    for name in ("configurationEditor", "analysisPanel", "temporaryEditor"):
+    assert preferences.values["panels"] == ["configuration"]
+    assert find(window, "configurationEditor").isVisible()
+    for name in ("analysisPanel", "temporaryEditor"):
         assert not find(window, name).isVisible()
     preferences.setValue("panels", ["configuration", "diagnostics", "temporary"])
     QTest.qWait(300)

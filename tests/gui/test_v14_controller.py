@@ -140,7 +140,7 @@ def test_preferences_validate_and_persist_without_configuration(qapp: object) ->
     restored = Preferences()
     assert restored.values["panelTitle"] == "Synthetic Panel"
     assert restored.values["themeColor"] == "teal"
-    assert restored.values["panels"] == []
+    assert restored.values["panels"] == ["configuration"]
     assert restored.values["panelOrder"] == ["temporary", "configuration", "diagnostics"]
     restored.setValue("themeMode", 99)
     restored.setValue("themeColor", "invalid")

@@ -10,6 +10,10 @@ AppCard {
     property alias editor: editor
     property string editorObjectName: "configEditorTextArea"
     property string title: i18n.catalog["editor.configuration"]
+    property string titleObjectName: ""
+    property bool showAnalyze: false
+    property bool analysisBusy: false
+    signal analyzeRequested()
     property int currentLine: 1
     property int editorFontSize: Typography.monospace.pixelSize
     property bool zoomModified: false
@@ -55,6 +59,10 @@ AppCard {
             Layout.fillWidth: true
             Layout.preferredHeight: 60
             title: root.title
+            titleObjectName: root.titleObjectName
+            actionText: root.showAnalyze ? (root.analysisBusy ? i18n.catalog["toolbar.analyzing"] : i18n.catalog["toolbar.analyze"]) : ""
+            actionEnabled: !root.analysisBusy && root.text.trim().length > 0
+            onActionClicked: root.analyzeRequested()
             detail: root.currentLine + " / " + Math.max(1, editor.lineCount)
             onDragStarted: sceneX => root.dragStarted(sceneX)
             onDragMoved: sceneX => root.dragMoved(sceneX)
@@ -155,7 +163,8 @@ AppCard {
     Connections {
         target: analysisController
         function onResultCurrentChanged() {
-            syntaxHighlighter.setUnsupportedLines(analysisController.coverage.unsupported_lines || [])
+            if (root.showAnalyze) syntaxHighlighter.setUnsupportedLinesFor(
+                editor.textDocument, analysisController.coverage.unsupported_lines || [])
         }
     }
     AppDialog {

@@ -106,8 +106,15 @@ AppDialog {
                 Switch {
                     objectName: "historySwitch"
                     checked: root.controller.historyEnabled
-                    onToggled: root.controller.historyEnabled = checked
+                    onClicked: {
+                        if (checked) root.controller.historyEnabled = true
+                        else { checked = true; disableHistoryDialog.open() }
+                    }
                 }
+            }
+            AppButton {
+                text: i18n.catalog["history.clear"]
+                onClicked: root.controller.clearHistory()
             }
         }
     }
@@ -129,5 +136,18 @@ AppDialog {
         selectedValue: String(Theme.mode)
         options: [{label:i18n.catalog["settings.system"],value:"0"}, {label:i18n.catalog["settings.light"],value:"1"}, {label:i18n.catalog["settings.dark"],value:"2"}]
         onValueSelected: value => preferences.setValue("themeMode", Number(value))
+    }
+    AppDialog {
+        id: disableHistoryDialog
+        objectName: "disableHistoryDialog"
+        title: i18n.catalog["settings.history"]
+        width: 440
+        contentItem: SelectableText { text: i18n.catalog["history.disable_confirm"]; wrapMode: TextEdit.WordWrap }
+        footer: DialogButtonBox {
+            Button { objectName: "disableHistoryCancel"; text: i18n.catalog["common.cancel"]; DialogButtonBox.buttonRole: DialogButtonBox.RejectRole }
+            Button { objectName: "disableHistoryConfirm"; text: i18n.catalog["common.confirm"]; DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole }
+            onAccepted: { root.controller.historyEnabled = false; disableHistoryDialog.close() }
+            onRejected: disableHistoryDialog.close()
+        }
     }
 }

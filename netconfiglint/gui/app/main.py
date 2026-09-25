@@ -23,6 +23,22 @@ def qml_root() -> Path:
     return Path(__file__).resolve().parents[1] / "qml"
 
 
+def configure_portable_storage() -> Path | None:
+    """Keep application-owned state beside a portable executable."""
+    root = Path(sys.executable).resolve().parent
+    if not (root / "portable.flag").is_file():
+        return None
+    data = root / "data"
+    for name in ("settings", "cache", "tmp"):
+        (data / name).mkdir(parents=True, exist_ok=True)
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(data / "settings"))
+    os.environ["QML_DISK_CACHE_PATH"] = str(data / "cache")
+    os.environ["TMP"] = str(data / "tmp")
+    os.environ["TEMP"] = str(data / "tmp")
+    return data
+
+
 def create_engine(controller: AnalysisController) -> QQmlApplicationEngine:
     if QQuickStyle.name() != "Material":
         QQuickStyle.setStyle("Material")
@@ -59,6 +75,7 @@ def dispose_engine(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    configure_portable_storage()
     os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Material")
     QQuickStyle.setStyle("Material")
     QCoreApplication.setOrganizationName("NetConfigLint")

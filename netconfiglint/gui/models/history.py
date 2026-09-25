@@ -8,11 +8,11 @@ from datetime import UTC, datetime
 from enum import IntEnum
 from pathlib import Path
 from typing import Any, ClassVar
+from uuid import uuid4
 
 from PySide6.QtCore import (
     QAbstractListModel,
     QByteArray,
-    QCoreApplication,
     QModelIndex,
     QPersistentModelIndex,
     QSettings,
@@ -29,7 +29,7 @@ def default_history_path() -> Path:
     """Use an adjacent portable store or the platform user-data directory."""
     executable = Path(sys.executable).resolve()
     if executable.stem.lower() in {"netconfiglint", "deploy_main"}:
-        root = Path(QCoreApplication.applicationDirPath()).resolve()
+        root = executable.parent
         if (root / "portable.flag").is_file():
             return root / "history" / "history.json"
     else:
@@ -50,15 +50,21 @@ class HistoryEntry:
     source_line_count: int
     summary: dict[str, int]
     rule_ids: tuple[str, ...]
+    source_text: str = ""
+    selected_vendor: str = "auto"
+    diagnostics: tuple[dict[str, Any], ...] = ()
+    coverage: dict[str, Any] | None = None
 
     @classmethod
-    def from_result(cls, result: AnalysisResult) -> HistoryEntry:
-        timestamp = datetime.now(UTC).isoformat(timespec="seconds")
+    def from_result(
+        cls, result: AnalysisResult, source_text: str = "", selected_vendor: str = "auto"
+    ) -> HistoryEntry:
+        timestamp = datetime.now(UTC).isoformat(timespec="microseconds")
         summary = {key: 0 for key in ("ERROR", "WARNING", "INFO", "UNKNOWN")}
         for diagnostic in result.diagnostics:
             summary[diagnostic.severity.value] += 1
         return cls(
-            entry_id=timestamp,
+            entry_id=uuid4().hex,
             timestamp=timestamp,
             mode=result.mode.value,
             vendor=result.detection.vendor,
@@ -66,6 +72,10 @@ class HistoryEntry:
             source_line_count=result.source_line_count,
             summary=summary,
             rule_ids=tuple(sorted({item.rule_id for item in result.diagnostics})),
+            source_text=source_text,
+            selected_vendor=selected_vendor,
+            diagnostics=tuple(item.to_dict() for item in result.diagnostics),
+            coverage=result.coverage,
         )
 
 
@@ -81,7 +91,7 @@ class HistoryStore:
         self.path = path or default_history_path()
         self.limit = limit
         self._persist_settings = persist_settings
-        configured = QSettings().value("privacy/historyEnabled", False, type=bool)
+        configured = QSettings().value("privacy/historyEnabled", True, type=bool)
         self.enabled = bool(configured if enabled is None else enabled)
         self.load_warning = False
         self.entries = self._load() if self.enabled else []
@@ -89,12 +99,12 @@ class HistoryStore:
     def _load(self) -> list[HistoryEntry]:
         try:
             with self.path.open("rb") as stream:
-                data = stream.read(2 * 1024 * 1024 + 1)
-            if len(data) > 2 * 1024 * 1024:
+                data = stream.read(64 * 1024 * 1024 + 1)
+            if len(data) > 64 * 1024 * 1024:
                 raise ValueError("History size limit")
             raw = json.loads(data)
             if isinstance(raw, dict):
-                if raw.get("schema_version") != 1:
+                if raw.get("schema_version") not in {1, 2}:
                     raise ValueError("Unsupported history schema")
                 raw = raw.get("entries")
             if not isinstance(raw, list) or len(raw) > 1000:
@@ -105,7 +115,7 @@ class HistoryStore:
                     entries.append(self._entry(item))
                 except (ValueError, KeyError, TypeError, OverflowError):
                     self.load_warning = True
-            return entries[: self.limit]
+            return sorted(entries, key=lambda item: item.timestamp, reverse=True)[: self.limit]
         except FileNotFoundError:
             return []
         except (OSError, ValueError, TypeError, RecursionError):
@@ -120,7 +130,7 @@ class HistoryStore:
             if not isinstance(item[key], str) or not 1 <= len(item[key]) <= 128:
                 raise ValueError("Invalid history string")
         datetime.fromisoformat(item["timestamp"])
-        if item["mode"] not in {"snippet", "full", "snapshot"}:
+        if item["mode"] not in {"snippet", "message", "view", "full", "snapshot"}:
             raise ValueError("Invalid history mode")
         for key in ("diagnostic_count", "source_line_count"):
             if type(item[key]) is not int or not 0 <= item[key] <= 1000000:
@@ -141,6 +151,22 @@ class HistoryStore:
             )
         ):
             raise ValueError("Invalid history rule list")
+        source_text = item.get("source_text", "")
+        if not isinstance(source_text, str) or len(source_text) > 4_000_000:
+            raise ValueError("Invalid history source")
+        diagnostics = item.get("diagnostics", [])
+        if (
+            not isinstance(diagnostics, list)
+            or len(diagnostics) > 10000
+            or any(not isinstance(d, dict) for d in diagnostics)
+        ):
+            raise ValueError("Invalid history diagnostics")
+        selected_vendor = item.get("selected_vendor", "auto")
+        if selected_vendor not in {"auto", "h3c", "huawei"}:
+            raise ValueError("Invalid selected vendor")
+        coverage = item.get("coverage")
+        if coverage is not None and not isinstance(coverage, dict):
+            raise ValueError("Invalid history coverage")
         return HistoryEntry(
             item["entry_id"],
             item["timestamp"],
@@ -150,22 +176,30 @@ class HistoryStore:
             item["source_line_count"],
             dict(summary),
             tuple(ids),
+            source_text,
+            selected_vendor,
+            tuple(diagnostics),
+            coverage,
         )
 
     def set_enabled(self, enabled: bool) -> None:
         if enabled and not self.enabled:
             self.entries = self._load()
+        if not enabled and self.enabled:
+            self.clear()
         self.enabled = enabled
         if self._persist_settings:
             QSettings().setValue("privacy/historyEnabled", enabled)
 
-    def append(self, result: AnalysisResult) -> None:
+    def append(self, result: AnalysisResult, source_text: str = "", selected_vendor: str = "auto") -> None:
         if not self.enabled:
             return
         if self.load_warning:
             raise OSError("Damaged history preserved; recover or explicitly clear it before saving")
         previous = list(self.entries)
-        self.entries.insert(0, HistoryEntry.from_result(result))
+        if len(source_text) > 4_000_000:
+            raise OSError("History source exceeds per-entry limit")
+        self.entries.insert(0, HistoryEntry.from_result(result, source_text, selected_vendor))
         del self.entries[self.limit :]
         try:
             self._write()
@@ -179,9 +213,21 @@ class HistoryStore:
         self.entries.clear()
         self.load_warning = False
 
+    def remove_ids(self, ids: set[str]) -> None:
+        previous = list(self.entries)
+        self.entries = [entry for entry in self.entries if entry.entry_id not in ids]
+        try:
+            self._write()
+        except OSError:
+            self.entries = previous
+            raise
+
+    def get(self, entry_id: str) -> HistoryEntry | None:
+        return next((item for item in self.entries if item.entry_id == entry_id), None)
+
     def _write(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"schema_version": 1, "entries": [asdict(entry) for entry in self.entries]}
+        payload = {"schema_version": 2, "entries": [asdict(entry) for entry in self.entries]}
         temporary = self.path.with_suffix(".tmp")
         temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         temporary.replace(self.path)
@@ -195,6 +241,7 @@ class HistoryRole(IntEnum):
     SOURCE_LINE_COUNT = Qt.ItemDataRole.UserRole + 5
     SUMMARY = Qt.ItemDataRole.UserRole + 6
     RULE_IDS = Qt.ItemDataRole.UserRole + 7
+    ENTRY_ID = Qt.ItemDataRole.UserRole + 8
 
 
 class HistoryListModel(QAbstractListModel):
@@ -206,6 +253,7 @@ class HistoryListModel(QAbstractListModel):
         HistoryRole.SOURCE_LINE_COUNT: b"sourceLineCount",
         HistoryRole.SUMMARY: b"summary",
         HistoryRole.RULE_IDS: b"ruleIds",
+        HistoryRole.ENTRY_ID: b"entryId",
     }
 
     def __init__(self, entries: list[HistoryEntry] | None = None) -> None:
@@ -234,6 +282,7 @@ class HistoryListModel(QAbstractListModel):
             HistoryRole.SOURCE_LINE_COUNT: item.source_line_count,
             HistoryRole.SUMMARY: item.summary,
             HistoryRole.RULE_IDS: list(item.rule_ids),
+            HistoryRole.ENTRY_ID: item.entry_id,
         }
         return values.get(role)
 
@@ -241,3 +290,7 @@ class HistoryListModel(QAbstractListModel):
         self.beginResetModel()
         self._items = list(entries)
         self.endResetModel()
+
+    def ids_between(self, first: int, last: int) -> list[str]:
+        start, end = sorted((first, last))
+        return [item.entry_id for item in self._items[max(0, start) : end + 1]]
