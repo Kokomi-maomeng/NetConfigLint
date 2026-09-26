@@ -35,6 +35,7 @@ QtObject {
     readonly property color unknown: Theme.dark ? "#d3b8f6" : "#71558e"
     readonly property color textPrimary: Theme.dark ? "#f1f1f3" : "#1c1d21"
     readonly property color textSecondary: Theme.dark ? "#b6b7bd" : "#606169"
+    readonly property color textDisabled: Theme.dark ? "#85868f" : "#80828c"
     readonly property color editorBackground: surface
     readonly property color scrim: "#80000000"
     function severity(value) {

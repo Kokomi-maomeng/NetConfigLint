@@ -76,7 +76,7 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
     ):
         card = _find(window, card_name)
         editor = _find(window, editor_name)
-        editor.setProperty("text", "Alpha\n\n   \nBeta\n" + "tail\n" * 80)
+        editor.setProperty("text", "Alpha\n\n   \n\t\nBeta\n" + "tail\n" * 80)
         editor.forceActiveFocus()
         scroll = _find(window, editor_name + "ScrollView")
         flickable = scroll.property("contentItem")
@@ -88,10 +88,28 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         QTest.qWait(70)
         assert editor.property("selectedText") == editor.property("text"), editor_name
         assert abs(flickable.property("contentY") - before) < 2, editor_name
+        flickable.setProperty("contentY", 0)
+        QTest.qWait(40)
         highlights = [
             item for item in _items(window.contentItem()) if item.objectName() == "selectedBlankLine"
         ]
-        assert len(highlights) == 2
+        assert len(highlights) == 1
+        blank_rect = editor.positionToRectangle(6)
+        expected_origin = editor.mapToScene(QPointF(blank_rect.x(), blank_rect.y()))
+        actual_origin = highlights[0].mapToScene(QPointF(0, 0))
+        assert abs(actual_origin.y() - expected_origin.y()) < 1
+        whitespace = [
+            item for item in _items(window.contentItem()) if item.objectName() == "selectedWhitespace"
+        ]
+        assert any(item.width() > highlights[0].width() for item in whitespace)
+        for position in (7, 11):  # Spaces and a tab start on different lines.
+            rect = editor.positionToRectangle(position)
+            expected = editor.mapToScene(QPointF(rect.x(), rect.y()))
+            assert any(
+                abs(item.mapToScene(QPointF(0, 0)).x() - expected.x()) < 1
+                and abs(item.mapToScene(QPointF(0, 0)).y() - expected.y()) < 1
+                for item in whitespace
+            )
 
         original_minimum = card.property("headerMinimumWidth")
         card.setProperty("currentLine", 123456)
@@ -164,6 +182,10 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     assert _find(window, "editorSearchStatus").property("text") == "2 处匹配"
     _click(window, "editorFindNext")
     assert "\n" in editor.property("selectedText")
+    caret = _find(window, "configurationTextAreaSearchCaret")
+    assert caret.isVisible() and caret.x() > editor.property("leftPadding")
+    _click(window, "editorFindNext")
+    assert caret.isVisible() and caret.x() > editor.property("leftPadding")
     field.setProperty("text", "^two$")
     QTest.qWait(150)
     assert _find(window, "editorSearchStatus").property("text") == "1 处匹配"
@@ -213,6 +235,11 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     assert header_tip.property("background").property("radius") == 10
 
     _click(window, "editorSearchClose")
+    overlay = _find(window, "editorSearchOverlay")
+    assert not overlay.property("opened")
+    assert overlay.isVisible()  # The exit animation keeps the card rendered briefly.
+    QTest.qWait(300)
+    assert not overlay.isVisible()
     editor.setProperty("text", "alpha+beta\nsecond")
     editor.select(0, 10)
     editor.forceActiveFocus()
@@ -239,9 +266,55 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     QTest.qWait(70)
     menu_item = _find(window, "editorSearchMenuItem")
     assert menu_item.property("background").property("radius") == 10
+    idle_color = menu_item.property("background").property("color")
     QTest.mouseMove(window, menu_item.mapToScene(QPointF(50, 20)).toPoint())
-    QTest.qWait(40)
+    QTest.qWait(150)
     assert menu_item.property("hovered")
+    assert menu_item.property("background").property("color") != idle_color
+    undo_item = _find(window, "editorUndoMenuItem")
+    assert not undo_item.isEnabled()
+    preferences = engine.rootContext().contextProperty("preferences")
+    for mode in (1, 2):
+        preferences.setValue("themeMode", mode)
+        QTest.qWait(50)
+        enabled_color = menu_item.property("contentItem").property("color")
+        disabled_color = undo_item.property("contentItem").property("color")
+        assert abs(enabled_color.lightnessF() - disabled_color.lightnessF()) > 0.25
+        for item, expected in ((menu_item, enabled_color), (undo_item, disabled_color)):
+            icon = next(
+                child for child in item.property("contentItem").childItems() if child.objectName() == "image"
+            )
+            assert icon.isVisible() and icon.property("color") == expected
+
+    window.close()
+    QTest.qWait(200)
+    controller.close()
+
+
+def test_v23_long_selection_draws_only_near_viewport(tmp_path: Path, qapp: object) -> None:
+    controller = AnalysisController(
+        async_enabled=False,
+        history_store=HistoryStore(
+            tmp_path / "history" / "history.json", enabled=False, persist_settings=False
+        ),
+    )
+    engine = create_engine(controller)
+    window = engine.rootObjects()[0]
+    assert isinstance(window, QQuickWindow)
+    QTest.qWait(200)
+    editor = _find(window, "configurationTextArea")
+    editor.setProperty("text", "port link-type trunk\n" * 2000)
+    editor.selectAll()
+    QTest.qWait(80)
+
+    def visible_whitespace_count() -> int:
+        return sum(item.objectName() == "selectedWhitespace" for item in _items(window.contentItem()))
+
+    assert 0 < visible_whitespace_count() < 200
+    scroll = _find(window, "configurationTextAreaScrollView")
+    scroll.property("contentItem").setProperty("contentY", 20000)
+    QTest.qWait(80)
+    assert 0 < visible_whitespace_count() < 200
 
     window.close()
     QTest.qWait(200)

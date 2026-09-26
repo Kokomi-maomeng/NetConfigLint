@@ -7,7 +7,11 @@ import "../components"
 Item {
     id: root
     objectName: "editorSearchOverlay"
-    visible: false
+    property bool opened: false
+    visible: opened || opacity > 0
+    enabled: opened
+    opacity: opened ? 1 : 0
+    Behavior on opacity { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
     property var targetCard: null
     readonly property var targetEditor: targetCard ? targetCard.editor : null
     property real panelOpacity: 1
@@ -16,39 +20,50 @@ Item {
     property point gripOrigin: Qt.point(0, 0)
     property point gripPosition: Qt.point(0, 0)
     property var searchResult: ({ positions: [], error: "" })
-    onWidthChanged: if (visible) surface.x = Math.max(0, Math.min(surface.x, width - surface.width))
-    onHeightChanged: if (visible) surface.y = Math.max(0, Math.min(surface.y, height - surface.height))
+    onWidthChanged: if (opened) surface.x = Math.max(0, Math.min(surface.x, width - surface.width))
+    onHeightChanged: if (opened) surface.y = Math.max(0, Math.min(surface.y, height - surface.height))
     onTargetEditorChanged: scheduleSearch()
 
-    function scheduleSearch() { if (visible) searchTimer.restart() }
+    function scheduleSearch() {
+        if (!opened) return
+        if (targetCard) targetCard.searchCaretPosition = -1
+        searchTimer.restart()
+    }
     function refreshMatches() { searchTimer.stop(); searchResult = collectMatches() }
     Timer { id: searchTimer; interval: 90; onTriggered: root.refreshMatches() }
     Connections { target: root.targetEditor; function onTextChanged() { root.scheduleSearch() } }
 
     function openFor(card) {
         var selection = card.editor.selectedText.replace(/^[\r\n\u2028\u2029]+|[\r\n\u2028\u2029]+$/g, "")
-        if (targetCard && targetCard !== card) targetCard.searchActive = false
+        if (targetCard && targetCard !== card) {
+            targetCard.searchActive = false
+            targetCard.searchCaretPosition = -1
+        }
         targetCard = card
         card.searchActive = true
+        card.searchCaretPosition = -1
         if (selection.length > 0 && selection.trim().length > 0 && !/[\r\n\u2028\u2029]/.test(selection)) {
             regexCheck.checked = false
             searchField.text = selection
         }
-        if (!visible) {
+        if (!opened) {
             surface.width = Math.min(560, Math.max(360, width - 24))
             surface.height = 142
             surface.x = Math.max(0, Math.round((width - surface.width) / 2))
             surface.y = 24
         }
-        visible = true
+        opened = true
         searchField.forceActiveFocus()
         searchField.selectAll()
         scheduleSearch()
     }
     function closeSearch() {
         searchTimer.stop()
-        if (targetCard) targetCard.searchActive = false
-        visible = false
+        if (targetCard) {
+            targetCard.searchActive = false
+            targetCard.searchCaretPosition = -1
+        }
+        opened = false
         if (targetEditor) targetEditor.forceActiveFocus()
     }
     function collectMatches() {
@@ -83,6 +98,8 @@ Item {
         }
         var hit = positions[index]
         targetEditor.select(hit.start, hit.end)
+        targetCard.searchCaretPosition = targetEditor.text.slice(hit.start, hit.end).indexOf("\n") >= 0
+            ? hit.start : -1
         searchField.forceActiveFocus()
     }
     function beginResize(point) {
@@ -114,6 +131,8 @@ Item {
         border.color: Colors.outlineVariant
         border.width: 1
         opacity: root.panelOpacity
+        scale: root.opened ? 1 : 0.96
+        Behavior on scale { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
 
         ColumnLayout {
             anchors.fill: parent
