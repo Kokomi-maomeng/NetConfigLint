@@ -95,7 +95,10 @@ Rectangle {
     }
     Text {
         id: detailText
-        visible: root.detail.length > 0
+        visible: root.detail.length > 0 && root.width >= titleText.x
+                 + titleMetrics.advanceWidth(root.title) + 4
+                 + (actionButton.visible ? actionButton.width + 4 : 0)
+                 + implicitWidth + 18
         x: root.width - width - 12
         y: 20
         text: root.detail

@@ -127,6 +127,8 @@ def test_disabling_history_requires_confirmation_and_deletes_saved_source(
     click("disableHistoryCancel")
     QTest.qWait(150)
     assert controller.historyEnabled and path.exists()
+    viewport.setProperty("contentY", viewport.property("contentHeight") - viewport.property("height"))
+    QTest.qWait(200)
     click("historySwitch")
     click("disableHistoryConfirm")
     assert not controller.historyEnabled
