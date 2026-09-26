@@ -12,7 +12,9 @@ MenuItem {
     font: Typography.body
     icon.width: 20
     icon.height: 20
-    icon.color: control.enabled ? Colors.textSecondary : Colors.outlineVariant
+    icon.color: control.enabled ? Colors.textPrimary : Colors.textDisabled
+    scale: control.enabled && control.down ? 0.985 : 1
+    Behavior on scale { NumberAnimation { duration: Theme.motionShort; easing.type: Easing.OutCubic } }
     contentItem: IconLabel {
         icon: control.icon
         text: control.text
@@ -20,11 +22,14 @@ MenuItem {
         display: AbstractButton.TextBesideIcon
         spacing: 12
         alignment: Qt.AlignLeft
-        color: control.enabled ? Colors.textPrimary : Colors.textSecondary
+        color: control.enabled ? Colors.textPrimary : Colors.textDisabled
     }
     background: Rectangle {
         radius: 10
-        color: control.down ? Colors.surfaceContainerHighest
-            : control.highlighted || control.hovered ? Colors.surfaceVariant : "transparent"
+        color: !control.enabled ? "transparent"
+            : control.down ? Qt.tint(Colors.surfaceContainerHigh, Qt.alpha(Colors.textPrimary, Theme.dark ? 0.24 : 0.18))
+            : control.highlighted || control.hovered ? Qt.tint(Colors.surfaceContainerHigh, Qt.alpha(Colors.textPrimary, Theme.dark ? 0.14 : 0.11))
+            : "transparent"
+        Behavior on color { ColorAnimation { duration: Theme.motionShort; easing.type: Easing.OutCubic } }
     }
 }

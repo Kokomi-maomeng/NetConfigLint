@@ -17,7 +17,7 @@ AppMenu {
         onTriggered: menu.zoomTarget.searchRequested()
     }
     MenuSeparator { visible: menu.zoomTarget !== null; height: visible ? implicitHeight : 0 }
-    AppMenuItem { text: i18n.catalog["edit.undo"]; icon.source: Qt.resolvedUrl("../../../resources/icons/edit-undo.svg"); enabled: menu.editor.canUndo; onTriggered: menu.editor.undo() }
+    AppMenuItem { objectName: "editorUndoMenuItem"; text: i18n.catalog["edit.undo"]; icon.source: Qt.resolvedUrl("../../../resources/icons/edit-undo.svg"); enabled: menu.editor.canUndo; onTriggered: menu.editor.undo() }
     AppMenuItem { text: i18n.catalog["edit.redo"]; icon.source: Qt.resolvedUrl("../../../resources/icons/edit-redo.svg"); enabled: menu.editor.canRedo; onTriggered: menu.editor.redo() }
     MenuSeparator { }
     AppMenuItem { text: i18n.catalog["edit.cut"]; icon.source: Qt.resolvedUrl("../../../resources/icons/edit-cut.svg"); enabled: menu.editor.selectedText.length > 0 && !menu.editor.readOnly; onTriggered: menu.editor.cut() }

@@ -23,11 +23,12 @@ selection across Qt platforms. Platform font rasterizers still differ.
 
 In v2.3, all four workspace corners are rounded. Settings sections start collapsed and keep
 their open/closed state until the application exits. Configuration and Temporary Editor show
-selected blank or whitespace-only lines with a character-width marker, keep the viewport in
-place on Ctrl+A, and expose icon-labeled Search and Clear all in rounded context menus.
-Ctrl+F opens a resizable search card that moves only from its dotted grip. It offers cyclic
+selected empty lines with a character-width marker and selected spaces and tabs at their actual
+width, keep the viewport in place on Ctrl+A, and expose icon-labeled Search and Clear all in
+context menus with rounded hover and press feedback. Ctrl+F opens an animated, resizable search
+card that moves only from its dotted grip. It offers cyclic
 forward/backward search, match-case and regular-expression options, selected single-line text
-prefill, and opacity adjustment (55–100%). Editor cards grow their minimum width with the displayed line count;
+prefill, a visible line-end marker for newline matches, and opacity adjustment (55–100%). Editor cards grow their minimum width with the displayed line count;
 the window minimum width grows as needed to keep the card headers readable.
 
 - The top bar holds sidebar collapse, Open, Export, Mode, Vendor, Display, About, and window
