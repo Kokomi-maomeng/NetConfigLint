@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.impl
 import theme 1.0
+import "../components"
 Button {
     id: control
     property url iconSource
@@ -56,7 +57,11 @@ Button {
     }
     scale: down ? 0.97 : 1
     Behavior on scale { NumberAnimation { duration: Theme.motionShort; easing.type: Easing.OutCubic } }
-    ToolTip.visible: hovered && !expanded
-    ToolTip.text: text
-    ToolTip.delay: 400
+    AppToolTip {
+        parent: control
+        x: control.width + 4
+        y: (control.height - height) / 2
+        visible: control.hovered && !control.expanded
+        text: control.text
+    }
 }

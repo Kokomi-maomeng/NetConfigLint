@@ -43,6 +43,7 @@ Rectangle {
                 model: 6
                 Rectangle {
                     required property int index
+                    objectName: root.objectName + "GripDot"
                     width: 3
                     height: 3
                     radius: 2
@@ -65,8 +66,14 @@ Rectangle {
         }
         Keys.onLeftPressed: root.stepRequested(-1)
         Keys.onRightPressed: root.stepRequested(1)
-        ToolTip.visible: gripHover.hovered
-        ToolTip.text: i18n.catalog["panels.reorder"]
+        AppToolTip {
+            objectName: root.objectName + "ToolTip"
+            parent: grip
+            x: 0
+            y: grip.height + 2
+            visible: gripHover.hovered && !handler.active
+            text: i18n.catalog["panels.reorder"]
+        }
     }
     FontMetrics { id: titleMetrics; font: Typography.subtitle }
     FontMetrics { id: detailMetrics; font: Typography.caption }
