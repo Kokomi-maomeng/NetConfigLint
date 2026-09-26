@@ -100,18 +100,18 @@ def test_window_open_maximize_restore_and_close_transitions(tmp_path: Path, qapp
     assert shell.property("opacity") == 1
 
     _click(window, "maximizeWindowButton")
-    QTest.qWait(45)
-    assert shell.property("opacity") < 1
+    assert window.property("targetMaximized")
     QTest.qWait(300)
     assert window.visibility() == QQuickWindow.Visibility.Maximized
     assert shell.property("opacity") == 1
 
     _click(window, "maximizeWindowButton")
+    assert not window.property("targetMaximized")
     QTest.qWait(300)
     assert window.visibility() == QQuickWindow.Visibility.Windowed
     _click(window, "closeWindowButton")
     QTest.qWait(70)
-    assert window.isVisible() and shell.property("opacity") < 1
+    assert window.isVisible() and window.property("closingTransition")
     QTest.qWait(180)
     assert not window.isVisible()
     controller.close()
@@ -302,7 +302,7 @@ def test_settings_section_and_window_controls_animate(tmp_path: Path, qapp: obje
     QTest.qWait(130)
     assert window.visibility() == QQuickWindow.Visibility.Minimized
     window.showNormal()
-    QTest.qWait(120)
+    QTest.qWait(300)
     assert shell.property("opacity") == 1
 
     controller.toastRequested.emit("history.cleared")

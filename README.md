@@ -343,8 +343,9 @@ See [Huawei validation notes](docs/huawei-validation.md), [status](docs/status.m
   unification, original sakura icon, MSI/DEB/PKG packaging, and explicit keep/delete uninstall paths.
 - **v2.1**: four visible analysis modes, source-restorable history, IRF peer-port check, LLDP view
   evidence, combined config/display input, revised toolbar and portable state paths.
-- **v2.2 local build**: repaired window geometry persistence, integrated menu and workspace,
-  collapsible Settings, palette-tinted cards, unified text rendering, and a Windows portable ZIP.
+- **v2.2**: repaired window geometry persistence, integrated menu and workspace,
+  collapsible Settings, palette-tinted cards, unified text rendering, visible blank-line selection,
+  editor keyboard zoom, window transitions, and a Windows portable ZIP.
 - **Future**: Juniper Junos plugin, VS Code integration, configuration diff,
   topology/dependency graph, Batfish
   integration, CI validation, and migration assistance.
