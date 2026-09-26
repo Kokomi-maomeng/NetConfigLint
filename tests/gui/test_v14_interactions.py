@@ -272,7 +272,8 @@ def test_workspace_cards_and_toolbar_fit_multiple_widths(gui: tuple, width: int)
     engine.rootContext().contextProperty("i18n").language = "en"
     controller.sourceText = "sysname WIDTH\ntelnet server enable\n"
     controller.analyzeConfig()
-    window.setWidth(width)
+    # v2.3 keeps five-digit counters readable by raising the window minimum.
+    window.setWidth(max(width, window.minimumWidth()))
     QTest.qWait(500)
     split = find(window, "workspaceSplitView")
     for name in ("configurationEditor", "analysisPanel", "temporaryEditor"):

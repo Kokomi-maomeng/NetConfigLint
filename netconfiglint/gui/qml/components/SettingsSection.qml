@@ -8,7 +8,7 @@ ColumnLayout {
     default property alias sectionContent: body.data
     property string title: ""
     property string detail: ""
-    property bool expanded: true
+    property bool expanded: false
     spacing: 4
 
     Button {

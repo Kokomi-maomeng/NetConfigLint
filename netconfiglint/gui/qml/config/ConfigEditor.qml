@@ -14,11 +14,16 @@ AppCard {
     property bool showAnalyze: false
     property bool showSave: false
     property bool analysisBusy: false
+    property bool searchActive: false
+    property real savedSelectionViewX: 0
+    property real savedSelectionViewY: 0
     signal analyzeRequested()
     signal saveRequested(string value)
+    signal searchRequested()
     property int currentLine: 1
     property int editorFontSize: Typography.monospace.pixelSize
     property bool zoomModified: false
+    readonly property real headerMinimumWidth: Math.ceil(header.requiredWidth + 4)
     signal textEdited(string value)
     signal dragStarted(real sceneX)
     signal dragMoved(real sceneX)
@@ -36,7 +41,7 @@ AppCard {
         var lines = value.split("\n")
         var offset = 0
         for (var i = 0; i < lines.length; ++i) {
-            if (lines[i].length === 0 && offset >= start && offset < end)
+            if (lines[i].trim().length === 0 && offset < end && offset + lines[i].length + 1 > start)
                 offsets.push(offset)
             offset += lines[i].length + 1
         }
@@ -62,20 +67,29 @@ AppCard {
             scrollView.contentItem.contentY = Math.max(0, Math.min(scrollView.contentItem.contentHeight - scrollView.height, editor.cursorRectangle.y - scrollView.height / 3))
         })
     }
-    function findNext() {
-        var query = searchField.text
-        if (!query.length) return
-        var start = editor.selectionEnd > editor.selectionStart ? editor.selectionEnd : editor.cursorPosition
-        var index = editor.text.toLowerCase().indexOf(query.toLowerCase(), start)
-        if (index < 0) index = editor.text.toLowerCase().indexOf(query.toLowerCase())
-        if (index >= 0) { editor.forceActiveFocus(); editor.select(index, index + query.length) }
+    function selectAllWithoutScroll() {
+        var flickable = scrollView.contentItem
+        savedSelectionViewX = flickable.contentX
+        savedSelectionViewY = flickable.contentY
+        editor.selectAll()
+        flickable.contentX = savedSelectionViewX
+        flickable.contentY = savedSelectionViewY
+        restoreSelectionView.restart()
     }
-    function openSearch() { searchField.visible = true; searchField.forceActiveFocus(); searchField.selectAll() }
+    Timer {
+        id: restoreSelectionView
+        interval: 30
+        onTriggered: {
+            scrollView.contentItem.contentX = root.savedSelectionViewX
+            scrollView.contentItem.contentY = root.savedSelectionViewY
+        }
+    }
     FontMetrics { id: monoMetrics; font: editor.font }
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
         CardHeader {
+            id: header
             objectName: root.editorObjectName + "Header"
             Layout.fillWidth: true
             Layout.preferredHeight: implicitHeight
@@ -86,25 +100,11 @@ AppCard {
             actionEnabled: root.showSave || (!root.analysisBusy && root.text.trim().length > 0)
             onActionClicked: { if (root.showSave) root.saveRequested(root.text); else root.analyzeRequested() }
             detail: root.currentLine + " / " + Math.max(1, editor.lineCount)
+            minimumDetailDigits: Math.max(5, String(root.currentLine).length, String(Math.max(1, editor.lineCount)).length)
             onDragStarted: sceneX => root.dragStarted(sceneX)
             onDragMoved: sceneX => root.dragMoved(sceneX)
             onDragFinished: sceneX => root.dragFinished(sceneX)
             onStepRequested: direction => root.stepRequested(direction)
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.margins: visible ? 8 : 0
-            visible: searchField.visible
-            AppTextField {
-                id: searchField
-                visible: false
-                Layout.fillWidth: true
-                placeholderText: i18n.catalog["editor.find"]
-                onAccepted: root.findNext()
-                Keys.onEscapePressed: { visible = false; editor.forceActiveFocus() }
-            }
-            AppButton { text: i18n.catalog["editor.next"]; onClicked: root.findNext() }
-            AppButton { text: "×"; Accessible.name: i18n.catalog["common.close"]; onClicked: { searchField.visible = false; editor.forceActiveFocus() } }
         }
         Item {
             id: editorBody
@@ -148,7 +148,14 @@ AppCard {
                     wrapMode: TextEdit.NoWrap
                     textFormat: TextEdit.PlainText
                     selectByMouse: true
-                    persistentSelection: Theme.selectionLocked
+                    Keys.priority: Keys.BeforeItem
+                    Keys.onPressed: event => {
+                        if (event.matches(StandardKey.SelectAll)) {
+                            root.selectAllWithoutScroll()
+                            event.accepted = true
+                        }
+                    }
+                    persistentSelection: Theme.selectionLocked || root.searchActive
                     renderType: Text.QtRendering
                     color: Colors.textPrimary
                     selectionColor: Colors.primaryContainer
@@ -164,9 +171,9 @@ AppCard {
                                     return editor.positionToRectangle(modelData)
                                 }
                                 objectName: "selectedBlankLine"
-                                x: lineRect.x
+                                x: editor.leftPadding
                                 y: lineRect.y
-                                width: Math.max(32, editor.width - lineRect.x - editor.rightPadding)
+                                width: Math.max(32, editor.width - x - editor.rightPadding)
                                 height: lineRect.height
                                 radius: 3
                                 color: editor.selectionColor
@@ -203,8 +210,8 @@ AppCard {
     }
     Shortcut {
         sequences: [StandardKey.Find]
-        enabled: root.visible && (editor.activeFocus || searchField.activeFocus)
-        onActivated: root.openSearch()
+        enabled: root.visible && editor.activeFocus
+        onActivated: root.searchRequested()
     }
     Shortcut { sequence: "Ctrl+G"; enabled: root.visible && editor.activeFocus; onActivated: jumpDialog.open() }
     Shortcut { sequences: ["Ctrl++", "Ctrl+="]; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(1) }
