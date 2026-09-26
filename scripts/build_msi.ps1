@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '2.1.0',
+    [string]$Version = '2.2.0',
     [string]$CertificateThumbprint = '',
     [string]$PfxPath = '',
     [string]$WixBin = '',

@@ -8,6 +8,7 @@ AppCard {
     id: root
     property var diagnosticsModel
     property var detection: ({ vendor: "Unknown" })
+    property string resultTimestamp: ""
     property var summary: ({ ERROR: 0, WARNING: 0, INFO: 0, UNKNOWN: 0 })
     property string severityFilter: "ALL"
     property string statusKey: ""
@@ -88,17 +89,25 @@ AppCard {
                     font: Typography.label
                 }
             }
-            GridLayout {
+            SelectableText {
+                objectName: "analysisTimestamp"
                 Layout.fillWidth: true
-                columns: root.width >= 470 ? 4 : 2
-                columnSpacing: 6
-                rowSpacing: 6
+                visible: root.resultCurrent && root.resultTimestamp.length > 0
+                text: root.resultTimestamp
+                color: Colors.textSecondary
+                font: Typography.caption
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
                 Repeater {
                     model: ["ERROR", "WARNING", "INFO", "UNKNOWN"]
                     delegate: StatusBadge {
                         required property string modelData
                         objectName: "severityFilter-" + modelData
                         Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
                         label: i18n.catalog["analysis." + modelData.toLowerCase()] + " " + (root.summary[modelData] || 0)
                         statusColor: Colors.severity(modelData)
                         interactive: true

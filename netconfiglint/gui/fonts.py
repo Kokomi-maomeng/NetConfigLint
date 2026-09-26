@@ -22,7 +22,7 @@ def make_font(size: int, weight: int = 400, *, mono: bool = False) -> QFont:
     candidates = (
         ["Cascadia Mono", "SFMono-Regular", "Consolas", "Noto Sans Mono", "DejaVu Sans Mono"]
         if mono
-        else ["Roboto", "Noto Sans SC", "Segoe UI", "sans-serif"]
+        else ["Noto Sans SC", "Roboto", "Segoe UI", "sans-serif"]
     )
     available = set(QFontDatabase.families())
     families = [name for name in candidates if name in available]
@@ -32,22 +32,21 @@ def make_font(size: int, weight: int = 400, *, mono: bool = False) -> QFont:
     font.setPixelSize(size)
     font.setWeight(QFont.Weight(weight))
     font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+    font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
     return font
 
 
 class FontPalette(QObject):
     def _get_fonts(self) -> dict[str, Any]:
         fonts = {
-            "display": make_font(34, 650),
-            "title": make_font(22, 650),
-            "subtitle": make_font(17, 650),
-            "body": make_font(14),
-            "label": make_font(13, 650),
-            "caption": make_font(12),
+            "display": make_font(34, 600),
+            "title": make_font(22, 600),
+            "subtitle": make_font(17, 600),
+            "body": make_font(15),
+            "label": make_font(14, 600),
+            "caption": make_font(13),
             "monospace": make_font(14, mono=True),
         }
-        fonts["display"].setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, -1)
-        fonts["subtitle"].setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, -0.2)
         return fonts
 
     fonts = Property("QVariantMap", _get_fonts, constant=True)  # type: ignore[arg-type]

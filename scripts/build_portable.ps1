@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '2.1.0',
+    [string]$Version = '2.2.0',
     [string]$CertificateThumbprint = '',
     [string]$PfxPath = '',
     [switch]$SkipAppBuild
@@ -38,10 +38,16 @@ Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') -Destination $stagingR
 Copy-Item -LiteralPath (Join-Path $projectRoot 'THIRD_PARTY_NOTICES.md') -Destination $stagingRoot
 $history = Join-Path $stagingRoot 'history'
 New-Item -ItemType Directory -Path $history | Out-Null
+$temporary = Join-Path $stagingRoot 'temporary'
+New-Item -ItemType Directory -Path $temporary | Out-Null
 Set-Content -LiteralPath (Join-Path $stagingRoot 'portable.flag') -Encoding ASCII -Value 'portable'
 Set-Content -LiteralPath (Join-Path $history 'README.txt') -Encoding UTF8 -Value @(
     'NetConfigLint stores analysis history here by default, including source configuration and diagnostics.'
     'Disable history in Settings to delete saved entries. Treat this folder as sensitive.'
+)
+Set-Content -LiteralPath (Join-Path $temporary 'README.txt') -Encoding UTF8 -Value @(
+    'The scratch editor writes editor.txt here only when Save is clicked.'
+    'This file can contain sensitive text. Back it up or remove it with the portable folder.'
 )
 
 $python = Join-Path $projectRoot '.venv\Scripts\python.exe'
@@ -70,9 +76,11 @@ Compress-Archive -LiteralPath $stagingRoot -DestinationPath $archivePath -Compre
 & $python (Join-Path $PSScriptRoot 'assemble_licenses.py') $archivePath --verify-archive
 if ($LASTEXITCODE -ne 0) { throw 'Final ZIP license gate failed.' }
 $archive = Get-Item -LiteralPath $archivePath
+$archiveHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive.FullName).Hash.ToLowerInvariant()
+Set-Content -LiteralPath "$archivePath.sha256" -Encoding ASCII -Value "$archiveHash *$packageName.zip"
 [pscustomobject]@{
     Archive = $archive.FullName
     Bytes = $archive.Length
-    SHA256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive.FullName).Hash
+    SHA256 = $archiveHash
     ExecutableSigned = $signed
 } | Format-List

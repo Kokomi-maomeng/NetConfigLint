@@ -72,7 +72,7 @@ def installed_size_kib(stage: Path) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--version", default="2.1.0")
+    parser.add_argument("--version", default="2.2.0")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     distributions = [item for item in (root / "dist").glob("*.dist") if item.is_dir()]

@@ -17,7 +17,7 @@ def run(*args: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--version", default="2.1.0")
+    parser.add_argument("--version", default="2.2.0")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     app = root / "dist/NetConfigLint.app"

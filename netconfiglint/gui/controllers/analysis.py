@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,7 @@ from netconfiglint.core.input import read_network_text
 from netconfiglint.gui.exporting import render_report
 from netconfiglint.gui.i18n import TranslationController
 from netconfiglint.gui.models import DiagnosticListModel, HistoryListModel, HistoryStore
+from netconfiglint.gui.models.history import default_temporary_path, local_timestamp
 from netconfiglint.vendors import registry
 from netconfiglint.vendors.h3c.parser.diagnostic_bundle import extract_h3c_diagnostic_bundle
 
@@ -39,6 +41,8 @@ class AnalysisController(QObject):
     summaryChanged = Signal()
     fileNameChanged = Signal()
     historyEnabledChanged = Signal()
+    temporaryTextChanged = Signal()
+    resultTimestampChanged = Signal()
     historyOpened = Signal()
     resultCurrentChanged = Signal()
     analysisFinished = Signal()
@@ -84,6 +88,22 @@ class AnalysisController(QObject):
         self._history_store = history_store or HistoryStore()
         self._history_model = HistoryListModel(self._history_store.entries)
         self._active_history_id: str | None = None
+        history_parent = self._history_store.path.parent
+        storage_root = history_parent.parent if history_parent.name == "history" else history_parent
+        self._temporary_path = (
+            storage_root / "temporary" / "editor.txt"
+            if history_store is not None
+            else default_temporary_path()
+        )
+        try:
+            with self._temporary_path.open("rb") as saved:
+                contents = saved.read(4_000_001)
+            self._temporary_text = (
+                contents.decode("utf-8").replace("\r\n", "\n") if len(contents) <= 4_000_000 else ""
+            )
+        except (OSError, UnicodeError):
+            self._temporary_text = ""
+        self._result_timestamp = ""
         self._workerSucceeded.connect(self._apply_result)
         self._workerFailed.connect(self._apply_error)
 
@@ -97,6 +117,7 @@ class AnalysisController(QObject):
         self._revision += 1
         had_result = self._result_current
         self._result_current = False
+        self._set_result_timestamp("")
         self._diagnostics.replace(())
         self._detection = self._empty_detection()
         self._summary = {key: 0 for key in self._summary}
@@ -112,6 +133,38 @@ class AnalysisController(QObject):
         return self._result_current
 
     resultCurrent = Property(bool, _get_result_current, notify=resultCurrentChanged)
+
+    def _get_temporary_text(self) -> str:
+        return self._temporary_text
+
+    temporaryText = Property(str, _get_temporary_text, notify=temporaryTextChanged)
+
+    @Slot(str)
+    def saveTemporaryText(self, value: str) -> None:
+        if len(value) > 4_000_000:
+            self.toastRequested.emit("temporary.save_error")
+            return
+        try:
+            self._temporary_path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = self._temporary_path.with_suffix(".tmp")
+            temporary.write_text(value, encoding="utf-8", newline="")
+            temporary.replace(self._temporary_path)
+        except OSError:
+            self.toastRequested.emit("temporary.save_error")
+            return
+        self._temporary_text = value
+        self.temporaryTextChanged.emit()
+        self.toastRequested.emit("temporary.saved")
+
+    def _get_result_timestamp(self) -> str:
+        return self._result_timestamp
+
+    resultTimestamp = Property(str, _get_result_timestamp, notify=resultTimestampChanged)
+
+    def _set_result_timestamp(self, value: str) -> None:
+        if value != self._result_timestamp:
+            self._result_timestamp = value
+            self.resultTimestampChanged.emit()
 
     def _get_coverage(self) -> dict[str, Any]:
         return self._coverage
@@ -231,6 +284,8 @@ class AnalysisController(QObject):
                 self.toastRequested.emit("history.clear_error")
                 return
             self._history_model.replace(self._history_store.entries)
+            if not value:
+                self._active_history_id = None
             self.historyEnabledChanged.emit()
 
     historyEnabled = Property(bool, _get_history_enabled, _set_history_enabled, notify=historyEnabledChanged)
@@ -425,8 +480,17 @@ class AnalysisController(QObject):
                 self._history_store.append(result, self._source_text, self._vendor)
                 if self._history_store.enabled and self._history_store.entries:
                     self._active_history_id = self._history_store.entries[0].entry_id
+            active_entry = (
+                self._history_store.get(self._active_history_id) if self._active_history_id else None
+            )
+            self._set_result_timestamp(
+                local_timestamp(active_entry.timestamp)
+                if active_entry
+                else datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
+            )
             self._history_model.replace(self._history_store.entries)
         except OSError:
+            self._set_result_timestamp(datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S"))
             self.toastRequested.emit("history.write_error")
         self.detectionChanged.emit()
         self.summaryChanged.emit()
@@ -490,6 +554,7 @@ class AnalysisController(QObject):
     def clearHistory(self) -> None:
         try:
             self._history_store.clear()
+            self._active_history_id = None
             self._history_model.replace([])
             self.historyEnabledChanged.emit()
             self.toastRequested.emit("history.cleared")
@@ -529,6 +594,7 @@ class AnalysisController(QObject):
         self._detection = {"vendor": entry.vendor}
         self._result_current = True
         self._active_history_id = entry_id
+        self._set_result_timestamp(local_timestamp(entry.timestamp))
         self._set_status("analysis.completed")
         for signal in (
             self.sourceTextChanged,

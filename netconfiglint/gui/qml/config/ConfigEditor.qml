@@ -12,8 +12,10 @@ AppCard {
     property string title: i18n.catalog["editor.configuration"]
     property string titleObjectName: ""
     property bool showAnalyze: false
+    property bool showSave: false
     property bool analysisBusy: false
     signal analyzeRequested()
+    signal saveRequested(string value)
     property int currentLine: 1
     property int editorFontSize: Typography.monospace.pixelSize
     property bool zoomModified: false
@@ -25,10 +27,28 @@ AppCard {
     padding: 0
     function resetZoom() { editorFontSize = Typography.monospace.pixelSize; zoomModified = false }
     function zoom(delta) { editorFontSize = Math.max(9, Math.min(40, editorFontSize + delta)); zoomModified = true }
+    function selectedBlankLineOffsets() {
+        var start = editor.selectionStart
+        var end = editor.selectionEnd
+        var value = editor.text
+        if (start === end) return []
+        var offsets = []
+        var lines = value.split("\n")
+        var offset = 0
+        for (var i = 0; i < lines.length; ++i) {
+            if (lines[i].length === 0 && offset >= start && offset < end)
+                offsets.push(offset)
+            offset += lines[i].length + 1
+        }
+        return offsets
+    }
     function lineNumberText() {
         var result = []
         for (var i = 1; i <= Math.max(1, editor.lineCount); ++i) result.push(i)
         return result.join("\n")
+    }
+    function updateCurrentLine() {
+        currentLine = editor.text.slice(0, editor.cursorPosition).split("\n").length
     }
     function jumpToLine(line) {
         if (!isFinite(line)) return
@@ -50,6 +70,7 @@ AppCard {
         if (index < 0) index = editor.text.toLowerCase().indexOf(query.toLowerCase())
         if (index >= 0) { editor.forceActiveFocus(); editor.select(index, index + query.length) }
     }
+    function openSearch() { searchField.visible = true; searchField.forceActiveFocus(); searchField.selectAll() }
     FontMetrics { id: monoMetrics; font: editor.font }
     ColumnLayout {
         anchors.fill: parent
@@ -57,12 +78,13 @@ AppCard {
         CardHeader {
             objectName: root.editorObjectName + "Header"
             Layout.fillWidth: true
-            Layout.preferredHeight: 60
+            Layout.preferredHeight: implicitHeight
             title: root.title
             titleObjectName: root.titleObjectName
-            actionText: root.showAnalyze ? (root.analysisBusy ? i18n.catalog["toolbar.analyzing"] : i18n.catalog["toolbar.analyze"]) : ""
-            actionEnabled: !root.analysisBusy && root.text.trim().length > 0
-            onActionClicked: root.analyzeRequested()
+            actionText: root.showAnalyze ? (root.analysisBusy ? i18n.catalog["toolbar.analyzing"] : i18n.catalog["toolbar.analyze"]) : (root.showSave ? i18n.catalog["common.save"] : "")
+            actionObjectName: root.showSave ? "temporarySaveButton" : "analyzeButton"
+            actionEnabled: root.showSave || (!root.analysisBusy && root.text.trim().length > 0)
+            onActionClicked: { if (root.showSave) root.saveRequested(root.text); else root.analyzeRequested() }
             detail: root.currentLine + " / " + Math.max(1, editor.lineCount)
             onDragStarted: sceneX => root.dragStarted(sceneX)
             onDragMoved: sceneX => root.dragMoved(sceneX)
@@ -96,8 +118,18 @@ AppCard {
                 objectName: root.editorObjectName + "ScrollView"
                 anchors.fill: parent
                 clip: true
-                ScrollBar.horizontal: AppScrollBar { }
-                ScrollBar.vertical: AppScrollBar { }
+                ScrollBar.horizontal: AppScrollBar {
+                    parent: scrollView
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                }
+                ScrollBar.vertical: AppScrollBar {
+                    parent: scrollView
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                }
                 TextArea {
                     id: editor
             WheelHandler {
@@ -117,15 +149,33 @@ AppCard {
                     textFormat: TextEdit.PlainText
                     selectByMouse: true
                     persistentSelection: Theme.selectionLocked
-                    renderType: Text.NativeRendering
+                    renderType: Text.QtRendering
                     color: Colors.textPrimary
                     selectionColor: Colors.primaryContainer
                     selectedTextColor: Colors.textPrimary
                     font: fontPalette.editorFont(root.editorFontSize)
-                    background: Item { }
+                    background: Item {
+                        Repeater {
+                            model: root.selectedBlankLineOffsets()
+                            Rectangle {
+                                required property int modelData
+                                property rect lineRect: {
+                                    root.editorFontSize
+                                    return editor.positionToRectangle(modelData)
+                                }
+                                objectName: "selectedBlankLine"
+                                x: lineRect.x
+                                y: lineRect.y
+                                width: Math.max(32, editor.width - lineRect.x - editor.rightPadding)
+                                height: lineRect.height
+                                radius: 3
+                                color: editor.selectionColor
+                            }
+                        }
+                    }
                     ContextMenu.menu: TextEditMenu { editor: root.editor; zoomTarget: root }
-                    onTextChanged: root.textEdited(text)
-                    onCursorPositionChanged: root.currentLine = text.slice(0, cursorPosition).split("\n").length
+                    onTextChanged: { root.textEdited(text); Qt.callLater(root.updateCurrentLine) }
+                    onCursorPositionChanged: Qt.callLater(root.updateCurrentLine)
                 }
             }
             Rectangle {
@@ -138,7 +188,6 @@ AppCard {
                 color: Colors.surfaceContainerLow
                 clip: true
                 z: 2
-                Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: Qt.alpha(Colors.outlineVariant, 0.5) }
                 Text {
                     x: 6
                     y: editor.topPadding - scrollView.contentItem.contentY
@@ -146,7 +195,7 @@ AppCard {
                     text: root.lineNumberText()
                     color: Colors.textSecondary
                     font: editor.font
-                    renderType: Text.NativeRendering
+                    renderType: Text.QtRendering
                     horizontalAlignment: Text.AlignRight
                 }
             }
@@ -155,9 +204,11 @@ AppCard {
     Shortcut {
         sequences: [StandardKey.Find]
         enabled: root.visible && (editor.activeFocus || searchField.activeFocus)
-        onActivated: { searchField.visible = true; searchField.forceActiveFocus(); searchField.selectAll() }
+        onActivated: root.openSearch()
     }
     Shortcut { sequence: "Ctrl+G"; enabled: root.visible && editor.activeFocus; onActivated: jumpDialog.open() }
+    Shortcut { sequences: ["Ctrl++", "Ctrl+="]; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(1) }
+    Shortcut { sequence: "Ctrl+-"; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(-1) }
     Component.onCompleted: { syntaxHighlighter.attach(editor.textDocument); syntaxHighlighter.setDark(Theme.dark) }
     Connections { target: Theme; function onDarkChanged() { syntaxHighlighter.setDark(Theme.dark) } }
     Connections {

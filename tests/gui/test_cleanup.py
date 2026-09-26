@@ -10,9 +10,10 @@ from netconfiglint.gui.app.cleanup import remove_all_user_data
 def test_remove_all_user_data_is_bounded_and_clears_current_settings(qapp: object, tmp_path: Path) -> None:
     app_dir = tmp_path / "installed/NetConfigLint"
     history = app_dir / "history"
+    temporary = app_dir / "temporary"
     user_data = tmp_path / "user/NetConfigLint/data"
     unrelated = tmp_path / "user/another-product"
-    for directory in (history, user_data, unrelated):
+    for directory in (history, temporary, user_data, unrelated):
         directory.mkdir(parents=True)
         (directory / "record.json").write_text("synthetic", encoding="utf-8")
     QSettings().setValue("privacy/historyEnabled", True)
@@ -20,6 +21,7 @@ def test_remove_all_user_data_is_bounded_and_clears_current_settings(qapp: objec
     remove_all_user_data(app_dir, [user_data, unrelated], user_home=tmp_path)
 
     assert not history.exists()
+    assert not temporary.exists()
     assert not user_data.exists()
     assert not user_data.parent.exists()
     assert unrelated.is_dir()

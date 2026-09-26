@@ -51,6 +51,8 @@ Item {
                     SelectableText { Layout.fillWidth: true; text: i18n.catalog["page.about.tagline"]; color: Colors.textSecondary }
                 }
             }
+            SelectableText { Layout.fillWidth: true; text: i18n.catalog["about.license"]; color: Colors.textSecondary; font: Typography.caption }
+            SelectableText { Layout.fillWidth: true; text: i18n.catalog["about.disclaimer"]; color: Colors.textSecondary; font: Typography.caption }
             Repeater {
                 model: root.sections
                 delegate: AppCard {
@@ -75,7 +77,7 @@ Item {
                                 background: Rectangle {
                                     radius: 16
                                     color: parent.hovered ? Colors.primaryContainer : Colors.surface
-                                    border.color: Colors.outlineVariant
+                                    border.color: "transparent"
                                     Behavior on color { ColorAnimation { duration: Theme.motionShort } }
                                 }
                             }
@@ -83,8 +85,6 @@ Item {
                     }
                 }
             }
-            SelectableText { Layout.fillWidth: true; text: i18n.catalog["about.license"]; color: Colors.textSecondary; font: Typography.caption }
-            SelectableText { Layout.fillWidth: true; text: i18n.catalog["about.disclaimer"]; color: Colors.textSecondary; font: Typography.caption }
         }
     }
 }

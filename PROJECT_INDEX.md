@@ -1,11 +1,12 @@
 # NetConfigLint 项目总索引
 
-本索引供后续开发任务从当前工作区继续使用。更新时间：2026-09-24。先读本文，再按所需版本打开对应文档和本地归档。Git 标签和提交是源码历史的依据；安装包以 SHA-256 核对，不根据文件名推断版本或发布状态。
+本索引供后续开发任务从当前工作区继续使用。更新时间：2026-09-25。先读本文，再按所需版本打开对应文档和本地归档。Git 标签和提交是源码历史的依据；安装包以 SHA-256 核对，不根据文件名推断版本或发布状态。
 
 ## 当前基线
 
-- 开发工作区：`main`。整理前提交为 `13ee32a`，公开 `v2.0.0` 标签为 `3482acf`；`main` 在标签之后还有三次发布流程修正。后续任务应重新检查 `git status`、HEAD、标签和 CI 状态。
+- 开发工作区：`main`，当前 HEAD 为 `0c62984`（v2.1 变更合并）；公开 `v2.0.0` 标签为 `3482acf`。v2.2 GUI 改动目前仅在本地工作树，尚未提交或发布。后续任务应重新检查 `git status`、HEAD、标签和 CI 状态。
 - 当前完整发布文件：`release/` 内 v2.0.0 Windows 便携 ZIP、Windows 未签名 MSI、Linux amd64 DEB、macOS arm64 未签名 PKG，以及对应的官方 `SHA256SUMS.txt`。这些文件于 2026-09-24 与 [GitHub v2.0.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v2.0.0) 资产 SHA-256 逐项核对。`release/` 为本地目录，已被 Git 忽略。
+- 本地待验收产物：`release/NetConfigLint-2.2.0-windows-x64-portable.zip` 与同名 `.sha256` 文件；此 ZIP 只在本机打包和验收，未加入公开 `SHA256SUMS.txt`，未上传或发布。证据和限制见 `docs/v2.2-gui-acceptance.md`。
 - 源码入口：`netconfiglint/`；自动化和发布：`scripts/`、`.github/workflows/`；测试：`tests/`；许可：`licenses/`、`THIRD_PARTY_NOTICES.md`。
 - 不要将本地 `archive/`、`release/`、`build/`、`.venv/` 或实际设备资料加入 Git。历史审计资料可能包含真实配置导出的分析结果，归档仅留本机。
 
@@ -19,6 +20,8 @@
 | v1.4 | `v1.4.0` | Material 界面、导出流程；完整审计与复现证据在 `docs/v1.4-acceptance.md` 及本地 `archive/evidence/v1.4-audit-full/`。 |
 | v1.5 | `v1.5.0` | 根据 v1.4 审计修复 P1/P2/P3，完善 Huawei 配置语义和默认片段模式；`docs/v1.5-audit-repairs.md`、`docs/v1.5-huawei-repairs.md`、`docs/v1.5-acceptance.md`。 |
 | v2.0 | `v2.0.0` | H3C Comware 分析与 UNKNOWN 来源映射、真实诊断包导入/导出、界面细节、四平台打包；`docs/h3c-command-support.md`、`docs/v2.0-audit-report.md`、`docs/v2.0-acceptance.md`。 |
+| v2.1 | `main` 的 `0c62984` | 四种检查模式、历史恢复、Windows 便携包；`docs/v2.1-change-scope.md`。本地 ZIP 在 `release/`。 |
+| v2.2 本地 | 未提交、未发布 | 窗口状态与 GUI 重建、Windows 便携 ZIP；`docs/v2.2-gui-acceptance.md`。Linux/macOS v2.2 原生验收待完成。 |
 | 标签后 | `13ee32a` 前的三次提交 | 发布工作流及审计修正；以 `git log v2.0.0..main` 查看。 |
 
 每个标签的完整源码快照、相邻版本的 `git diff --binary` 增量补丁及变更文件清单，保存在本地 `archive/source-history/`。旧版完整发布包及既有解压目录在 `archive/versions/<版本>/`。源码提交、分支和标签仍保留在 Git 中；本地另有 `archive/source-history/all-refs.bundle` 离线备份。
@@ -34,6 +37,6 @@
 
 ## 回退与验证
 
-查看旧版源码：`git worktree add <独立目录> v1.5.0`。不要直接覆盖当前工作区。若远端不可用，可用 `git bundle verify archive/source-history/all-refs.bundle` 检查本地备份，再按 Git bundle 的标准流程恢复。旧版安装包按 `archive/release-files.sha256` 校验；当前发布文件按 `release/SHA256SUMS.txt` 校验。
+查看旧版源码：`git worktree add <独立目录> v1.5.0`。不要直接覆盖当前工作区。若远端不可用，可用 `git bundle verify archive/source-history/all-refs.bundle` 检查本地备份，再按 Git bundle 的标准流程恢复。旧版安装包按 `archive/release-files.sha256` 校验；v2.2 本地便携包按 `release/NetConfigLint-2.2.0-windows-x64-portable.zip.sha256` 校验，其他当前发布文件按 `release/SHA256SUMS.txt` 校验。
 
 历史测试、CI 和审计只证明对应提交、产物与运行环境。H3C 未建模命令以 UNKNOWN 表示；托管 macOS 验收不代表任意用户硬件。当前功能或公开下载状态应在新任务中重新核实。

@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$Version = '2.1.0')
+param([string]$Version = '2.2.0')
 
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or -not $env:RUNNER_TEMP) {

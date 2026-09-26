@@ -75,6 +75,8 @@ def test_settings_is_modal_and_sidebar_collapses(gui: tuple) -> None:
     window, _, engine = gui
     click(window, "sidebarToggle")
     assert engine.rootContext().contextProperty("preferences").values["sidebarExpanded"] is False
+    click(window, "sidebarToggle")
+    QTest.qWait(320)
     click(window, "settingsButton")
     dialog = window.findChild(QObject, "settingsDialog")
     assert dialog.property("visible")
@@ -91,21 +93,21 @@ def test_compact_sidebar_expands_over_workspace_and_dismisses(gui: tuple) -> Non
     QTest.qWait(350)
     rail = find(window, "navigationRail")
     editor = find(window, "configurationEditor")
-    wait_until(lambda: rail.width() == 80 and rail.parentItem().width() == 80)
+    wait_until(lambda: rail.width() == 0 and rail.parentItem().width() == 0)
     editor_position = editor.mapToScene(QPointF(0, 0))
-    assert rail.width() == 80
+    assert rail.width() == 0
     click(window, "sidebarToggle")
     wait_until(lambda: rail.width() == 260)
     assert rail.width() == 260
     assert editor.mapToScene(QPointF(0, 0)) == editor_position
     QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=QPoint(940, 100))
-    wait_until(lambda: rail.width() == 80)
-    assert rail.width() == 80
+    wait_until(lambda: rail.width() == 0)
+    assert rail.width() == 0
     click(window, "sidebarToggle")
     click(window, "brandAboutButton")
-    wait_until(lambda: rail.width() == 80)
+    wait_until(lambda: rail.width() == 0)
     assert window.property("currentPage") == 1
-    assert rail.width() == 80
+    assert rail.width() == 0
 
 
 def test_configuration_stays_visible_while_optional_panels_toggle(gui: tuple) -> None:
@@ -254,7 +256,7 @@ def test_actual_font_and_theme_bindings_are_valid(gui: tuple) -> None:
     QTest.qWait(100)
     assert window.title() == "Synthetic Panel Title"
     title_font = find(window, "checkPageTitle").property("font")
-    assert title_font.families()[:2] == ["Roboto", "Noto Sans SC"]
+    assert title_font.families()[:2] == ["Noto Sans SC", "Roboto"]
     expression = QQmlExpression(qmlContext(window), window, "Colors.primaryForeground")
     value, _ = expression.evaluate()
     assert value == QColor("#ffffff")

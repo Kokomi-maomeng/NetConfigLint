@@ -1,4 +1,4 @@
-# NetConfigLint v2.1
+# NetConfigLint v2.2
 
 Project versions, local release files, rollback records, and the consolidated task entry are mapped in [PROJECT_INDEX.md](PROJECT_INDEX.md).
 
@@ -11,19 +11,21 @@ source-linked diagnostics to the CLI and QML desktop application through one sha
 It is not a complete VRP emulator, network simulator, migration engine, or replacement for
 vendor-supported validation and lab testing.
 
-See the [v2.1 change scope](docs/v2.1-change-scope.md), [H3C coverage contract](docs/h3c-command-support.md),
+See the [v2.2 GUI acceptance notes](docs/v2.2-gui-acceptance.md), [v2.1 change scope](docs/v2.1-change-scope.md), [H3C coverage contract](docs/h3c-command-support.md),
 and [v2.0 acceptance report](docs/v2.0-acceptance.md) for earlier release evidence.
 
-## Desktop v2.1
+## Desktop v2.2
 
-The desktop adopts the Material 3 typography, palettes, rounded navigation, cards, and motion
-of [Material-Design-CastoriceUI](https://github.com/Kokomi-maomeng/Material-Design-CastoriceUI).
-Roboto and Noto Sans SC are bundled for offline use. Platform font rasterizers still differ.
+The desktop puts its existing controls in one compact top bar, with a rounded workspace surface,
+collapsible Settings sections, palette-tinted cards, and bundled Noto Sans SC text.
+Roboto and Noto Sans SC ship as static Regular and SemiBold font files for consistent weight
+selection across Qt platforms. Platform font rasterizers still differ.
 
-- Open, Export, Mode, Vendor, and Display are in the top bar. Analyze is inside Configuration.
-  The sidebar toggle is at the far left; the logo/title at the right opens About.
-- Settings opens from the bottom-left sidebar. Customize the panel title, language, system/light/dark
-  appearance, and ten theme colors. History entries expand in the sidebar.
+- The top bar holds sidebar collapse, Open, Export, Mode, Vendor, Display, About, and window
+  controls. Analyze stays inside Configuration. The sidebar header shows the app title.
+- Settings opens from the bottom-left sidebar. Its sections fold independently; display mode uses
+  preview cards and the ten named colors use swatches. Panel title, language, and local history
+  remain configurable. History entries expand in the sidebar.
 - Use Display to hide or restore Diagnostics and Temporary Editor; Configuration remains visible.
   Drag the dotted header grip to pick up a live
   image of the complete card, move it horizontally, and let Material motion settle it into its new
@@ -84,6 +86,9 @@ Local history is enabled by default and stores configuration text and full diagn
 past analysis can be reopened. This file can contain passwords and network details; keep the
 portable folder private. Disable history in Settings to delete all stored entries. An unchanged
 historical input reanalysis keeps the original entry; editing it creates a new entry.
+In the Windows portable package, history is kept in `history/history.json` and the temporary
+editor writes `temporary/editor.txt` beside the executable only when Save is clicked. Both may
+contain sensitive text and should stay with a private backup of the portable folder.
 
 Explicit configuration/full exports contain the requested source text. Diagnostic reports can
 also disclose network design; review exported files before sharing.
@@ -148,7 +153,7 @@ The QML-first PySide6 desktop application provides:
 - detected vendor/OS inside the diagnostic card, severity filters, expandable issues, and
   source-line navigation;
 - a left-to-right analyzed configuration, diagnostics, and temporary-editor workspace with two
-  visible mouse-draggable split handles;
+  mouse-draggable split areas;
 - click-to-filter ERROR/WARNING/INFO/UNKNOWN severity chips that toggle back to the full result;
 - default-enabled, source-restorable history beside the executable in portable mode, or in the
   operating system application-data location after installation; disabling clears saved entries;
@@ -264,7 +269,7 @@ checking the final dependency closure.
 .\scripts\build_msi.ps1 -SkipAppBuild
 ```
 
-The portable command creates `release/NetConfigLint-2.1.0-windows-x64-portable.zip`. Extract the
+The portable command creates `release/NetConfigLint-2.2.0-windows-x64-portable.zip`. Extract the
 single top-level folder and start `NetConfigLint.exe`; the Nuitka build uses the Windows GUI
 subsystem and therefore does not open a console window.
 
@@ -338,6 +343,8 @@ See [Huawei validation notes](docs/huawei-validation.md), [status](docs/status.m
   unification, original sakura icon, MSI/DEB/PKG packaging, and explicit keep/delete uninstall paths.
 - **v2.1**: four visible analysis modes, source-restorable history, IRF peer-port check, LLDP view
   evidence, combined config/display input, revised toolbar and portable state paths.
+- **v2.2 local build**: repaired window geometry persistence, integrated menu and workspace,
+  collapsible Settings, palette-tinted cards, unified text rendering, and a Windows portable ZIP.
 - **Future**: Juniper Junos plugin, VS Code integration, configuration diff,
   topology/dependency graph, Batfish
   integration, CI validation, and migration assistance.
