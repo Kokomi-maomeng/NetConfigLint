@@ -99,6 +99,11 @@ def test_narrow_english_header_keeps_title_and_analyze_separate(gui: tuple) -> N
     assert title.property("contentWidth") <= title.width()
     assert analyze.y() == title.y()
     assert analyze.x() >= title.x() + title.width()
+    header = title.parentItem()
+    header.setWidth(240)
+    QTest.qWait(50)
+    assert title.property("contentWidth") <= title.width()
+    assert analyze.x() + analyze.width() <= header.width()
 
 
 def test_drag_uses_a_full_card_proxy_then_settles(gui: tuple) -> None:

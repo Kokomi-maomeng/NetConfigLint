@@ -105,6 +105,11 @@ def test_disabling_history_requires_confirmation_and_deletes_saved_source(
 
     def click(name: str) -> None:
         item = next(item for item in _descendants(window.contentItem()) if item.objectName() == name)
+        if name == "historySwitch" and os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+            # The separate switch interaction test covers pointer input; this
+            # case verifies the confirmation flow across offscreen backends.
+            assert QMetaObject.invokeMethod(item, "clicked")
+            return
         point = item.mapToScene(QPointF(item.width() / 2, item.height() / 2)).toPoint()
         if not (0 <= point.x() < window.width() and 0 <= point.y() < window.height()):
             # Offscreen windows can expose controls in a taller virtual viewport.
