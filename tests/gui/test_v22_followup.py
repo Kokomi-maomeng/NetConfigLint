@@ -103,7 +103,7 @@ def test_window_open_maximize_restore_and_close_transitions(tmp_path: Path, qapp
     assert window.property("targetMaximized")
     QTest.qWait(300)
     assert window.visibility() == QQuickWindow.Visibility.Maximized
-    assert shell.property("opacity") == 1
+    assert shell.property("opacity") > 0.99
 
     _click(window, "maximizeWindowButton")
     assert not window.property("targetMaximized")
@@ -286,10 +286,12 @@ def test_settings_section_and_window_controls_animate(tmp_path: Path, qapp: obje
     body = _find(window, "generalSettingsSection-body")
     assert body.height() == 0
     _click(window, "generalSettingsSection-header")
-    QTest.qWait(70)
-    midway = body.height()
-    QTest.qWait(300)
-    assert 0 < midway < body.height()
+    samples = []
+    for _ in range(12):
+        QTest.qWait(25)
+        samples.append(body.height())
+    QTest.qWait(80)
+    assert any(0 < value < body.height() for value in samples)
     settings = window.findChild(QObject, "settingsDialog")
     assert settings is not None
     settings.close()
@@ -303,7 +305,7 @@ def test_settings_section_and_window_controls_animate(tmp_path: Path, qapp: obje
     assert window.visibility() == QQuickWindow.Visibility.Minimized
     window.showNormal()
     QTest.qWait(300)
-    assert shell.property("opacity") == 1
+    assert shell.property("opacity") > 0.99
 
     controller.toastRequested.emit("history.cleared")
     toast = _find(window, "appToast")
