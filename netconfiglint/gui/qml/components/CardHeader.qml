@@ -72,7 +72,7 @@ Rectangle {
         height: 36
         width: Math.max(0, Math.min(titleMetrics.advanceWidth(root.title) + 4,
             root.width - x - 12 - (detailText.visible ? detailText.width + 6 : 0)
-            - (actionButton.visible ? actionButton.width + 6 : 0)))
+            - (actionButton.visible ? actionButton.width + 4 : 0)))
         verticalAlignment: TextEdit.AlignVCenter
         wrapMode: TextEdit.NoWrap
         clip: true
@@ -85,7 +85,7 @@ Rectangle {
         id: actionButton
         objectName: root.actionObjectName
         visible: root.actionText.length > 0
-        x: titleText.x + titleText.width + 6
+        x: titleText.x + titleText.width + 4
         y: 12
         height: 36
         text: root.actionText
