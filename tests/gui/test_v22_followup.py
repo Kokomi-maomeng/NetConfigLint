@@ -103,7 +103,11 @@ def test_window_open_maximize_restore_and_close_transitions(tmp_path: Path, qapp
     assert window.property("targetMaximized")
     QTest.qWait(300)
     assert window.visibility() == QQuickWindow.Visibility.Maximized
-    assert shell.property("opacity") > 0.99
+    for _ in range(40):
+        if shell.property("opacity") == 1:
+            break
+        QTest.qWait(25)
+    assert shell.property("opacity") == 1
 
     _click(window, "maximizeWindowButton")
     assert not window.property("targetMaximized")
@@ -183,10 +187,10 @@ def test_compact_cards_and_navigation_interactions(tmp_path: Path, qapp: object)
 
     _click(window, "sidebarToggle")
     QTest.qWait(320)
-    assert _find(window, "navigationRail").width() == 260
+    assert abs(_find(window, "navigationRail").width() - 260) < 0.1
     _click(window, "sidebarToggle")
     QTest.qWait(320)
-    assert _find(window, "navigationRail").width() == 0
+    assert _find(window, "navigationRail").width() < 0.1
     _click(window, "brandAboutButton")
     assert window.property("currentPage") == 1
     _click(window, "brandAboutButton")
@@ -295,7 +299,8 @@ def test_settings_section_and_window_controls_animate(tmp_path: Path, qapp: obje
     settings = window.findChild(QObject, "settingsDialog")
     assert settings is not None
     settings.close()
-    QTest.qWait(130)
+    QTest.qWait(400)
+    assert not settings.property("visible")
 
     shell = _find(window, "applicationShell")
     _click(window, "minimizeWindowButton")

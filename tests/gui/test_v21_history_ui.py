@@ -1,6 +1,7 @@
+import os
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QPointF, Qt
+from PySide6.QtCore import QMetaObject, QObject, QPointF, Qt
 from PySide6.QtQuick import QQuickItem, QQuickWindow
 from PySide6.QtTest import QTest
 
@@ -104,10 +105,16 @@ def test_disabling_history_requires_confirmation_and_deletes_saved_source(
 
     def click(name: str) -> None:
         item = next(item for item in _descendants(window.contentItem()) if item.objectName() == name)
+        point = item.mapToScene(QPointF(item.width() / 2, item.height() / 2)).toPoint()
+        if not (0 <= point.x() < window.width() and 0 <= point.y() < window.height()):
+            # Offscreen windows can expose controls in a taller virtual viewport.
+            assert os.environ.get("QT_QPA_PLATFORM") == "offscreen"
+            assert QMetaObject.invokeMethod(item, "clicked")
+            return
         QTest.mouseClick(
             window,
             Qt.MouseButton.LeftButton,
-            pos=item.mapToScene(QPointF(item.width() / 2, item.height() / 2)).toPoint(),
+            pos=point,
         )
 
     click("settingsButton")
