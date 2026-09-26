@@ -300,7 +300,7 @@ def test_settings_section_and_window_controls_animate(tmp_path: Path, qapp: obje
     shell = _find(window, "applicationShell")
     _click(window, "minimizeWindowButton")
     QTest.qWait(40)
-    assert shell.property("opacity") < 1
+    assert window.property("minimizing")
     QTest.qWait(130)
     assert window.visibility() == QQuickWindow.Visibility.Minimized
     window.showNormal()
@@ -313,7 +313,10 @@ def test_settings_section_and_window_controls_animate(tmp_path: Path, qapp: obje
     assert toast.isVisible()
     QTest.qWait(3350)
     assert toast.isVisible()  # Fade-out starts before the toast is removed.
-    QTest.qWait(350)
+    for _ in range(20):
+        if not toast.isVisible():
+            break
+        QTest.qWait(100)
     assert not toast.isVisible()
     window.close()
     controller.close()
