@@ -23,10 +23,11 @@ selection across Qt platforms. Platform font rasterizers still differ.
 
 In v2.3, all four workspace corners are rounded. Settings sections start collapsed and keep
 their open/closed state until the application exits. Configuration and Temporary Editor show
-selected blank or whitespace-only lines, keep the viewport in place on Ctrl+A, and expose
-Search and Clear all in their context menus. Ctrl+F opens a movable, resizable search card
-with cyclic forward/backward search, match-case and regular-expression options, and opacity
-adjustment (55–100%). Editor cards grow their minimum width with the displayed line count;
+selected blank or whitespace-only lines with a character-width marker, keep the viewport in
+place on Ctrl+A, and expose icon-labeled Search and Clear all in rounded context menus.
+Ctrl+F opens a resizable search card that moves only from its dotted grip. It offers cyclic
+forward/backward search, match-case and regular-expression options, selected single-line text
+prefill, and opacity adjustment (55–100%). Editor cards grow their minimum width with the displayed line count;
 the window minimum width grows as needed to keep the card headers readable.
 
 - The top bar holds sidebar collapse, Open, Export, Mode, Vendor, Display, About, and window
@@ -354,9 +355,9 @@ See [Huawei validation notes](docs/huawei-validation.md), [status](docs/status.m
 - **v2.2**: repaired window geometry persistence, integrated menu and workspace,
   collapsible Settings, palette-tinted cards, unified text rendering, visible blank-line selection,
   editor keyboard zoom, window transitions, and a Windows portable ZIP.
-- **v2.3**: four rounded workspace corners, session-only Settings folds, selected blank-line
-  coverage, stable Ctrl+A viewport, dynamic card minimum widths, clear menu action, and a
-  draggable search card with cyclic literal/regex search and adjustable opacity.
+- **v2.3**: four rounded workspace corners, session-only Settings folds, compact selected
+  blank-line markers, stable Ctrl+A viewport, dynamic card minimum widths, icon-labeled
+  context menus, and a grip-draggable search card with cyclic literal/regex search and opacity.
 - **Future**: Juniper Junos plugin, VS Code integration, configuration diff,
   topology/dependency graph, Batfish
   integration, CI validation, and migration assistance.

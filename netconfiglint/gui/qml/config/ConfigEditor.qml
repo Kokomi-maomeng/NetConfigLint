@@ -38,12 +38,14 @@ AppCard {
         var value = editor.text
         if (start === end) return []
         var offsets = []
-        var lines = value.split("\n")
-        var offset = 0
-        for (var i = 0; i < lines.length; ++i) {
-            if (lines[i].trim().length === 0 && offset < end && offset + lines[i].length + 1 > start)
+        var offset = start === 0 ? 0 : value.lastIndexOf("\n", start - 1) + 1
+        while (offset < end) {
+            var next = value.indexOf("\n", offset)
+            if (next < 0) next = value.length
+            if (value.slice(offset, next).trim().length === 0 && next + 1 > start)
                 offsets.push(offset)
-            offset += lines[i].length + 1
+            if (next === value.length) break
+            offset = next + 1
         }
         return offsets
     }
@@ -173,7 +175,7 @@ AppCard {
                                 objectName: "selectedBlankLine"
                                 x: editor.leftPadding
                                 y: lineRect.y
-                                width: Math.max(32, editor.width - x - editor.rightPadding)
+                                width: Math.max(12, Math.ceil(monoMetrics.advanceWidth(" ") + 4))
                                 height: lineRect.height
                                 radius: 3
                                 color: editor.selectionColor

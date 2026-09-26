@@ -13,14 +13,27 @@ Item {
     property real panelOpacity: 1
     property point dragOrigin: Qt.point(0, 0)
     property rect startGeometry: Qt.rect(0, 0, 0, 0)
-    readonly property var searchResult: collectMatches()
+    property point gripOrigin: Qt.point(0, 0)
+    property point gripPosition: Qt.point(0, 0)
+    property var searchResult: ({ positions: [], error: "" })
     onWidthChanged: if (visible) surface.x = Math.max(0, Math.min(surface.x, width - surface.width))
     onHeightChanged: if (visible) surface.y = Math.max(0, Math.min(surface.y, height - surface.height))
+    onTargetEditorChanged: scheduleSearch()
+
+    function scheduleSearch() { if (visible) searchTimer.restart() }
+    function refreshMatches() { searchTimer.stop(); searchResult = collectMatches() }
+    Timer { id: searchTimer; interval: 90; onTriggered: root.refreshMatches() }
+    Connections { target: root.targetEditor; function onTextChanged() { root.scheduleSearch() } }
 
     function openFor(card) {
+        var selection = card.editor.selectedText.replace(/^[\r\n\u2028\u2029]+|[\r\n\u2028\u2029]+$/g, "")
         if (targetCard && targetCard !== card) targetCard.searchActive = false
         targetCard = card
         card.searchActive = true
+        if (selection.length > 0 && selection.trim().length > 0 && !/[\r\n\u2028\u2029]/.test(selection)) {
+            regexCheck.checked = false
+            searchField.text = selection
+        }
         if (!visible) {
             surface.width = Math.min(560, Math.max(360, width - 24))
             surface.height = 142
@@ -30,8 +43,10 @@ Item {
         visible = true
         searchField.forceActiveFocus()
         searchField.selectAll()
+        scheduleSearch()
     }
     function closeSearch() {
+        searchTimer.stop()
         if (targetCard) targetCard.searchActive = false
         visible = false
         if (targetEditor) targetEditor.forceActiveFocus()
@@ -42,8 +57,9 @@ Item {
         var source = targetEditor.text
         var query = searchField.text
         var pattern = regexCheck.checked ? query : query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+        if (regexCheck.checked) pattern = pattern.replace(/\\r\\n/g, "\\r?\\n").replace(/\r\n/g, "\\r?\\n")
         var expression
-        try { expression = new RegExp(pattern, "g" + (caseCheck.checked ? "" : "i")) }
+        try { expression = new RegExp(pattern, "gm" + (caseCheck.checked ? "" : "i")) }
         catch (error) { result.error = String(error); return result }
         var match
         while ((match = expression.exec(source)) !== null) {
@@ -53,6 +69,7 @@ Item {
         return result
     }
     function find(direction) {
+        if (searchTimer.running) refreshMatches()
         if (!targetEditor || searchResult.error || !searchResult.positions.length) return
         var positions = searchResult.positions
         var start = direction > 0 ? targetEditor.selectionEnd : targetEditor.selectionStart
@@ -105,32 +122,57 @@ Item {
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 42
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.OpenHandCursor
-                    property point origin: Qt.point(0, 0)
-                    property point start: Qt.point(0, 0)
-                    onPressed: mouse => {
-                        origin = mapToItem(root, mouse.x, mouse.y)
-                        start = Qt.point(surface.x, surface.y)
-                    }
-                    onPositionChanged: mouse => {
-                        if (!pressed) return
-                        var point = mapToItem(root, mouse.x, mouse.y)
-                        surface.x = Math.max(0, Math.min(root.width - surface.width, start.x + point.x - origin.x))
-                        surface.y = Math.max(0, Math.min(root.height - surface.height, start.y + point.y - origin.y))
-                    }
-                }
                 RowLayout {
                     anchors.fill: parent
                     spacing: 5
-                    Grid {
-                        Layout.preferredWidth: 18
-                        columns: 2
-                        spacing: 3
-                        Repeater {
-                            model: 6
-                            Rectangle { width: 3; height: 3; radius: 2; color: Colors.textSecondary }
+                    Item {
+                        id: searchGrip
+                        objectName: "editorSearchGrip"
+                        Layout.preferredWidth: 36
+                        Layout.fillHeight: true
+                        Accessible.name: i18n.catalog["panels.reorder"]
+                        Accessible.role: Accessible.Grip
+                        Grid {
+                            anchors.centerIn: parent
+                            columns: 2
+                            spacing: 3
+                            Repeater {
+                                model: 6
+                                Rectangle {
+                                    required property int index
+                                    objectName: "editorSearchGripDot"
+                                    width: 3
+                                    height: 3
+                                    radius: 2
+                                    color: gripHover.hovered || gripDrag.active ? Colors.primary : Colors.outline
+                                    scale: gripDrag.active ? 1.25 : 1
+                                    Behavior on color { ColorAnimation { duration: Theme.motionShort } }
+                                    Behavior on scale { NumberAnimation { duration: Theme.motionShort } }
+                                }
+                            }
+                        }
+                        HoverHandler { id: gripHover; cursorShape: gripDrag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor }
+                        DragHandler {
+                            id: gripDrag
+                            target: null
+                            onActiveChanged: if (active) {
+                                root.gripOrigin = centroid.scenePosition
+                                root.gripPosition = Qt.point(surface.x, surface.y)
+                            }
+                            onCentroidChanged: if (active) {
+                                surface.x = Math.max(0, Math.min(root.width - surface.width,
+                                    root.gripPosition.x + centroid.scenePosition.x - root.gripOrigin.x))
+                                surface.y = Math.max(0, Math.min(root.height - surface.height,
+                                    root.gripPosition.y + centroid.scenePosition.y - root.gripOrigin.y))
+                            }
+                        }
+                        AppToolTip {
+                            objectName: "editorSearchGripTip"
+                            parent: searchGrip
+                            x: 0
+                            y: searchGrip.height + 2
+                            visible: gripHover.hovered && !gripDrag.active
+                            text: i18n.catalog["panels.reorder"]
                         }
                     }
                     AppTextField {
@@ -138,9 +180,21 @@ Item {
                         objectName: "editorSearchField"
                         Layout.fillWidth: true
                         implicitHeight: 40
-                        placeholderText: i18n.catalog["editor.search"]
+                        placeholderText: ""
                         onAccepted: root.find(1)
+                        onTextChanged: root.scheduleSearch()
                         Keys.onEscapePressed: root.closeSearch()
+                        Text {
+                            objectName: "editorSearchPlaceholder"
+                            anchors.left: parent.left
+                            anchors.leftMargin: searchField.leftPadding
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: searchField.text.length === 0
+                            text: i18n.catalog["editor.search"]
+                            color: Colors.textSecondary
+                            font: searchField.font
+                            renderType: Text.QtRendering
+                        }
                     }
                     AppButton { objectName: "editorFindPrevious"; text: "↑"; Layout.preferredWidth: 42; onClicked: root.find(-1) }
                     AppButton { objectName: "editorFindNext"; text: "↓"; Layout.preferredWidth: 42; onClicked: root.find(1) }
@@ -150,8 +204,8 @@ Item {
             }
             RowLayout {
                 Layout.fillWidth: true
-                CheckBox { id: caseCheck; objectName: "editorMatchCase"; text: i18n.catalog["editor.match_case"] }
-                CheckBox { id: regexCheck; objectName: "editorRegex"; text: i18n.catalog["editor.regex"] }
+                CheckBox { id: caseCheck; objectName: "editorMatchCase"; text: i18n.catalog["editor.match_case"]; onCheckedChanged: root.scheduleSearch() }
+                CheckBox { id: regexCheck; objectName: "editorRegex"; text: i18n.catalog["editor.regex"]; onCheckedChanged: root.scheduleSearch() }
                 Item { Layout.fillWidth: true }
                 Text {
                     objectName: "editorSearchStatus"

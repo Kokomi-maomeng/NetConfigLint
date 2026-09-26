@@ -4,7 +4,7 @@
 
 ## 当前基线
 
-- v2.3 为当前 `codex/v2.3-gui-portable` 本地开发与 Windows 便携 ZIP 验收版本；尚未上传或公开发布。试用包为 `release/NetConfigLint-2.3.0-windows-x64-portable.zip`，SHA-256 `e08e13da56c71f3b1e0d7e3fc6069f8b91c3bf56a73464f5e1203a0ded1e56be`。见 `docs/v2.3-gui-acceptance.md`。
+- v2.3 为当前 `codex/v2.3-gui-portable` 本地开发与 Windows 便携 ZIP 验收版本；尚未上传或公开发布。试用包为 `release/NetConfigLint-2.3.0-windows-x64-portable.zip`，SHA-256 `9d6d019c63fda723868885a980f4666e290011ecb20a814c0ee7f17c1ac676ac`。见 `docs/v2.3-gui-acceptance.md`。
 - v2.2 开发分支为 `codex/v2.2-gui-portable`，候选改动见 [PR #6](https://github.com/Kokomi-maomeng/NetConfigLint/pull/6)；此前 `main` 的 v2.1 合并提交为 `0c62984`。公开版本以 Git 标签和 Release 实际资产为准，后续任务应重新检查分支、HEAD、CI 与下载状态。
 - v2.0 历史发布文件：`release/` 内 Windows 便携 ZIP、Windows 未签名 MSI、Linux amd64 DEB、macOS arm64 未签名 PKG，以及对应的官方 `SHA256SUMS.txt`。这些文件于 2026-09-24 与 [GitHub v2.0.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v2.0.0) 资产 SHA-256 逐项核对。`release/` 为本地目录，已被 Git 忽略。
 - v2.2 本地验收产物：`release/NetConfigLint-2.2.0-windows-x64-portable.zip` 与同名 `.sha256`。GitHub Release 会独立构建便携 ZIP，其校验值须与实际下载文件核对；证据和限制见 `docs/v2.2-gui-acceptance.md`。

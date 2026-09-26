@@ -175,8 +175,11 @@ ApplicationWindow {
                     objectName: "navigationRail"
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
-                    width: expanded ? 260 : 0
-                    Behavior on width { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
+                    width: compact ? (expanded ? 260 : 0) : navigationHost.width
+                    Behavior on width {
+                        enabled: navigation.compact
+                        NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic }
+                    }
                     currentIndex: window.currentPage
                     controller: analysisController
                     onHistorySelected: entryId => {

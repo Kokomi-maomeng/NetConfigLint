@@ -35,10 +35,15 @@ Rectangle {
     }
     color: Colors.surfaceContainerLow
     clip: true
-    Behavior on Layout.preferredWidth { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
     ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: 14
+        objectName: "navigationContents"
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.topMargin: 14
+        anchors.bottomMargin: 14
+        anchors.leftMargin: 14
+        width: 232
         spacing: Spacing.xs
         RowLayout {
             Layout.fillWidth: true
