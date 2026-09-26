@@ -30,6 +30,103 @@ def test_main_qml_loads_offscreen(qapp: object) -> None:
     controller.close()
 
 
+def test_first_window_fits_the_available_screen(qapp: object) -> None:
+    controller = AnalysisController(async_enabled=False)
+    engine = create_engine(controller)
+    window = engine.rootObjects()[0]
+    available = qapp.primaryScreen().availableGeometry()
+    assert window.width() <= max(window.minimumWidth(), available.width())
+    assert window.height() <= max(window.minimumHeight(), available.height())
+    assert window.x() >= available.x()
+    assert window.y() >= available.y()
+    window.close()
+    controller.close()
+
+
+def test_window_geometry_survives_preferences_changes_and_maximize(qapp: object) -> None:
+    controller = AnalysisController(async_enabled=False)
+    engine = create_engine(controller)
+    window = engine.rootObjects()[0]
+    preferences = engine.rootContext().contextProperty("preferences")
+    window.setWidth(1200)
+    window.setHeight(760)
+    QTest.qWait(80)
+    preferences.setValue("panels", ["configuration", "diagnostics"])
+    preferences.setValue("themeColor", "teal")
+    QTest.qWait(80)
+    assert (window.width(), window.height()) == (1200, 760)
+
+    window.showMinimized()
+    QTest.qWait(50)
+    preferences.setValue("themeColor", "blue")
+    assert window.visibility() == QQuickWindow.Visibility.Minimized
+    window.showNormal()
+    QTest.qWait(80)
+    assert (window.width(), window.height()) == (1200, 760)
+
+    window.showMaximized()
+    QTest.qWait(100)
+    assert window.visibility() == QQuickWindow.Visibility.Maximized
+    normal = window.property("normalGeometry")
+    assert (normal.width(), normal.height()) == (1200, 760)
+    preferences.setValue("panels", ["configuration"])
+    assert window.visibility() == QQuickWindow.Visibility.Maximized
+    window.close()
+    assert preferences.values["windowMaximized"] is True
+    assert preferences.values["windowWidth"] == 1200
+    assert preferences.values["windowHeight"] == 760
+    controller.close()
+
+    restored_controller = AnalysisController(async_enabled=False)
+    restored_engine = create_engine(restored_controller)
+    restored = restored_engine.rootObjects()[0]
+    QTest.qWait(100)
+    assert restored.visibility() == QQuickWindow.Visibility.Maximized
+    restored.showMinimized()
+    QTest.qWait(80)
+    assert restored.visibility() == QQuickWindow.Visibility.Minimized
+    restored.close()
+    assert restored_engine.rootContext().contextProperty("preferences").values["windowMaximized"] is True
+    restored_controller.close()
+
+    reopened_controller = AnalysisController(async_enabled=False)
+    reopened_engine = create_engine(reopened_controller)
+    reopened = reopened_engine.rootObjects()[0]
+    QTest.qWait(100)
+    assert reopened.visibility() == QQuickWindow.Visibility.Maximized
+    reopened.showNormal()
+    QTest.qWait(100)
+    available = qapp.primaryScreen().availableGeometry()
+    assert (reopened.width(), reopened.height()) == (
+        min(1200, max(960, available.width())),
+        min(760, max(600, available.height())),
+    )
+    reopened.close()
+    reopened_controller.close()
+
+
+def test_settings_scrollbar_is_docked_and_palette_changes_surface(qapp: object) -> None:
+    controller = AnalysisController(async_enabled=False)
+    engine = create_engine(controller)
+    window = engine.rootObjects()[0]
+    preferences = engine.rootContext().contextProperty("preferences")
+    preferences.setValue("themeMode", 2)
+    workspace = _visual_by_name(window, "workspaceSurface")
+    before = workspace.property("color")
+    preferences.setValue("themeColor", "cyan")
+    QCoreApplication.processEvents()
+    assert workspace.property("color") != before
+
+    dialog = window.findChild(QObject, "settingsDialog")
+    assert dialog is not None
+    assert QMetaObject.invokeMethod(dialog, "open")
+    QTest.qWait(300)
+    bar = _visual_by_name(window, "settingsVerticalScrollBar")
+    assert bar.height() > 200
+    assert bar.x() >= bar.parentItem().width() - 20
+    controller.close()
+
+
 def test_diagnostic_delegate_maps_model_roles_to_visible_card(qapp: object) -> None:
     controller = AnalysisController(async_enabled=False)
     controller.vendor = "huawei"

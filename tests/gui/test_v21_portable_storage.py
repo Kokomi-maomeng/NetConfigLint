@@ -4,7 +4,7 @@ from pathlib import Path
 from PySide6.QtCore import QSettings
 
 from netconfiglint.gui.app.main import configure_portable_storage
-from netconfiglint.gui.models.history import default_history_path
+from netconfiglint.gui.models.history import default_history_path, default_temporary_path
 
 
 def test_portable_runtime_paths_stay_adjacent_to_executable(
@@ -17,6 +17,7 @@ def test_portable_runtime_paths_stay_adjacent_to_executable(
     data = configure_portable_storage()
     assert data == root / "data"
     assert default_history_path() == root / "history" / "history.json"
+    assert default_temporary_path() == root / "temporary" / "editor.txt"
     assert Path(QSettings().fileName()).is_relative_to(data / "settings")
     assert (data / "cache").is_dir()
     assert (data / "tmp").is_dir()

@@ -110,10 +110,39 @@ class Preferences(QObject):
     def setValue(self, key: str, value: Any) -> None:
         self._assign(key, value, save=True)
 
+    @Slot(int, int, result="QVariantMap")
+    def restoreWindowGeometry(self, minimum_width: int, minimum_height: int) -> dict[str, int]:
+        """Fit saved geometry to the usable area of the monitor it occupied."""
+        desired = QRect(
+            int(self._values["windowX"]),
+            int(self._values["windowY"]),
+            int(self._values["windowWidth"]),
+            int(self._values["windowHeight"]),
+        )
+        screens = QGuiApplication.screens()
+        primary = QGuiApplication.primaryScreen()
+        area = primary.availableGeometry() if primary else QRect(0, 0, 1440, 900)
+        if self._values["windowPositionSaved"] and screens:
+            area = max(
+                (screen.availableGeometry() for screen in screens),
+                key=lambda candidate: (
+                    desired.intersected(candidate).width() * desired.intersected(candidate).height()
+                ),
+            )
+        width = min(max(minimum_width, desired.width()), max(minimum_width, area.width()))
+        height = min(max(minimum_height, desired.height()), max(minimum_height, area.height()))
+        if self._values["windowPositionSaved"]:
+            x = max(area.x(), min(desired.x(), area.x() + area.width() - width))
+            y = max(area.y(), min(desired.y(), area.y() + area.height() - height))
+        else:
+            x = area.x() + max(0, (area.width() - width) // 2)
+            y = area.y() + max(0, (area.height() - height) // 2)
+        return {"x": x, "y": y, "width": width, "height": height}
+
     @Slot(int, int, int, int, bool)
     def saveWindowGeometry(self, x: int, y: int, width: int, height: int, maximized: bool) -> None:
         self._assign("windowMaximized", maximized, save=True)
-        if not maximized:
+        if width >= 960 and height >= 600:
             self._assign("windowPositionSaved", True, save=True)
             for key, value in (
                 ("windowX", x),

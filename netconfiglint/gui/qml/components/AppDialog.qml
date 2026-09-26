@@ -14,7 +14,7 @@ Dialog {
     Overlay.modal: Rectangle { color: Colors.scrim }
     header: Rectangle {
         implicitHeight: 64
-        color: Colors.surfaceContainerHigh
+        color: Colors.surfaceContainer
         topLeftRadius: Spacing.radiusLarge
         topRightRadius: Spacing.radiusLarge
         SelectableText {
@@ -31,8 +31,7 @@ Dialog {
     }
     background: Rectangle {
         color: Colors.surfaceContainer
-        border.color: Colors.outlineVariant
-        border.width: 1
+        border.width: 0
         radius: Spacing.radiusLarge
     }
     enter: Transition {

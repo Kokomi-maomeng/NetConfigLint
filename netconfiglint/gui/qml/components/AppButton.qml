@@ -16,6 +16,7 @@ Button {
     opacity: enabled ? 1 : 0.38
 
     contentItem: Text {
+        renderType: Text.QtRendering
         text: control.text
         font: control.font
         color: control.prominent ? Colors.primaryForeground : Colors.textPrimary
@@ -27,8 +28,8 @@ Button {
         color: control.prominent
                ? (control.down ? Qt.darker(Colors.primary, 1.12) : Colors.primary)
                : (control.hovered ? Colors.surfaceVariant : Colors.surfaceContainer)
-        border.color: control.activeFocus ? Colors.primary : (control.prominent ? "transparent" : Colors.outlineVariant)
-        border.width: control.activeFocus ? 2 : 1
+        border.color: control.activeFocus ? Colors.primary : "transparent"
+        border.width: control.activeFocus ? 2 : 0
         Behavior on color { ColorAnimation { duration: Theme.motionShort } }
     }
     scale: control.down ? 0.97 : 1

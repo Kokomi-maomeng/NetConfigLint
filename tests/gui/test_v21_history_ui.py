@@ -20,6 +20,9 @@ def test_sidebar_history_restores_then_branches_edited_source(tmp_path: Path, qa
     engine = create_engine(controller)
     window = engine.rootObjects()[0]
     assert isinstance(window, QQuickWindow)
+    window.setWidth(1440)
+    window.setHeight(900)
+    QTest.qWait(80)
     controller.vendor = "huawei"
     controller.sourceText = "sysname ORIGINAL\n"
     controller.analyzeConfig()
@@ -66,7 +69,10 @@ def test_sidebar_history_restores_then_branches_edited_source(tmp_path: Path, qa
         Qt.KeyboardModifier.ShiftModifier,
         pos=older.mapToScene(QPointF(30, 28)).toPoint(),
     )
-    assert len(rail.property("selectedHistory")) == 2
+    selected = rail.property("selectedHistory")
+    if hasattr(selected, "toVariant"):
+        selected = selected.toVariant()
+    assert len(selected) == 2
     button = next(
         item
         for item in _descendants(window.contentItem())
@@ -106,10 +112,20 @@ def test_disabling_history_requires_confirmation_and_deletes_saved_source(
 
     click("settingsButton")
     QTest.qWait(150)
+    section = window.findChild(QObject, "privacySettingsSection")
+    assert section is not None
+    section.setProperty("expanded", True)
+    scroll = window.findChild(QObject, "settingsScrollView")
+    assert scroll is not None
+    viewport = scroll.property("contentItem")
+    QTest.qWait(100)
+    viewport.setProperty("contentY", viewport.property("contentHeight") - viewport.property("height"))
+    QTest.qWait(200)
     click("historySwitch")
     dialog = window.findChild(QObject, "disableHistoryDialog")
     assert dialog is not None and dialog.property("visible")
     click("disableHistoryCancel")
+    QTest.qWait(150)
     assert controller.historyEnabled and path.exists()
     click("historySwitch")
     click("disableHistoryConfirm")

@@ -102,13 +102,16 @@ def remove_all_user_data(
     adjacent_history = application_dir.resolve() / "history"
     if adjacent_history.parent == application_dir.resolve() and adjacent_history.name == "history":
         candidates.add(adjacent_history)
+    adjacent_temporary = application_dir.resolve() / "temporary"
+    if adjacent_temporary.parent == application_dir.resolve() and adjacent_temporary.name == "temporary":
+        candidates.add(adjacent_temporary)
     for path in candidates:
         if not path.exists():
             continue
         resolved = path.resolve()
         if resolved == application_dir.resolve():
             continue
-        if resolved == adjacent_history or _safe_user_path(resolved, home):
+        if resolved in {adjacent_history, adjacent_temporary} or _safe_user_path(resolved, home):
             if resolved.is_dir():
                 shutil.rmtree(resolved)
             else:

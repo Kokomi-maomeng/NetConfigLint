@@ -11,6 +11,7 @@ AppButton {
     contentItem: Row {
         spacing: 8
         Text {
+            renderType: Text.QtRendering
             anchors.verticalCenter: parent.verticalCenter
             text: control.text
             font: control.font

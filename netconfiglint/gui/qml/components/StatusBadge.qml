@@ -10,7 +10,7 @@ Rectangle {
     property bool hovered: pointerArea.containsMouse
     signal clicked()
     implicitWidth: badgeText.implicitWidth + Spacing.md * 2
-    implicitHeight: interactive ? 36 : 28
+    implicitHeight: interactive ? 40 : 28
     radius: height / 2
     color: Qt.alpha(statusColor, selected ? 0.28 : (hovered && interactive ? 0.20 : 0.12))
     border.color: Qt.alpha(statusColor, selected ? 0.95 : 0.48)
@@ -21,8 +21,16 @@ Rectangle {
     Accessible.description: interactive ? i18n.catalog["analysis.severity_filter"] : ""
 
     Text {
+        renderType: Text.QtRendering
         id: badgeText
         anchors.centerIn: parent
+        width: Math.max(0, parent.width - 4)
+        height: parent.height
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        fontSizeMode: Text.HorizontalFit
+        minimumPixelSize: 10
+        wrapMode: Text.NoWrap
         text: root.label
         color: root.statusColor
         font: root.interactive ? Typography.label : Typography.caption

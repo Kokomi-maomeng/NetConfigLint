@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import sys
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QPointF, Qt
+from PySide6.QtCore import QObject, QPointF, Qt
 from PySide6.QtGui import QImageReader
 from PySide6.QtQuick import QQuickItem, QQuickWindow
 from PySide6.QtTest import QTest
@@ -44,11 +43,13 @@ def test_integrated_title_bar_and_about_horizontal_scrollbar(gui: tuple) -> None
     window, _controller, _engine = gui
     title_bar = find(window, "appTitleBar")
     assert title_bar.isVisible() and title_bar.width() == window.width()
+    assert title_bar.height() == 52
     flags = window.flags()
-    assert flags & Qt.WindowType.ExpandedClientAreaHint
-    assert flags & Qt.WindowType.NoTitleBarBackgroundHint
-    if sys.platform == "win32":
-        assert title_bar.property("titleInset") >= 32
+    assert flags & Qt.WindowType.FramelessWindowHint
+    assert center(find(window, "openButton")).y() < title_bar.height()
+    assert center(find(window, "brandAboutButton")).y() < title_bar.height()
+    assert center(find(window, "closeWindowButton")).y() < title_bar.height()
+    assert find(window, "topConfigToolbar").isVisible()
     window.setProperty("currentPage", 1)
     QTest.qWait(300)
     horizontal = find(window, "aboutHorizontalScrollBar")
@@ -57,6 +58,47 @@ def test_integrated_title_bar_and_about_horizontal_scrollbar(gui: tuple) -> None
     assert vertical.isVisible()
     assert vertical.height() > 700
     assert vertical.mapToScene(QPointF()).x() > window.width() - 50
+
+
+def test_top_open_button_opens_file_picker(gui: tuple) -> None:
+    window, _controller, _engine = gui
+    button = find(window, "openButton")
+    QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=center(button))
+    QTest.qWait(100)
+    dialog = window.findChild(QObject, "openConfigDialog")
+    assert dialog is not None and dialog.property("visible")
+    dialog.close()
+
+
+def test_settings_headers_share_hit_area_and_mode_cards_share_width(gui: tuple) -> None:
+    window, _controller, _engine = gui
+    QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=center(find(window, "settingsButton")))
+    QTest.qWait(100)
+    headers = [
+        find(window, name + "SettingsSection-header") for name in ("general", "display", "color", "privacy")
+    ]
+    assert len({round(item.width()) for item in headers}) == 1
+    assert len({round(item.height()) for item in headers}) == 1
+    assert len({round(item.mapToScene(QPointF()).x()) for item in headers}) == 1
+    modes = [find(window, "displayMode-" + name) for name in ("light", "dark", "system")]
+    assert max(item.width() for item in modes) - min(item.width() for item in modes) <= 1
+    hovered = headers[1]
+    QTest.mouseMove(window, center(hovered))
+    QTest.qWait(80)
+    assert hovered.property("hovered")
+
+
+def test_narrow_english_header_keeps_title_and_analyze_separate(gui: tuple) -> None:
+    window, _controller, engine = gui
+    engine.rootContext().contextProperty("i18n").language = "en"
+    window.setWidth(960)
+    window.setHeight(600)
+    QTest.qWait(200)
+    title = find(window, "checkPageTitle")
+    analyze = find(window, "analyzeButton")
+    assert title.property("contentWidth") <= title.width()
+    assert analyze.y() == title.y()
+    assert analyze.x() >= title.x() + title.width()
 
 
 def test_drag_uses_a_full_card_proxy_then_settles(gui: tuple) -> None:

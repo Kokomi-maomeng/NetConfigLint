@@ -8,6 +8,7 @@ from pathlib import Path
 from PySide6.QtCore import QCoreApplication, QEvent, QSettings, QUrl
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
 from netconfiglint import __version__
@@ -47,7 +48,8 @@ def create_engine(controller: AnalysisController) -> QQmlApplicationEngine:
     controller.translator = i18n
     preferences = Preferences(engine)
     load_fonts()
-    QGuiApplication.setFont(make_font(14))
+    QGuiApplication.setFont(make_font(15))
+    QQuickWindow.setTextRenderType(QQuickWindow.TextRenderType.QtTextRendering)
     font_palette = FontPalette(engine)
     highlighter = SyntaxHighlighterBridge(engine)
     engine.addImportPath(str(qml_root()))

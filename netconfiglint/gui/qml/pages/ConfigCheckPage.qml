@@ -102,8 +102,11 @@ Item {
     }
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 24
-        spacing: 20
+        anchors.leftMargin: 20
+        anchors.rightMargin: 20
+        anchors.topMargin: 20
+        anchors.bottomMargin: 20
+        spacing: 12
         SplitView {
             id: workspaceSplit
             objectName: "workspaceSplitView"
@@ -112,12 +115,6 @@ Item {
             orientation: Qt.Horizontal
             handle: Item {
                 implicitWidth: 16
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: 3; height: Math.min(parent.height, 64); radius: 2
-                    color: parent.SplitHandle.pressed ? Colors.primary : (parent.SplitHandle.hovered ? Colors.outline : Colors.outlineVariant)
-                    Behavior on color { ColorAnimation { duration: Theme.motionShort } }
-                }
             }
             ConfigEditor {
                 id: configEditor
@@ -149,6 +146,7 @@ Item {
                 SplitView.minimumWidth: 240
                 diagnosticsModel: root.controller.diagnosticsModel
                 detection: root.controller.detection
+                resultTimestamp: root.controller.resultTimestamp
                 summary: root.controller.summary
                 statusKey: root.controller.statusMessage
                 coverage: root.controller.coverage
@@ -170,6 +168,9 @@ Item {
                 SplitView.preferredWidth: 300
                 SplitView.minimumWidth: 240
                 title: i18n.catalog["editor.temporary"]
+                text: root.controller.temporaryText
+                showSave: true
+                onSaveRequested: value => root.controller.saveTemporaryText(value)
                 onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
                 onDragMoved: sceneX => root.updateDrag(sceneX)
                 onDragFinished: sceneX => root.finishDrag(sceneX)
@@ -229,7 +230,7 @@ Item {
     }
     FileDialog {
         id: openDialog
-        options: FileDialog.DontUseNativeDialog
+        objectName: "openConfigDialog"
         title: i18n.catalog["dialog.open"]
         nameFilters: [i18n.catalog["file.config_filter"], i18n.catalog["file.all_filter"]]
         onAccepted: root.controller.loadFile(selectedFile)
@@ -247,7 +248,6 @@ Item {
     }
     FileDialog {
         id: saveDialog
-        options: FileDialog.DontUseNativeDialog
         objectName: "exportSaveDialog"
         title: i18n.catalog["dialog.export"]
         fileMode: FileDialog.SaveFile

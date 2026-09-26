@@ -7,7 +7,7 @@ TextEdit {
     readOnly: true
     selectByMouse: true
     persistentSelection: false
-    renderType: Text.NativeRendering
+    renderType: Text.QtRendering
     activeFocusOnPress: true
     color: Colors.textPrimary
     font: Typography.body

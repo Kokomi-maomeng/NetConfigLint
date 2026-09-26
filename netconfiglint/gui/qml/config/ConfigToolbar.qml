@@ -9,7 +9,7 @@ AppCard {
     property var controller
     signal openRequested()
     signal exportRequested()
-    implicitHeight: toolbarFlow.implicitHeight + padding * 2
+    implicitHeight: 40
     padding: 0
     color: "transparent"
     border.color: "transparent"
@@ -27,16 +27,20 @@ AppCard {
         id: toolbarFlow
         anchors.fill: parent
         spacing: 8
-        AppButton { objectName: "openButton"; text: i18n.catalog["toolbar.open"]; onClicked: root.openRequested() }
-        AppButton { objectName: "exportButton"; text: i18n.catalog["toolbar.export"]; enabled: root.controller.sourceText.trim().length > 0; onClicked: root.exportRequested() }
+        AppButton { objectName: "openButton"; implicitHeight: 40; font: Typography.body; text: i18n.catalog["toolbar.open"]; onClicked: root.openRequested() }
+        AppButton { objectName: "exportButton"; implicitHeight: 40; font: Typography.body; text: i18n.catalog["toolbar.export"]; enabled: root.controller.sourceText.trim().length > 0; onClicked: root.exportRequested() }
         SelectionField {
             objectName: "modeSelectionField"
+            implicitHeight: 40
+            font: Typography.body
             label: i18n.catalog["toolbar.mode"]
             valueText: i18n.catalog["mode." + root.controller.mode]
             onClicked: modeDialog.open()
         }
         SelectionField {
             objectName: "vendorSelectionField"
+            implicitHeight: 40
+            font: Typography.body
             label: i18n.catalog["toolbar.vendor"]
             valueText: root.vendorLabel()
             onClicked: vendorDialog.open()
@@ -44,6 +48,8 @@ AppCard {
         AppButton {
             id: panelsButton
             objectName: "panelsButton"
+            implicitHeight: 40
+            font: Typography.body
             text: i18n.catalog["panels.show"]
             onClicked: panelsMenu.open()
             AppMenu {

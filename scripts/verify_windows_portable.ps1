@@ -12,7 +12,8 @@ $sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $archivePath).Hash.ToLowe
 if ($ExpectedSha256 -and $sha256 -ne $ExpectedSha256.ToLowerInvariant()) { throw 'Archive checksum mismatch.' }
 New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null
 $outputPath = (Resolve-Path -LiteralPath $OutputRoot).Path
-$extractPath = Join-Path $outputPath ('解压验收 空格-' + [guid]::NewGuid().ToString('N'))
+$unicodeName = -join ([char[]]@(0x89e3, 0x538b, 0x9a8c, 0x6536))
+$extractPath = Join-Path $outputPath ($unicodeName + ' 空格-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $extractPath | Out-Null
 
 # Verify archive entry paths before extraction, including the absolute resolved target.
@@ -53,12 +54,19 @@ function Start-Portable([string[]]$AppArguments, [bool]$Software) {
     $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
     # The normal-launch acceptance intentionally shows the application's real GUI.
     if ($AppArguments.Count -eq 0) { $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Normal }
-    foreach ($argument in $AppArguments) { $start.ArgumentList.Add($argument) }
-    $start.Environment['PATH'] = $env:SystemRoot + '\System32;' + $env:SystemRoot
-    foreach ($key in @('PYTHONPATH', 'PYTHONHOME', 'QT_PLUGIN_PATH', 'QML2_IMPORT_PATH', 'QML_IMPORT_PATH', 'QT_QPA_PLATFORM', 'QSG_RHI_BACKEND', 'QT_QUICK_BACKEND')) {
-        $start.Environment.Remove($key) | Out-Null
+    if ($null -ne $start.ArgumentList) {
+        foreach ($argument in $AppArguments) { $start.ArgumentList.Add($argument) }
     }
-    if ($Software) { $start.Environment['QT_QUICK_BACKEND'] = 'software' }
+    else {
+        $start.Arguments = ($AppArguments | ForEach-Object { '"' + $_ + '"' }) -join ' '
+    }
+    $processEnvironment = $start.Environment
+    if ($null -eq $processEnvironment) { $processEnvironment = $start.EnvironmentVariables }
+    $processEnvironment['PATH'] = $env:SystemRoot + '\System32;' + $env:SystemRoot
+    foreach ($key in @('PYTHONPATH', 'PYTHONHOME', 'QT_PLUGIN_PATH', 'QML2_IMPORT_PATH', 'QML_IMPORT_PATH', 'QT_QPA_PLATFORM', 'QSG_RHI_BACKEND', 'QT_QUICK_BACKEND')) {
+        $processEnvironment.Remove($key) | Out-Null
+    }
+    if ($Software) { $processEnvironment['QT_QUICK_BACKEND'] = 'software' }
     return [Diagnostics.Process]::Start($start)
 }
 

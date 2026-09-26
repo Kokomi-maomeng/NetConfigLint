@@ -36,11 +36,34 @@ Rectangle {
     color: Colors.surfaceContainerLow
     clip: true
     Behavior on Layout.preferredWidth { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
-    Rectangle { anchors.right: parent.right; height: parent.height; width: 1; color: Qt.alpha(Colors.outlineVariant, 0.55) }
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 14
         spacing: Spacing.xs
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 48
+            spacing: 10
+            Image {
+                Layout.preferredWidth: 28
+                Layout.preferredHeight: 28
+                source: Qt.resolvedUrl("../../../resources/icons/app-master.png")
+                sourceSize.width: 56
+                sourceSize.height: 56
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+                mipmap: true
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: root.expanded
+                text: preferences.values.panelTitle
+                font: Typography.subtitle
+                color: Colors.textPrimary
+                elide: Text.ElideRight
+                renderType: Text.QtRendering
+            }
+        }
         NavigationItem {
             objectName: "navigation-0"
             Layout.fillWidth: true
@@ -68,6 +91,7 @@ Rectangle {
             onClicked: { root.controller.removeHistories(root.selectedHistory); root.selectedHistory = [] }
         }
         Text {
+            renderType: Text.QtRendering
             Layout.fillWidth: true
             visible: root.expanded && root.historyExpanded &&
                      (!root.controller.historyEnabled || historyList.count === 0)
@@ -109,8 +133,8 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.leftMargin: 12
                     spacing: 2
-                    Text { width: parent.width; elide: Text.ElideRight; text: historyRow.timestamp; color: Colors.textPrimary; font: Typography.caption }
-                    Text { width: parent.width; elide: Text.ElideRight; text: historyRow.vendor + " · " + (i18n.catalog["mode." + historyRow.mode] || historyRow.mode); color: Colors.textSecondary; font: Typography.caption }
+                    Text { width: parent.width; elide: Text.ElideRight; text: historyRow.timestamp; color: Colors.textPrimary; font: Typography.caption; renderType: Text.QtRendering }
+                    Text { width: parent.width; elide: Text.ElideRight; text: historyRow.vendor + " · " + (i18n.catalog["mode." + historyRow.mode] || historyRow.mode); color: Colors.textSecondary; font: Typography.caption; renderType: Text.QtRendering }
                 }
                 ToolButton {
                     id: deleteButton

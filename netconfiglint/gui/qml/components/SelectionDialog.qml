@@ -33,12 +33,14 @@ AppDialog {
                     id: optionContent
                     spacing: Spacing.xxs
                     Text {
+                        renderType: Text.QtRendering
                         Layout.fillWidth: true
                         text: optionButton.modelData.label
                         color: optionButton.modelData.value === root.selectedValue ? Colors.primary : Colors.textPrimary
                         font: Typography.subtitle
                     }
                     Text {
+                        renderType: Text.QtRendering
                         Layout.fillWidth: true
                         text: optionButton.modelData.description || ""
                         visible: text.length > 0
@@ -52,7 +54,7 @@ AppDialog {
                     color: optionButton.modelData.value === root.selectedValue
                            ? Qt.alpha(Colors.primaryContainer, 0.88)
                            : (optionButton.hovered ? Colors.surfaceContainerHigh : Colors.surfaceContainer)
-                    border.color: optionButton.modelData.value === root.selectedValue ? Colors.primary : Colors.outlineVariant
+                    border.color: optionButton.modelData.value === root.selectedValue ? Colors.primary : "transparent"
                     border.width: optionButton.modelData.value === root.selectedValue ? 2 : 1
                     Behavior on color { ColorAnimation { duration: Theme.motionShort } }
                 }

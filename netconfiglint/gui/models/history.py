@@ -40,6 +40,17 @@ def default_history_path() -> Path:
     return Path(data_root) / "history" / "history.json"
 
 
+def default_temporary_path() -> Path:
+    """Use the same application-owned root as portable history."""
+    return default_history_path().parent.parent / "temporary" / "editor.txt"
+
+
+def local_timestamp(value: str) -> str:
+    """Render persisted ISO timestamps in the machine's current local timezone."""
+    parsed = datetime.fromisoformat(value)
+    return parsed.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+
+
 @dataclass(frozen=True, slots=True)
 class HistoryEntry:
     entry_id: str
@@ -275,7 +286,7 @@ class HistoryListModel(QAbstractListModel):
             return None
         item = self._items[index.row()]
         values: dict[int, Any] = {
-            HistoryRole.TIMESTAMP: item.timestamp,
+            HistoryRole.TIMESTAMP: local_timestamp(item.timestamp),
             HistoryRole.MODE: item.mode,
             HistoryRole.VENDOR: item.vendor,
             HistoryRole.DIAGNOSTIC_COUNT: item.diagnostic_count,
