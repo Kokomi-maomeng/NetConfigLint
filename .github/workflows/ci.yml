@@ -176,9 +176,6 @@ jobs:
             build/desktop-software
             dist/*.dist/SBOM.json
             release/*.zip
-            release/*.msi
-            release/*.deb
-            release/*.pkg
 
   security:
     if: github.event_name != 'workflow_dispatch' || inputs.scope == 'all'
