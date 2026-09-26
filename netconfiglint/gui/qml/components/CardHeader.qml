@@ -71,8 +71,8 @@ Rectangle {
         y: 12
         height: 36
         width: Math.max(0, Math.min(titleMetrics.advanceWidth(root.title) + 4,
-            root.width - x - 12 - (detailText.visible ? detailText.width + 6 : 0)
-            - (actionButton.visible ? actionButton.width + 4 : 0)))
+            root.width - x - 6 - (detailText.visible ? detailText.width + 4 : 0)
+            - (actionButton.visible ? actionButton.width + 2 : 0)))
         verticalAlignment: TextEdit.AlignVCenter
         wrapMode: TextEdit.NoWrap
         clip: true
@@ -85,9 +85,11 @@ Rectangle {
         id: actionButton
         objectName: root.actionObjectName
         visible: root.actionText.length > 0
-        x: titleText.x + titleText.width + 4
+        x: titleText.x + titleText.width + 2
         y: 12
         height: 36
+        leftPadding: Spacing.xs
+        rightPadding: Spacing.xs
         text: root.actionText
         prominent: true
         enabled: root.actionEnabled
@@ -97,9 +99,9 @@ Rectangle {
         id: detailText
         visible: root.detail.length > 0 && root.width >= titleText.x
                  + titleMetrics.advanceWidth(root.title) + 4
-                 + (actionButton.visible ? actionButton.width + 4 : 0)
-                 + implicitWidth + 18
-        x: root.width - width - 12
+                 + (actionButton.visible ? actionButton.width + 2 : 0)
+                 + implicitWidth + 10
+        x: root.width - width - 6
         y: 20
         text: root.detail
         color: Colors.textSecondary
