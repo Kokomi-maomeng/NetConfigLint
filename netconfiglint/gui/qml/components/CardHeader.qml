@@ -10,6 +10,11 @@ Rectangle {
     property string actionText: ""
     property string actionObjectName: "analyzeButton"
     property bool actionEnabled: true
+    property int minimumDetailDigits: 1
+    readonly property string minimumDetail: "9".repeat(minimumDetailDigits) + " / " + "9".repeat(minimumDetailDigits)
+    readonly property real requiredWidth: 46 + titleMetrics.advanceWidth(title) + 4
+        + (actionButton.visible ? actionButton.implicitWidth + 2 : 0)
+        + (detail.length > 0 ? detailMetrics.advanceWidth(minimumDetail) + 16 : 0)
     signal actionClicked()
     signal dragStarted(real sceneX)
     signal dragMoved(real sceneX)
@@ -64,6 +69,7 @@ Rectangle {
         ToolTip.text: i18n.catalog["panels.reorder"]
     }
     FontMetrics { id: titleMetrics; font: Typography.subtitle }
+    FontMetrics { id: detailMetrics; font: Typography.caption }
     SelectableText {
         id: titleText
         objectName: root.titleObjectName
@@ -97,10 +103,8 @@ Rectangle {
     }
     Text {
         id: detailText
-        visible: root.detail.length > 0 && root.width >= titleText.x
-                 + titleMetrics.advanceWidth(root.title) + 4
-                 + (actionButton.visible ? actionButton.width + 2 : 0)
-                 + implicitWidth + 10
+        objectName: root.objectName + "Detail"
+        visible: root.detail.length > 0 && root.width >= root.requiredWidth
         x: root.width - width - 6
         y: 20
         text: root.detail

@@ -8,13 +8,30 @@ AppMenu {
     objectName: "textEditMenu"
     onAboutToShow: Theme.selectionLocked = true
     onClosed: Theme.selectionLocked = false
+    MenuItem {
+        objectName: "editorSearchMenuItem"
+        visible: menu.zoomTarget !== null
+        height: visible ? implicitHeight : 0
+        text: i18n.catalog["editor.search"]
+        onTriggered: menu.zoomTarget.searchRequested()
+    }
+    MenuSeparator { visible: menu.zoomTarget !== null; height: visible ? implicitHeight : 0 }
     MenuItem { text: i18n.catalog["edit.undo"]; enabled: menu.editor.canUndo; onTriggered: menu.editor.undo() }
     MenuItem { text: i18n.catalog["edit.redo"]; enabled: menu.editor.canRedo; onTriggered: menu.editor.redo() }
     MenuSeparator { }
     MenuItem { text: i18n.catalog["edit.cut"]; enabled: menu.editor.selectedText.length > 0 && !menu.editor.readOnly; onTriggered: menu.editor.cut() }
     MenuItem { text: i18n.catalog["edit.copy"]; enabled: menu.editor.selectedText.length > 0; onTriggered: menu.editor.copy() }
     MenuItem { text: i18n.catalog["edit.paste"]; enabled: menu.editor.canPaste && !menu.editor.readOnly; onTriggered: menu.editor.paste() }
-    MenuItem { text: i18n.catalog["edit.select_all"]; enabled: menu.editor.length > 0; onTriggered: menu.editor.selectAll() }
+    MenuItem { text: i18n.catalog["edit.select_all"]; enabled: menu.editor.length > 0; onTriggered: menu.zoomTarget !== null ? menu.zoomTarget.selectAllWithoutScroll() : menu.editor.selectAll() }
+    MenuSeparator { visible: menu.zoomTarget !== null; height: visible ? implicitHeight : 0 }
+    MenuItem {
+        objectName: "editorClearMenuItem"
+        visible: menu.zoomTarget !== null
+        height: visible ? implicitHeight : 0
+        text: i18n.catalog["edit.clear"]
+        enabled: !menu.editor.readOnly && menu.editor.length > 0
+        onTriggered: menu.editor.clear()
+    }
     MenuSeparator { visible: menu.zoomTarget !== null && menu.zoomTarget.zoomModified; height: visible ? implicitHeight : 0 }
     MenuItem {
         objectName: "resetEditorZoom"

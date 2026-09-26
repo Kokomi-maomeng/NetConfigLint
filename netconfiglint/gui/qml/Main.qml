@@ -11,7 +11,8 @@ ApplicationWindow {
     visible: true
     width: 1440
     height: 900
-    minimumWidth: 960
+    minimumWidth: Math.ceil(Math.max(960, checkPage.minimumWorkspaceWidth
+                                     + (preferences.values.sidebarExpanded ? 260 : 0)))
     minimumHeight: 600
     title: preferences.values.panelTitle
     font: Typography.body
@@ -199,6 +200,9 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 color: Colors.surface
                 topLeftRadius: 28
+                topRightRadius: 28
+                bottomLeftRadius: 28
+                bottomRightRadius: 28
                 clip: true
                 StackLayout {
                     id: pageStack
