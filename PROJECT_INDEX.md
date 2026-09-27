@@ -4,7 +4,7 @@
 
 ## 当前基线
 
-- v2.4 通用 Huawei VRP / H3C Comware 7 命令族识别、中文说明与建议翻译已完成本地候选验收；Windows 与 Debian 13 各 588 项测试通过。Windows 便携候选包位于 `release/NetConfigLint-2.4.0-windows-x64-portable.zip`，本地 SHA-256 和范围限制见 `docs/v2.4-command-catalog-and-i18n.md`。GitHub Release 的独立构建包须按公开下载结果另行验证。
+- v2.4 通用 Huawei VRP / H3C Comware 7 命令族识别、中文说明与建议翻译已完成本地候选验收；Windows 与 Debian 13 各 590 项测试通过。Windows 便携候选包位于 `release/NetConfigLint-2.4.0-windows-x64-portable.zip`，本地 SHA-256 和范围限制见 `docs/v2.4-command-catalog-and-i18n.md`。GitHub Release 的独立构建包须按公开下载结果另行验证。
 - v2.3 GUI 已并入 `main`，最小窗口宽度的 macOS 边界修复正在验收。Windows 本地便携包为 `release/NetConfigLint-2.3.0-windows-x64-portable.zip`，SHA-256 `488691cb7ef089988424f9aa4dcd42aa1fa8626e3ef0e0730c7bfc1634e58df6`。GitHub 发布状态与下载包校验值需按 [v2.3.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v2.3.0) 现场核对。见 `docs/v2.3-gui-acceptance.md`。
 - v2.2 开发分支为 `codex/v2.2-gui-portable`，候选改动见 [PR #6](https://github.com/Kokomi-maomeng/NetConfigLint/pull/6)；此前 `main` 的 v2.1 合并提交为 `0c62984`。公开版本以 Git 标签和 Release 实际资产为准，后续任务应重新检查分支、HEAD、CI 与下载状态。
 - v2.0 历史发布文件：`release/` 内 Windows 便携 ZIP、Windows 未签名 MSI、Linux amd64 DEB、macOS arm64 未签名 PKG，以及对应的官方 `SHA256SUMS.txt`。这些文件于 2026-09-24 与 [GitHub v2.0.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v2.0.0) 资产 SHA-256 逐项核对。`release/` 为本地目录，已被 Git 忽略。
