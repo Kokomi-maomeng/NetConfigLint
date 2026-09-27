@@ -1,9 +1,10 @@
 # NetConfigLint 项目总索引
 
-本索引供后续开发任务从当前工作区继续使用。更新时间：2026-09-27。先读本文，再按所需版本打开对应文档和本地归档。Git 标签和提交是源码历史的依据；安装包以 SHA-256 核对，不根据文件名推断版本或发布状态。
+本索引供后续开发任务从当前工作区继续使用。更新时间：2026-09-28。先读本文，再按所需版本打开对应文档和本地归档。Git 标签和提交是源码历史的依据；安装包以 SHA-256 核对，不根据文件名推断版本或发布状态。
 
 ## 当前基线
 
+- v2.4 通用 Huawei VRP / H3C Comware 7 命令族识别、中文说明与建议翻译已完成本地候选验收；Windows 与 Debian 13 各 588 项测试通过。Windows 便携候选包位于 `release/NetConfigLint-2.4.0-windows-x64-portable.zip`，本地 SHA-256 和范围限制见 `docs/v2.4-command-catalog-and-i18n.md`。GitHub Release 的独立构建包须按公开下载结果另行验证。
 - v2.3 GUI 已并入 `main`，最小窗口宽度的 macOS 边界修复正在验收。Windows 本地便携包为 `release/NetConfigLint-2.3.0-windows-x64-portable.zip`，SHA-256 `488691cb7ef089988424f9aa4dcd42aa1fa8626e3ef0e0730c7bfc1634e58df6`。GitHub 发布状态与下载包校验值需按 [v2.3.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v2.3.0) 现场核对。见 `docs/v2.3-gui-acceptance.md`。
 - v2.2 开发分支为 `codex/v2.2-gui-portable`，候选改动见 [PR #6](https://github.com/Kokomi-maomeng/NetConfigLint/pull/6)；此前 `main` 的 v2.1 合并提交为 `0c62984`。公开版本以 Git 标签和 Release 实际资产为准，后续任务应重新检查分支、HEAD、CI 与下载状态。
 - v2.0 历史发布文件：`release/` 内 Windows 便携 ZIP、Windows 未签名 MSI、Linux amd64 DEB、macOS arm64 未签名 PKG，以及对应的官方 `SHA256SUMS.txt`。这些文件于 2026-09-24 与 [GitHub v2.0.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v2.0.0) 资产 SHA-256 逐项核对。`release/` 为本地目录，已被 Git 忽略。
@@ -24,6 +25,7 @@
 | v2.1 | 合并提交 `0c62984` | 四种检查模式、历史恢复、Windows 便携包；`docs/v2.1-change-scope.md`。本地 ZIP 在 `release/`。 |
 | v2.2 | `codex/v2.2-gui-portable`、PR #6 | 窗口状态与 GUI 重建、编辑区选区与缩放、Windows 便携 ZIP；`docs/v2.2-gui-acceptance.md`。Debian 13 已完成 X11 冒烟，macOS 以托管 CI 和源码检查为边界。 |
 | v2.3 | `codex/v2.3-gui-portable` | 四角、设置折叠、编辑器选区与查找、Ctrl+F 开关、卡片最小宽度、Windows 便携 ZIP；`docs/v2.3-gui-acceptance.md`。 |
+| v2.4 | `codex/v2.4-command-catalog-i18n` | 通用 VRP/Comware 命令族目录、覆盖状态区分、中文注释排除、H3C 运行与安全诊断文案双语；`docs/v2.4-command-catalog-and-i18n.md`。 |
 | 标签后 | `13ee32a` 前的三次提交 | 发布工作流及审计修正；以 `git log v2.0.0..main` 查看。 |
 
 每个标签的完整源码快照、相邻版本的 `git diff --binary` 增量补丁及变更文件清单，保存在本地 `archive/source-history/`。旧版完整发布包及既有解压目录在 `archive/versions/<版本>/`。源码提交、分支和标签仍保留在 Git 中；本地另有 `archive/source-history/all-refs.bundle` 离线备份。
