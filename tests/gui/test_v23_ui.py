@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QPoint, QPointF, Qt
+from PySide6.QtCore import QMetaObject, QObject, QPoint, QPointF, Qt
 from PySide6.QtQuick import QQuickItem, QQuickWindow
 from PySide6.QtTest import QTest
 
@@ -198,7 +199,13 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         menu_point = editor.mapToScene(QPointF(80, 80)).toPoint()
         QTest.mouseClick(window, Qt.MouseButton.RightButton, pos=menu_point)
         QTest.qWait(50)
-        _click(window, "editorClearMenuItem")
+        clear_item = _find(window, "editorClearMenuItem")
+        assert clear_item.isEnabled()
+        if sys.platform == "darwin":
+            # Qt's offscreen popup uses a separate window on macOS; dispatch its action.
+            assert QMetaObject.invokeMethod(clear_item, "triggered")
+        else:
+            _click(window, "editorClearMenuItem")
         QTest.qWait(180)
         assert editor.property("text") == ""
 
