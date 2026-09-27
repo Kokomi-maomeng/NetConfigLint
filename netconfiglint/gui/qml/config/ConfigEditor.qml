@@ -100,13 +100,25 @@ AppCard {
         flickable.contentY = savedSelectionViewY
         restoreSelectionView.restart()
     }
+    function clampEditorViewport() {
+        var flickable = scrollView.contentItem
+        if (!flickable) return
+        var maxY = Math.max(0, editor.contentHeight + editor.topPadding
+            + editor.bottomPadding - scrollView.height)
+        if (flickable.contentY > maxY) flickable.contentY = maxY
+    }
     Timer {
         id: restoreSelectionView
         interval: 30
         onTriggered: {
             scrollView.contentItem.contentX = root.savedSelectionViewX
             scrollView.contentItem.contentY = root.savedSelectionViewY
+            root.clampEditorViewport()
         }
+    }
+    Connections {
+        target: editor
+        function onContentHeightChanged() { Qt.callLater(root.clampEditorViewport) }
     }
     FontMetrics { id: monoMetrics; font: editor.font }
     ColumnLayout {

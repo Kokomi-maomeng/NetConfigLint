@@ -26,6 +26,16 @@ def _click(window: QQuickWindow, name: str) -> None:
     QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=point)
 
 
+def _wait_for_search_status(window: QQuickWindow, expected: str) -> None:
+    QTest.qWait(110)  # The card debounces edits before searching.
+    for _ in range(50):
+        actual = _find(window, "editorSearchStatus").property("text")
+        if actual == expected:
+            return
+        QTest.qWait(20)
+    assert actual == expected
+
+
 def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object) -> None:
     controller = AnalysisController(
         async_enabled=False,
@@ -95,6 +105,7 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         editor.selectAll()
         flickable.setProperty("contentY", 0)
         QTest.qWait(180)
+        assert flickable.property("contentY") <= 1
         highlights = [
             item for item in _items(window.contentItem()) if item.objectName() == "selectedBlankLine"
         ]
@@ -138,9 +149,7 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
             _click(window, "editorRegex")
         field = _find(window, "editorSearchField")
         field.setProperty("text", "alpha")
-        QTest.qWait(130)
-        status = _find(window, "editorSearchStatus").property("text")
-        assert status == "1 " + catalog["editor.matches"], (editor_name, status)
+        _wait_for_search_status(window, "1 " + catalog["editor.matches"])
         _click(window, "editorFindNext")
         assert editor.property("selectedText") == "Alpha"
         _click(window, "editorMatchCase")
@@ -213,8 +222,7 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     assert _find(window, "editorRegex").property("checked")
     field = _find(window, "editorSearchField")
     field.setProperty("text", r"\r\n")
-    QTest.qWait(150)
-    assert _find(window, "editorSearchStatus").property("text") == "2 " + catalog["editor.matches"]
+    _wait_for_search_status(window, "2 " + catalog["editor.matches"])
     _click(window, "editorFindNext")
     assert "\n" in editor.property("selectedText")
     caret = _find(window, "configurationTextAreaSearchCaret")
@@ -222,20 +230,13 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     _click(window, "editorFindNext")
     assert caret.isVisible() and caret.x() > editor.property("leftPadding")
     field.setProperty("text", "^two$")
-    QTest.qWait(150)
-    assert _find(window, "editorSearchStatus").property("text") == "1 " + catalog["editor.matches"]
+    _wait_for_search_status(window, "1 " + catalog["editor.matches"])
     field.setProperty("text", r"\b(?:one|three)\b")
-    QTest.qWait(150)
-    assert _find(window, "editorSearchStatus").property("text") == "2 " + catalog["editor.matches"]
+    _wait_for_search_status(window, "2 " + catalog["editor.matches"])
     field.setProperty("text", r"(?=two)")
-    QTest.qWait(150)
-    assert _find(window, "editorSearchStatus").property("text") == "1 " + catalog["editor.matches"]
+    _wait_for_search_status(window, "1 " + catalog["editor.matches"])
     field.setProperty("text", "[")
-    for _ in range(50):
-        if _find(window, "editorSearchStatus").property("text") == catalog["editor.invalid_regex"]:
-            break
-        QTest.qWait(20)
-    assert _find(window, "editorSearchStatus").property("text") == catalog["editor.invalid_regex"]
+    _wait_for_search_status(window, catalog["editor.invalid_regex"])
 
     card = _find(window, "editorSearchCard")
     field.setProperty("text", "one")
