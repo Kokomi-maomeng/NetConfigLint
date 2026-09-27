@@ -29,9 +29,7 @@ def _click(window: QQuickWindow, name: str) -> None:
 
 def _press_shortcut(window: QQuickWindow, key: Qt.Key) -> None:
     modifier = (
-        Qt.KeyboardModifier.MetaModifier
-        if sys.platform == "darwin"
-        else Qt.KeyboardModifier.ControlModifier
+        Qt.KeyboardModifier.MetaModifier if sys.platform == "darwin" else Qt.KeyboardModifier.ControlModifier
     )
     QTest.keyClick(window, key, modifier)
 
