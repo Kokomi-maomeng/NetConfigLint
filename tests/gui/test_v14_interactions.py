@@ -105,7 +105,14 @@ def test_compact_sidebar_expands_over_workspace_and_dismisses(gui: tuple) -> Non
     assert rail.width() == 0
     click(window, "sidebarToggle")
     click(window, "brandAboutButton")
-    wait_until(lambda: rail.width() == 0)
+    try:
+        wait_until(lambda: rail.width() == 0)
+    except AssertionError as error:
+        raise AssertionError(
+            f"Sidebar stayed open: rail={rail.width()}, window={window.width()}, "
+            f"minimum={window.minimumWidth()}, compact={rail.property('compact')}, "
+            f"expandedInCompact={rail.property('expandedInCompact')}, page={window.property('currentPage')}"
+        ) from error
     assert window.property("currentPage") == 1
     assert rail.width() == 0
 
@@ -272,7 +279,8 @@ def test_workspace_cards_and_toolbar_fit_multiple_widths(gui: tuple, width: int)
     engine.rootContext().contextProperty("i18n").language = "en"
     controller.sourceText = "sysname WIDTH\ntelnet server enable\n"
     controller.analyzeConfig()
-    window.setWidth(width)
+    # v2.3 keeps five-digit counters readable by raising the window minimum.
+    window.setWidth(max(width, window.minimumWidth()))
     QTest.qWait(500)
     split = find(window, "workspaceSplitView")
     for name in ("configurationEditor", "analysisPanel", "temporaryEditor"):

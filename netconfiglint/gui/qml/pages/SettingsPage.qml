@@ -35,7 +35,6 @@ AppDialog {
                 Layout.fillWidth: true
                 title: i18n.catalog["settings.general"]
                 detail: i18n.catalog["settings.general_detail"]
-                expanded: false
                 RowLayout {
                     Layout.fillWidth: true
                     SelectableText { text: i18n.catalog["settings.language"]; Layout.fillWidth: true }
@@ -217,7 +216,6 @@ AppDialog {
                 Layout.fillWidth: true
                 title: i18n.catalog["settings.privacy"]
                 detail: i18n.catalog["settings.history"]
-                expanded: false
                 RowLayout {
                     Layout.fillWidth: true
                     SelectableText { text: i18n.catalog["settings.history"]; Layout.fillWidth: true }

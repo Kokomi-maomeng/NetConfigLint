@@ -11,7 +11,8 @@ Rectangle {
     property bool historyExpanded: true
     property var selectedHistory: []
     property int lastHistoryIndex: -1
-    property bool compact: root.Window.width < 1180
+    property real compactThreshold: 1180
+    property bool compact: root.Window.width < compactThreshold
     property bool expandedInCompact: false
     property bool expanded: preferences.values.sidebarExpanded && (!compact || expandedInCompact)
     onCompactChanged: expandedInCompact = false
@@ -35,10 +36,15 @@ Rectangle {
     }
     color: Colors.surfaceContainerLow
     clip: true
-    Behavior on Layout.preferredWidth { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
     ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: 14
+        objectName: "navigationContents"
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.topMargin: 14
+        anchors.bottomMargin: 14
+        anchors.leftMargin: 14
+        width: 232
         spacing: Spacing.xs
         RowLayout {
             Layout.fillWidth: true

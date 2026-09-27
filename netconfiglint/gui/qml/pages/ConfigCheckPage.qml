@@ -10,6 +10,9 @@ Item {
     id: root
     objectName: "configCheckPage"
     property var controller
+    readonly property real minimumWorkspaceWidth: configEditor.headerMinimumWidth
+        + (analysisPanel.visible ? 240 + 16 : 0)
+        + (temporaryEditor.visible ? temporaryEditor.headerMinimumWidth + 16 : 0) + 40
     property string draggedKey: ""
     property real dragSceneX: 0
     property real dragStartSceneX: 0
@@ -123,7 +126,7 @@ Item {
                 editorObjectName: "configurationTextArea"
                 visible: true
                 SplitView.preferredWidth: 300
-                SplitView.minimumWidth: 240
+                SplitView.minimumWidth: headerMinimumWidth
                 title: root.controller.editorReadOnly ? i18n.catalog["editor.bundle_preview"] : i18n.catalog["editor.configuration"]
                 titleObjectName: "checkPageTitle"
                 text: root.controller.editorText
@@ -136,6 +139,7 @@ Item {
                 onDragMoved: sceneX => root.updateDrag(sceneX)
                 onDragFinished: sceneX => root.finishDrag(sceneX)
                 onStepRequested: direction => root.step(panelKey, direction)
+                onSearchOpenRequested: searchCard.openFor(configEditor)
             }
             AnalysisPanel {
                 id: analysisPanel
@@ -166,16 +170,32 @@ Item {
                 editorObjectName: "temporaryTextArea"
                 visible: preferences.values.panels.indexOf(panelKey) >= 0
                 SplitView.preferredWidth: 300
-                SplitView.minimumWidth: 240
+                SplitView.minimumWidth: headerMinimumWidth
                 title: i18n.catalog["editor.temporary"]
                 text: root.controller.temporaryText
                 showSave: true
                 onSaveRequested: value => root.controller.saveTemporaryText(value)
+                onSearchOpenRequested: searchCard.openFor(temporaryEditor)
                 onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
                 onDragMoved: sceneX => root.updateDrag(sceneX)
                 onDragFinished: sceneX => root.finishDrag(sceneX)
                 onStepRequested: direction => root.step(panelKey, direction)
             }
+        }
+    }
+    SearchCard {
+        id: searchCard
+        anchors.fill: parent
+        z: 200
+    }
+    Shortcut {
+        sequences: [StandardKey.Find]
+        enabled: root.visible && (configEditor.editor.activeFocus
+            || temporaryEditor.editor.activeFocus || searchCard.opened)
+        onActivated: {
+            var card = configEditor.editor.activeFocus ? configEditor
+                : temporaryEditor.editor.activeFocus ? temporaryEditor : searchCard.targetCard
+            if (card) searchCard.toggleFor(card)
         }
     }
     Item {

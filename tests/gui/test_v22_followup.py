@@ -62,7 +62,7 @@ def test_blank_line_selection_and_keyboard_zoom_in_both_editors(tmp_path: Path, 
             item for item in _items(window.contentItem()) if item.objectName() == "selectedBlankLine"
         ]
         assert len(highlights) == 1
-        assert highlights[0].width() > 32 and highlights[0].height() > 0
+        assert 10 <= highlights[0].width() <= 24 and highlights[0].height() > 0
         assert highlights[0].isVisible()
 
         original = card.property("editorFontSize")
@@ -261,9 +261,10 @@ def test_history_switch_reenables_and_clear_confirmation_returns_to_check(
     dialog = window.findChild(QObject, "clearHistoryDialog")
     assert dialog is not None and dialog.property("visible")
     _click(window, "clearHistoryCancel")
-    QTest.qWait(150)
+    QTest.qWait(350)
     assert path.exists()
     _click(window, "clearHistoryButton")
+    QTest.qWait(150)
     _click(window, "clearHistoryConfirm")
     QTest.qWait(180)
     assert not path.exists()

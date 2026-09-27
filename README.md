@@ -1,4 +1,4 @@
-# NetConfigLint v2.2
+# NetConfigLint v2.3
 
 Project versions, local release files, rollback records, and the consolidated task entry are mapped in [PROJECT_INDEX.md](PROJECT_INDEX.md).
 
@@ -11,15 +11,25 @@ source-linked diagnostics to the CLI and QML desktop application through one sha
 It is not a complete VRP emulator, network simulator, migration engine, or replacement for
 vendor-supported validation and lab testing.
 
-See the [v2.2 GUI acceptance notes](docs/v2.2-gui-acceptance.md), [v2.1 change scope](docs/v2.1-change-scope.md), [H3C coverage contract](docs/h3c-command-support.md),
+See the [v2.3 GUI acceptance notes](docs/v2.3-gui-acceptance.md), [v2.2 GUI acceptance notes](docs/v2.2-gui-acceptance.md), [v2.1 change scope](docs/v2.1-change-scope.md), [H3C coverage contract](docs/h3c-command-support.md),
 and [v2.0 acceptance report](docs/v2.0-acceptance.md) for earlier release evidence.
 
-## Desktop v2.2
+## Desktop v2.3
 
 The desktop puts its existing controls in one compact top bar, with a rounded workspace surface,
 collapsible Settings sections, palette-tinted cards, and bundled Noto Sans SC text.
 Roboto and Noto Sans SC ship as static Regular and SemiBold font files for consistent weight
 selection across Qt platforms. Platform font rasterizers still differ.
+
+In v2.3, all four workspace corners are rounded. Settings sections start collapsed and keep
+their open/closed state until the application exits. Configuration and Temporary Editor show
+selected empty lines with a character-width marker and selected spaces and tabs at their actual
+width, keep the viewport in place on Ctrl+A, and expose icon-labeled Search and Clear all in
+context menus with rounded hover and press feedback. Ctrl+F opens an animated, resizable search
+card that moves only from its dotted grip. It offers cyclic
+forward/backward search, match-case and regular-expression options, selected single-line text
+prefill, a visible line-end marker for newline matches, and opacity adjustment (55–100%). Editor cards grow their minimum width with the displayed line count;
+the window minimum width grows as needed to keep the card headers readable.
 
 - The top bar holds sidebar collapse, Open, Export, Mode, Vendor, Display, About, and window
   controls. Analyze stays inside Configuration. The sidebar header shows the app title.
@@ -269,7 +279,7 @@ checking the final dependency closure.
 .\scripts\build_msi.ps1 -SkipAppBuild
 ```
 
-The portable command creates `release/NetConfigLint-2.2.0-windows-x64-portable.zip`. Extract the
+The portable command creates `release/NetConfigLint-2.3.0-windows-x64-portable.zip`. Extract the
 single top-level folder and start `NetConfigLint.exe`; the Nuitka build uses the Windows GUI
 subsystem and therefore does not open a console window.
 
@@ -346,6 +356,9 @@ See [Huawei validation notes](docs/huawei-validation.md), [status](docs/status.m
 - **v2.2**: repaired window geometry persistence, integrated menu and workspace,
   collapsible Settings, palette-tinted cards, unified text rendering, visible blank-line selection,
   editor keyboard zoom, window transitions, and a Windows portable ZIP.
+- **v2.3**: four rounded workspace corners, session-only Settings folds, compact selected
+  blank-line markers, stable Ctrl+A viewport, dynamic card minimum widths, icon-labeled
+  context menus, and a grip-draggable search card with cyclic literal/regex search and opacity.
 - **Future**: Juniper Junos plugin, VS Code integration, configuration diff,
   topology/dependency graph, Batfish
   integration, CI validation, and migration assistance.
