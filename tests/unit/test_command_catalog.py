@@ -75,6 +75,19 @@ def test_h3c_system_command_in_interface_view_stays_unknown() -> None:
     assert any(item.rule_id == "H3C-CMD-001" and item.source.line == 2 for item in result.diagnostics)
 
 
+def test_h3c_catalog_does_not_inherit_huawei_family_accounting() -> None:
+    result = analyze(
+        "stp global enable\ninfo-center loghost 192.0.2.1\n",
+        mode="full",
+        vendor="h3c",
+    )
+    assert result.coverage["catalogued_lines"] == [1, 2]
+    assert result.coverage["catalogued_families"] == [
+        {"family": "info_center", "count": 1},
+        {"family": "stp", "count": 1},
+    ]
+
+
 def test_every_family_has_vendor_source_and_bilingual_label() -> None:
     root = Path(__file__).parents[2] / "netconfiglint/gui/i18n"
     catalogs = [json.loads((root / name).read_text(encoding="utf-8")) for name in ("en.json", "zh_CN.json")]

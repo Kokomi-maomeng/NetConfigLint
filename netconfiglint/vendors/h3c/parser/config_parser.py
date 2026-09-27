@@ -141,6 +141,11 @@ class H3CConfigParser:
             detection,
             initial_view=_normalize_body(initial_view) if initial_view is not None else None,
         )
+        # The delegate's Huawei-only catalog is not evidence of Comware support.
+        # Re-evaluate those lines with the H3C inventory and the original CLI text.
+        config.unparsed_lines.extend(config.catalogued_lines)
+        config.catalogued_lines = []
+        config.command_catalog = {}
         originals = tuple(source.splitlines())
         config.vendor = "H3C"
         config.source_lines = originals
