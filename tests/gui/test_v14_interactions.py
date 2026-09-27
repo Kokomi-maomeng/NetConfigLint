@@ -105,7 +105,14 @@ def test_compact_sidebar_expands_over_workspace_and_dismisses(gui: tuple) -> Non
     assert rail.width() == 0
     click(window, "sidebarToggle")
     click(window, "brandAboutButton")
-    wait_until(lambda: rail.width() == 0)
+    try:
+        wait_until(lambda: rail.width() == 0)
+    except AssertionError as error:
+        raise AssertionError(
+            f"Sidebar stayed open: rail={rail.width()}, window={window.width()}, "
+            f"minimum={window.minimumWidth()}, compact={rail.property('compact')}, "
+            f"expandedInCompact={rail.property('expandedInCompact')}, page={window.property('currentPage')}"
+        ) from error
     assert window.property("currentPage") == 1
     assert rail.width() == 0
 
