@@ -12,7 +12,7 @@ Item {
     property var controller
     readonly property real minimumWorkspaceWidth: configEditor.headerMinimumWidth
         + (analysisPanel.visible ? 240 + 16 : 0)
-        + (temporaryEditor.visible ? temporaryEditor.headerMinimumWidth + 16 : 0) + 40
+        + (temporaryEditor.visible ? temporaryEditor.headerMinimumWidth + 16 : 0) + 64
     property string draggedKey: ""
     property real dragSceneX: 0
     property real dragStartSceneX: 0
