@@ -57,10 +57,17 @@ class AnalysisResult:
             if number in scope and (not line.strip() or line.strip().lower() in {"#", "return"})
         )
         unsupported = {item.line for item in config.unsupported_lines if item.line in scope}
-        unparsed = {item.line for item in config.unparsed_lines if item.line in scope} - unsupported - ignored
+        catalogued = {item.line for item in config.catalogued_lines if item.line in scope} - ignored
+        unparsed = (
+            {item.line for item in config.unparsed_lines if item.line in scope}
+            - unsupported
+            - ignored
+            - catalogued
+        )
         total = len(scope)
         return {
-            "recognized": max(0, total - len(ignored | unsupported | unparsed)),
+            "recognized": max(0, total - len(ignored | unsupported | unparsed | catalogued)),
+            "catalogued": len(catalogued),
             "unparsed": len(unparsed),
             "unsupported": len(unsupported),
             "ignored": len(ignored),
@@ -69,12 +76,19 @@ class AnalysisResult:
             "excluded_operational_lines": len(config.source_lines) - total,
             "unparsed_lines": sorted(unparsed),
             "unsupported_lines": sorted(unsupported),
+            "catalogued_lines": sorted(catalogued),
+            "catalogued_families": [
+                {"family": family, "count": value["count"]}
+                for family, value in sorted(config.command_catalog.items())
+                if isinstance(value, dict) and isinstance(value.get("count"), int)
+            ],
             "context_unknown_lines": sorted({item.line for item in config.context_unknown_lines}),
             "complete": not config.incomplete_reasons,
-            "semantic_complete": not (unsupported or unparsed or config.incomplete_reasons),
+            "semantic_complete": not (unsupported or unparsed or catalogued or config.incomplete_reasons),
             "incomplete_reasons": list(config.incomplete_reasons),
             "scope": (
-                "Recognized commands are not a guarantee of complete device syntax or runtime validation."
+                "Catalogued lines identify a documented command family only; recognized lines are not a "
+                "guarantee of device syntax or runtime validation."
             ),
         }
 
