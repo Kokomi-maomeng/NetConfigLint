@@ -266,11 +266,15 @@ def test_history_switch_reenables_and_clear_confirmation_returns_to_check(
     _click(window, "clearHistoryButton")
     QTest.qWait(150)
     _click(window, "clearHistoryConfirm")
-    QTest.qWait(180)
     assert not path.exists()
     assert window.property("currentPage") == 0
     settings = window.findChild(QObject, "settingsDialog")
-    assert settings is not None and not settings.property("visible")
+    assert settings is not None
+    for _ in range(30):
+        if not settings.property("visible"):
+            break
+        QTest.qWait(20)
+    assert not settings.property("visible")
     window.close()
     controller.close()
 
