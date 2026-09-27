@@ -55,7 +55,7 @@ AppCard {
             wrapMode: TextEdit.WrapAnywhere
             text: (root.ruleIdentifier.startsWith("HUA-SEC-") || root.ruleIdentifier.startsWith("H3C-SEC-")) && root.targetName === "Management plane"
                   ? i18n.catalog["object.management"]
-                  : ((root.ruleIdentifier === "HUA-SEC-001" || root.ruleIdentifier === "H3C-SEC-001") && root.targetName === "Configuration" ? i18n.catalog["object.configuration"] : root.targetName)
+                  : ((root.ruleIdentifier === "HUA-SEC-001" || root.ruleIdentifier === "H3C-SEC-001") && root.targetName === "Configuration" ? i18n.catalog["object.configuration"] : i18n.diagnostic(root.targetName))
             color: Colors.textSecondary
             font: Typography.caption
         }

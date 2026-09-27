@@ -11,6 +11,7 @@ import re
 import textwrap
 from dataclasses import asdict, replace
 
+from netconfiglint.commands import catalogued_family, is_annotation
 from netconfiglint.core.analyzer.control import charge_vlan_memberships, checkpoint
 from netconfiglint.core.analyzer.models import AnalysisMode, VendorDetection
 from netconfiglint.core.analyzer.operational_input import mask_operational_output
@@ -55,8 +56,15 @@ class HuaweiConfigParser:
             if mode in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT}
             else (source, set())
         )
+        annotations = {
+            number for number, line in enumerate(parser_source.splitlines(), 1) if is_annotation(line)
+        }
+        parser_source = "\n".join(
+            "" if number in annotations else line for number, line in enumerate(parser_source.splitlines(), 1)
+        )
         lines = lex_lines(textwrap.dedent(parser_source) if mode == AnalysisMode.SNIPPET else parser_source)
         config = DeviceConfig(vendor=detection.vendor, source_lines=tuple(source.splitlines()))
+        config.ignored_lines.extend(SourceRange(number) for number in annotations)
         if mode in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT}:
             config.analysis_lines = analysis_scope
             config.metadata["analysis_scope_explicit"] = "true"
@@ -84,10 +92,10 @@ class HuaweiConfigParser:
                 for fact in database.effective_features(resolution.profile.profile_id)
             }
         # Sensitive input is inventoried even when the command has since been removed.
-        for line in lines:
+        for number, original in enumerate(source.splitlines(), 1):
             checkpoint()
-            if _SENSITIVE.search(line.text):
-                config.sensitive_lines.append(SourceRange(line.number))
+            if _SENSITIVE.search(original):
+                config.sensitive_lines.append(SourceRange(number))
         for block in config.blocks:
             checkpoint()
             header = SourceLine(block.source.line, block.header, block.header, tuple(block.header.split()))
@@ -106,6 +114,46 @@ class HuaweiConfigParser:
             checkpoint()
             if not block.context_known:
                 config.context_unknown_lines.extend(command.source for command in block.commands)
+        catalogued_families: dict[str, list[int]] = {}
+        line_context = {
+            command.source.line: (block.header.lower(), command.views)
+            for block in config.blocks
+            for command in block.commands
+        }
+        header_lines = {block.source.line for block in config.blocks}
+        remaining = []
+        for item in config.unparsed_lines:
+            family = catalogued_family("huawei", config.source_lines[item.line - 1])
+            context = line_context.get(item.line)
+            if (
+                family is None
+                or (
+                    item.line in header_lines
+                    and family.name
+                    not in {"stp", "info_center", "lldp", "multicast", "qos", "services", "vxlan_evpn"}
+                )
+                or (
+                    context is not None
+                    and (
+                        context[1]
+                        or not context[0].startswith("interface ")
+                        or family.name not in {"stp", "lldp", "multicast"}
+                    )
+                )
+            ):
+                remaining.append(item)
+                continue
+            config.catalogued_lines.append(item)
+            catalogued_families.setdefault(family.name, []).append(item.line)
+        config.unparsed_lines = remaining
+        catalogued_numbers = {item.line for item in config.catalogued_lines}
+        config.unsupported_lines = [
+            item for item in config.unsupported_lines if item.line not in catalogued_numbers
+        ]
+        config.command_catalog = {
+            family: {"count": len(numbers), "lines": numbers}
+            for family, numbers in catalogued_families.items()
+        }
         config.acl_references = [
             (config.acl_aliases.get(key, key), obj, source) for key, obj, source in config.acl_references
         ]

@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from dataclasses import replace
 
+from netconfiglint.commands import catalogued_family, is_annotation
 from netconfiglint.core.analyzer.models import AnalysisMode, VendorDetection
 from netconfiglint.core.analyzer.operational_input import mask_operational_output
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
@@ -26,7 +27,6 @@ _SEMANTIC_PATTERNS = tuple(
         ("management_server", r"^(?:telnet|ftp|ssh|sftp)\s+server\s+(?:enable|disable)$"),
         ("ip_services", r"^(?:ip\s+(?:unreachables|ttl-expires)\s+enable|dhcp\s+enable)$"),
         ("lldp", r"^lldp\s+global\s+enable$"),
-        ("stp", r"^stp\s+(?:instance|port-log|bpdu-protection|global|edged-port)\b.*$"),
         ("m_lag", r"^(?:port\s+m-lag\s+peer-link|m-lag\s+(?:mad|role|system|keepalive)\b).*$"),
         ("mac_check", r"^undo\s+mac-address\s+static\s+source-check\s+enable$"),
         ("scheduler", r"^scheduler\s+logfile\s+size\s+\d+$"),
@@ -34,7 +34,6 @@ _SEMANTIC_PATTERNS = tuple(
             "terminal",
             r"^(?:line\s+(?:class\s+)?(?:console|con|vty)\b.*|authentication-mode\s+\S+|protocol\s+inbound\s+.*|user-role\s+.*)$",
         ),
-        ("logging", r"^info-center\s+loghost\s+\S+$"),
         ("snmp", r"^snmp-agent(?:\s+.*)?$"),
         ("arp_protection", r"^arp\s+(?:ip-conflict|user-ip-conflict)\b.*$"),
         ("ntp", r"^ntp-service\s+.*$"),
@@ -60,10 +59,6 @@ _IRF_COMMAND = re.compile(
     re.I,
 )
 _SESSION_COMMAND = re.compile(r"^(?:sys|system-view|quit|return|save(?:\s+.*)?)$", re.I)
-_ANNOTATION = re.compile(
-    r"^(?:[/;]|(?:说明|备注|注意|配置示例|设备[一二三四1234])\s*[:\uff1a]|"
-    r"[\u4e00-\u9fff]+[\uff0c\u3002\uff1b\uff1a])"
-)
 
 
 def _normalize_body(body: str) -> str:
@@ -136,7 +131,9 @@ class H3CConfigParser:
             parser_source, analysis_scope = mask_operational_output(source)
         else:
             parser_source, analysis_scope = source, set()
-        normalized = _normalize_source(parser_source)
+        normalized = _normalize_source(
+            "\n".join("" if is_annotation(line) else line for line in parser_source.splitlines())
+        )
         delegate_mode = AnalysisMode.FULL if bundle is not None else mode
         config = self._normalized.parse(
             normalized,
@@ -144,6 +141,11 @@ class H3CConfigParser:
             detection,
             initial_view=_normalize_body(initial_view) if initial_view is not None else None,
         )
+        # The delegate's Huawei-only catalog is not evidence of Comware support.
+        # Re-evaluate those lines with the H3C inventory and the original CLI text.
+        config.unparsed_lines.extend(config.catalogued_lines)
+        config.catalogued_lines = []
+        config.command_catalog = {}
         originals = tuple(source.splitlines())
         config.vendor = "H3C"
         config.source_lines = originals
@@ -189,7 +191,7 @@ class H3CConfigParser:
                     irf_ports[int(match.group(1))] = (int(match.group(2)), number)
                 elif re.fullmatch(r"port\s+group\s+interface\s+\S+", body, re.I):
                     irf_bindings.add(number)
-            elif _SESSION_COMMAND.fullmatch(body) or _ANNOTATION.match(body):
+            elif _SESSION_COMMAND.fullmatch(body) or is_annotation(body):
                 config.ignored_lines.append(SourceRange(number))
                 semantic_lines.add(number)
         # A two-member sample with both peer ports on the same side cannot form
@@ -246,6 +248,38 @@ class H3CConfigParser:
         config.context_unknown_lines = [
             item for item in config.context_unknown_lines if item.line not in semantic_lines
         ]
+        catalogued_families: dict[str, list[int]] = {}
+        line_context = {
+            command.source.line: (block.header.lower(), command.views)
+            for block in config.blocks
+            for command in block.commands
+        }
+        remaining = []
+        for item in config.unparsed_lines:
+            catalog_family = catalogued_family("h3c", originals[item.line - 1])
+            context = line_context.get(item.line)
+            if catalog_family is None or (
+                context is not None
+                and (
+                    context[1]
+                    or not context[0].startswith("interface ")
+                    or catalog_family.name
+                    not in {"stp", "lldp", "interface", "ip", "qos", "multicast", "acl"}
+                )
+            ):
+                remaining.append(item)
+                continue
+            config.catalogued_lines.append(item)
+            catalogued_families.setdefault(catalog_family.name, []).append(item.line)
+        config.unparsed_lines = remaining
+        catalogued_numbers = {item.line for item in config.catalogued_lines}
+        config.unsupported_lines = [
+            item for item in config.unsupported_lines if item.line not in catalogued_numbers
+        ]
+        config.command_catalog = {
+            family: {"count": len(numbers), "lines": numbers}
+            for family, numbers in catalogued_families.items()
+        }
         config.unsupported_lines = sorted(
             {*(item for item in config.unsupported_lines), *config.unparsed_lines},
             key=lambda item: item.line,
