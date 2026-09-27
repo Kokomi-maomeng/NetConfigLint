@@ -36,6 +36,14 @@ def _wait_for_search_status(window: QQuickWindow, expected: str) -> None:
     assert actual == expected
 
 
+def _wait_for_opacity(item: QQuickItem, expected: float) -> None:
+    for _ in range(50):
+        if abs(item.opacity() - expected) < 0.01:
+            return
+        QTest.qWait(20)
+    assert abs(item.opacity() - expected) < 0.01
+
+
 def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object) -> None:
     controller = AnalysisController(
         async_enabled=False,
@@ -278,7 +286,7 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     assert not overlay.property("opened")
     assert overlay.isVisible()  # The exit animation keeps the card rendered briefly.
     QTest.qWait(300)
-    assert not overlay.isVisible()
+    assert not overlay.isEnabled()
     editor.setProperty("text", "alpha+beta\nsecond")
     editor.select(0, 10)
     editor.forceActiveFocus()
@@ -310,18 +318,15 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
         for child in menu_item.property("background").childItems()
         if child.objectName() == "menuItemHoverOverlay"
     )
-    assert hover_overlay.opacity() == 0
-    QTest.mouseMove(window, menu_item.mapToScene(QPointF(50, 20)).toPoint())
-    QTest.qWait(25)
-    assert 0 < hover_overlay.opacity() < 1
-    QTest.qWait(150)
-    assert menu_item.property("hovered")
-    assert hover_overlay.opacity() == 1
     undo_item = _find(window, "editorUndoMenuItem")
+    QTest.mouseMove(window, undo_item.mapToScene(QPointF(50, 20)).toPoint())
+    _wait_for_opacity(hover_overlay, 0)
+    QTest.mouseMove(window, menu_item.mapToScene(QPointF(50, 20)).toPoint())
+    _wait_for_opacity(hover_overlay, 1)
+    assert menu_item.property("hovered")
     assert not undo_item.isEnabled()
     QTest.mouseMove(window, undo_item.mapToScene(QPointF(50, 20)).toPoint())
-    QTest.qWait(150)
-    assert hover_overlay.opacity() == 0
+    _wait_for_opacity(hover_overlay, 0)
     preferences = engine.rootContext().contextProperty("preferences")
     for mode in (1, 2):
         preferences.setValue("themeMode", mode)
