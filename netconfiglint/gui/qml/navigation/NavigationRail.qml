@@ -11,7 +11,8 @@ Rectangle {
     property bool historyExpanded: true
     property var selectedHistory: []
     property int lastHistoryIndex: -1
-    property bool compact: root.Window.width < 1180
+    property real compactThreshold: 1180
+    property bool compact: root.Window.width < compactThreshold
     property bool expandedInCompact: false
     property bool expanded: preferences.values.sidebarExpanded && (!compact || expandedInCompact)
     onCompactChanged: expandedInCompact = false

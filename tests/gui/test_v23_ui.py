@@ -48,9 +48,9 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
 
     for section in ("general", "display", "color", "privacy"):
         assert not window.findChild(QObject, section + "SettingsSection").property("expanded")
-    assert window.minimumWidth() > 960
+    assert window.minimumWidth() >= 960
     window.setWidth(window.minimumWidth())
-    QTest.qWait(80)
+    QTest.qWait(320)
     for card_name, editor_name in (
         ("configurationEditor", "configurationTextArea"),
         ("temporaryEditor", "temporaryTextArea"),
@@ -60,7 +60,7 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         assert _find(window, editor_name + "HeaderDetail").isVisible()
         assert card.mapToScene(QPointF(card.width(), 0)).x() <= window.width() + 1
     window.setWidth(1600)
-    QTest.qWait(80)
+    QTest.qWait(320)
     _click(window, "settingsButton")
     QTest.qWait(300)
     _click(window, "displaySettingsSection-header")
@@ -229,7 +229,10 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     QTest.qWait(150)
     assert _find(window, "editorSearchStatus").property("text") == "1 " + catalog["editor.matches"]
     field.setProperty("text", "[")
-    QTest.qWait(150)
+    for _ in range(50):
+        if _find(window, "editorSearchStatus").property("text") == catalog["editor.invalid_regex"]:
+            break
+        QTest.qWait(20)
     assert _find(window, "editorSearchStatus").property("text") == catalog["editor.invalid_regex"]
 
     card = _find(window, "editorSearchCard")

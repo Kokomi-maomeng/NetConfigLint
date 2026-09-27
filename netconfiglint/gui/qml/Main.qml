@@ -11,8 +11,7 @@ ApplicationWindow {
     visible: true
     width: 1440
     height: 900
-    minimumWidth: Math.ceil(Math.max(960, checkPage.minimumWorkspaceWidth
-                                     + (preferences.values.sidebarExpanded ? 260 : 0)))
+    minimumWidth: Math.ceil(Math.max(960, checkPage.minimumWorkspaceWidth))
     minimumHeight: 600
     title: preferences.values.panelTitle
     font: Typography.body
@@ -173,6 +172,7 @@ ApplicationWindow {
                 NavigationRail {
                     id: navigation
                     objectName: "navigationRail"
+                    compactThreshold: Math.ceil(Math.max(1180, checkPage.minimumWorkspaceWidth + 260))
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     width: compact ? (expanded ? 260 : 0) : navigationHost.width
