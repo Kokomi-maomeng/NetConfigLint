@@ -4,7 +4,7 @@
 
 ## 当前基线
 
-- v2.3 为当前 `codex/v2.3-gui-portable` 开发与发布候选分支。Windows 本地便携包为 `release/NetConfigLint-2.3.0-windows-x64-portable.zip`，SHA-256 `88cd4a66c418f73498b855e99ee88df02c65ede7a769789fe887489c02a0594b`。GitHub 发布状态与下载包校验值需按 [v2.3.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v2.3.0) 现场核对。见 `docs/v2.3-gui-acceptance.md`。
+- v2.3 GUI 已并入 `main`，最小窗口宽度的 macOS 边界修复正在验收。Windows 本地便携包为 `release/NetConfigLint-2.3.0-windows-x64-portable.zip`，SHA-256 `488691cb7ef089988424f9aa4dcd42aa1fa8626e3ef0e0730c7bfc1634e58df6`。GitHub 发布状态与下载包校验值需按 [v2.3.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v2.3.0) 现场核对。见 `docs/v2.3-gui-acceptance.md`。
 - v2.2 开发分支为 `codex/v2.2-gui-portable`，候选改动见 [PR #6](https://github.com/Kokomi-maomeng/NetConfigLint/pull/6)；此前 `main` 的 v2.1 合并提交为 `0c62984`。公开版本以 Git 标签和 Release 实际资产为准，后续任务应重新检查分支、HEAD、CI 与下载状态。
 - v2.0 历史发布文件：`release/` 内 Windows 便携 ZIP、Windows 未签名 MSI、Linux amd64 DEB、macOS arm64 未签名 PKG，以及对应的官方 `SHA256SUMS.txt`。这些文件于 2026-09-24 与 [GitHub v2.0.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v2.0.0) 资产 SHA-256 逐项核对。`release/` 为本地目录，已被 Git 忽略。
 - v2.2 本地验收产物：`release/NetConfigLint-2.2.0-windows-x64-portable.zip` 与同名 `.sha256`。GitHub Release 会独立构建便携 ZIP，其校验值须与实际下载文件核对；证据和限制见 `docs/v2.2-gui-acceptance.md`。
