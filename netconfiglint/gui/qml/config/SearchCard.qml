@@ -14,6 +14,9 @@ Item {
     Behavior on opacity { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
     property var targetCard: null
     readonly property var targetEditor: targetCard ? targetCard.editor : null
+    property int rememberedSelectionStart: -1
+    property int rememberedSelectionEnd: -1
+    property bool editorSelectionChanged: false
     property real panelOpacity: 1
     property point dragOrigin: Qt.point(0, 0)
     property rect startGeometry: Qt.rect(0, 0, 0, 0)
@@ -32,9 +35,43 @@ Item {
     function refreshMatches() { searchTimer.stop(); searchResult = collectMatches() }
     Timer { id: searchTimer; interval: 90; onTriggered: root.refreshMatches() }
     Connections { target: root.targetEditor; function onTextChanged() { root.scheduleSearch() } }
+    Connections {
+        target: root.targetEditor
+        function onSelectionStartChanged() {
+            if (root.opened && root.targetEditor.activeFocus) root.editorSelectionChanged = true
+        }
+        function onSelectionEndChanged() {
+            if (root.opened && root.targetEditor.activeFocus) root.editorSelectionChanged = true
+        }
+    }
+    function selectedQuery(card) {
+        var selection = card.editor.selectedText.replace(/^[\r\n\u2028\u2029]+|[\r\n\u2028\u2029]+$/g, "")
+        return selection.length > 0 && selection.trim().length > 0
+            && !/[\r\n\u2028\u2029]/.test(selection) ? selection : ""
+    }
+    function rememberSelection(card) {
+        rememberedSelectionStart = card.editor.selectionStart
+        rememberedSelectionEnd = card.editor.selectionEnd
+        editorSelectionChanged = false
+    }
+    function toggleFor(card) {
+        if (!card) return
+        var newSelection = selectedQuery(card)
+        if (opened && targetCard === card) {
+            if (newSelection && (editorSelectionChanged
+                    || card.editor.selectionStart !== rememberedSelectionStart
+                    || card.editor.selectionEnd !== rememberedSelectionEnd)) {
+                openFor(card)
+            } else {
+                closeSearch()
+            }
+            return
+        }
+        openFor(card)
+    }
 
     function openFor(card) {
-        var selection = card.editor.selectedText.replace(/^[\r\n\u2028\u2029]+|[\r\n\u2028\u2029]+$/g, "")
+        var selection = selectedQuery(card)
         if (targetCard && targetCard !== card) {
             targetCard.searchActive = false
             targetCard.searchCaretPosition = -1
@@ -42,7 +79,7 @@ Item {
         targetCard = card
         card.searchActive = true
         card.searchCaretPosition = -1
-        if (selection.length > 0 && selection.trim().length > 0 && !/[\r\n\u2028\u2029]/.test(selection)) {
+        if (selection.length > 0) {
             regexCheck.checked = false
             searchField.text = selection
         }
@@ -53,12 +90,14 @@ Item {
             surface.y = 24
         }
         opened = true
+        rememberSelection(card)
         searchField.forceActiveFocus()
         searchField.selectAll()
         scheduleSearch()
     }
     function closeSearch() {
         searchTimer.stop()
+        opacityPopup.close()
         if (targetCard) {
             targetCard.searchActive = false
             targetCard.searchCaretPosition = -1
@@ -98,6 +137,7 @@ Item {
         }
         var hit = positions[index]
         targetEditor.select(hit.start, hit.end)
+        rememberSelection(targetCard)
         targetCard.searchCaretPosition = targetEditor.text.slice(hit.start, hit.end).indexOf("\n") >= 0
             ? hit.start : -1
         searchField.forceActiveFocus()

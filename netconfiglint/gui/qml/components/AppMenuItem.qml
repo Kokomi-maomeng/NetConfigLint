@@ -26,10 +26,17 @@ MenuItem {
     }
     background: Rectangle {
         radius: 10
-        color: !control.enabled ? "transparent"
-            : control.down ? Qt.tint(Colors.surfaceContainerHigh, Qt.alpha(Colors.textPrimary, Theme.dark ? 0.24 : 0.18))
-            : control.highlighted || control.hovered ? Qt.tint(Colors.surfaceContainerHigh, Qt.alpha(Colors.textPrimary, Theme.dark ? 0.14 : 0.11))
-            : "transparent"
-        Behavior on color { ColorAnimation { duration: Theme.motionShort; easing.type: Easing.OutCubic } }
+        color: "transparent"
+        Rectangle {
+            objectName: "menuItemHoverOverlay"
+            anchors.fill: parent
+            radius: parent.radius
+            color: control.down
+                ? Qt.tint(Colors.surfaceContainerHigh, Qt.alpha(Colors.textPrimary, Theme.dark ? 0.24 : 0.18))
+                : Qt.tint(Colors.surfaceContainerHigh, Qt.alpha(Colors.textPrimary, Theme.dark ? 0.14 : 0.11))
+            opacity: control.enabled && (control.hovered || control.down) ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.motionShort; easing.type: Easing.OutCubic } }
+            Behavior on color { ColorAnimation { duration: Theme.motionShort; easing.type: Easing.OutCubic } }
+        }
     }
 }
