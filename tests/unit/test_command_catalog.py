@@ -1,9 +1,12 @@
 """Command-family inventory must distinguish known syntax from semantic proof."""
 
+import json
+from pathlib import Path
+
 import pytest
 
 from netconfiglint import analyze
-from netconfiglint.commands.catalog import catalogued_family, is_annotation
+from netconfiglint.commands.catalog import H3C_FAMILIES, HUAWEI_FAMILIES, catalogued_family, is_annotation
 
 
 @pytest.mark.parametrize(
@@ -60,3 +63,26 @@ def test_annotations_are_not_commands_and_catalogue_is_not_semantic_proof(vendor
 def test_annotation_keeps_chinese_arguments_as_command_data() -> None:
     assert is_annotation("说明\uff1a这是一行文字")
     assert not is_annotation("description 中文办公网")
+
+
+def test_h3c_system_command_in_interface_view_stays_unknown() -> None:
+    result = analyze(
+        "interface GigabitEthernet1/0/1\n info-center loghost 192.0.2.1\n",
+        mode="full",
+        vendor="h3c",
+    )
+    assert result.coverage["unsupported_lines"] == [2]
+    assert any(item.rule_id == "H3C-CMD-001" and item.source.line == 2 for item in result.diagnostics)
+
+
+def test_every_family_has_vendor_source_and_bilingual_label() -> None:
+    root = Path(__file__).parents[2] / "netconfiglint/gui/i18n"
+    catalogs = [json.loads((root / name).read_text(encoding="utf-8")) for name in ("en.json", "zh_CN.json")]
+    for vendor, families, domain in (
+        ("h3c", H3C_FAMILIES, "h3c.com"),
+        ("huawei", HUAWEI_FAMILIES, "huawei.com"),
+    ):
+        assert len(families) >= 10, vendor
+        for family in families:
+            assert family.source.startswith("https://") and domain in family.source
+            assert all(f"command.family.{family.name}" in catalog for catalog in catalogs)

@@ -244,10 +244,24 @@ class H3CConfigParser:
             item for item in config.context_unknown_lines if item.line not in semantic_lines
         ]
         catalogued_families: dict[str, list[int]] = {}
+        line_context = {
+            command.source.line: (block.header.lower(), command.views)
+            for block in config.blocks
+            for command in block.commands
+        }
         remaining = []
         for item in config.unparsed_lines:
             catalog_family = catalogued_family("h3c", originals[item.line - 1])
-            if catalog_family is None:
+            context = line_context.get(item.line)
+            if catalog_family is None or (
+                context is not None
+                and (
+                    context[1]
+                    or not context[0].startswith("interface ")
+                    or catalog_family.name
+                    not in {"stp", "lldp", "interface", "ip", "qos", "multicast", "acl"}
+                )
+            ):
                 remaining.append(item)
                 continue
             config.catalogued_lines.append(item)
