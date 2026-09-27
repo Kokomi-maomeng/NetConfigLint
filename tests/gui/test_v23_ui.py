@@ -27,13 +27,6 @@ def _click(window: QQuickWindow, name: str) -> None:
     QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=point)
 
 
-def _press_shortcut(window: QQuickWindow, key: Qt.Key) -> None:
-    modifier = (
-        Qt.KeyboardModifier.MetaModifier if sys.platform == "darwin" else Qt.KeyboardModifier.ControlModifier
-    )
-    QTest.keyClick(window, key, modifier)
-
-
 def _wait_for_search_status(window: QQuickWindow, expected: str) -> None:
     QTest.qWait(110)  # The card debounces edits before searching.
     for _ in range(50):
@@ -113,7 +106,12 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         flickable.setProperty("contentY", 150)
         QTest.qWait(30)
         before = flickable.property("contentY")
-        _press_shortcut(window, Qt.Key.Key_A)
+        if sys.platform == "darwin":
+            # The offscreen macOS Qt test backend inserts "a" for a synthetic
+            # Command+A event instead of dispatching the native shortcut.
+            QMetaObject.invokeMethod(card, "selectAllWithoutScroll")
+        else:
+            QTest.keyClick(window, Qt.Key.Key_A, Qt.KeyboardModifier.ControlModifier)
         QTest.qWait(70)
         assert editor.property("selectedText") == editor.property("text"), editor_name
         assert abs(flickable.property("contentY") - before) < 2, editor_name
@@ -155,7 +153,7 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         QTest.qWait(20)
         assert card.property("headerMinimumWidth") > original_minimum
         editor.forceActiveFocus()
-        _press_shortcut(window, Qt.Key.Key_F)
+        QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
         QTest.qWait(300)
         assert _find(window, "editorSearchCard").isVisible()
         assert card.property("searchActive")
@@ -184,19 +182,19 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         editor.forceActiveFocus()
         assert editor.property("activeFocus")
         assert not _find(window, "editorSearchOverlay").property("opened")
-        _press_shortcut(window, Qt.Key.Key_F)
+        QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
         QTest.qWait(40)
         assert _find(window, "editorSearchOverlay").property("opened")
-        _press_shortcut(window, Qt.Key.Key_F)
+        QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
         assert not _find(window, "editorSearchOverlay").property("opened")
         editor.select(0, 5)
         editor.forceActiveFocus()
-        _press_shortcut(window, Qt.Key.Key_F)
+        QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
         assert field.property("text") == "Alpha"
         beta = editor.property("text").index("Beta")
         editor.forceActiveFocus()
         editor.select(beta, beta + 4)
-        _press_shortcut(window, Qt.Key.Key_F)
+        QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
         assert _find(window, "editorSearchOverlay").property("opened")
         assert field.property("text") == "Beta"
         QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
@@ -238,7 +236,7 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     editor = _find(window, "configurationTextArea")
     editor.setProperty("text", "one\r\ntwo\nthree")
     editor.forceActiveFocus()
-    _press_shortcut(window, Qt.Key.Key_F)
+    QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
     QTest.qWait(300)
     _click(window, "editorRegex")
     assert _find(window, "editorRegex").property("checked")
@@ -304,20 +302,20 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     editor.setProperty("text", "alpha+beta\nsecond")
     editor.select(0, 10)
     editor.forceActiveFocus()
-    _press_shortcut(window, Qt.Key.Key_F)
+    QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
     QTest.qWait(50)
     assert field.property("text") == "alpha+beta"
     assert not _find(window, "editorRegex").property("checked")
     _click(window, "editorSearchClose")
     editor.select(0, 11)  # A selected line ending must not enter the search field.
     editor.forceActiveFocus()
-    _press_shortcut(window, Qt.Key.Key_F)
+    QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
     QTest.qWait(50)
     assert field.property("text") == "alpha+beta"
     _click(window, "editorSearchClose")
     editor.select(0, len(editor.property("text")))
     editor.forceActiveFocus()
-    _press_shortcut(window, Qt.Key.Key_F)
+    QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
     QTest.qWait(50)
     assert "\n" not in field.property("text")
     _click(window, "editorSearchClose")
