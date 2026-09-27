@@ -65,6 +65,12 @@ def test_annotation_keeps_chinese_arguments_as_command_data() -> None:
     assert not is_annotation("description 中文办公网")
 
 
+def test_annotation_with_sensitive_keyword_is_still_inventoried() -> None:
+    result = analyze("备注\uff1a请勿记录 password 值", mode="full", vendor="huawei")
+    assert result.coverage["ignored"] == 1
+    assert [item.line for item in result.config.sensitive_lines] == [1]
+
+
 def test_h3c_system_command_in_interface_view_stays_unknown() -> None:
     result = analyze(
         "interface GigabitEthernet1/0/1\n info-center loghost 192.0.2.1\n",

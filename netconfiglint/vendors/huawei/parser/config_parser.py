@@ -92,10 +92,10 @@ class HuaweiConfigParser:
                 for fact in database.effective_features(resolution.profile.profile_id)
             }
         # Sensitive input is inventoried even when the command has since been removed.
-        for line in lines:
+        for number, original in enumerate(source.splitlines(), 1):
             checkpoint()
-            if _SENSITIVE.search(line.text):
-                config.sensitive_lines.append(SourceRange(line.number))
+            if _SENSITIVE.search(original):
+                config.sensitive_lines.append(SourceRange(number))
         for block in config.blocks:
             checkpoint()
             header = SourceLine(block.source.line, block.header, block.header, tuple(block.header.split()))
