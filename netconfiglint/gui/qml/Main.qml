@@ -11,7 +11,7 @@ ApplicationWindow {
     visible: true
     width: 1440
     height: 900
-    minimumWidth: 960
+    minimumWidth: Math.ceil(Math.max(960, checkPage.minimumWorkspaceWidth))
     minimumHeight: 600
     title: preferences.values.panelTitle
     font: Typography.body
@@ -172,10 +172,14 @@ ApplicationWindow {
                 NavigationRail {
                     id: navigation
                     objectName: "navigationRail"
+                    compactThreshold: Math.ceil(Math.max(1180, checkPage.minimumWorkspaceWidth + 260))
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
-                    width: expanded ? 260 : 0
-                    Behavior on width { NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic } }
+                    width: compact ? (expanded ? 260 : 0) : navigationHost.width
+                    Behavior on width {
+                        enabled: navigation.compact
+                        NumberAnimation { duration: Theme.motionMedium; easing.type: Easing.OutCubic }
+                    }
                     currentIndex: window.currentPage
                     controller: analysisController
                     onHistorySelected: entryId => {
@@ -199,6 +203,9 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 color: Colors.surface
                 topLeftRadius: 28
+                topRightRadius: 28
+                bottomLeftRadius: 28
+                bottomRightRadius: 28
                 clip: true
                 StackLayout {
                     id: pageStack
