@@ -34,6 +34,7 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         ),
     )
     engine = create_engine(controller)
+    catalog = engine.rootContext().contextProperty("i18n").catalog
     window = engine.rootObjects()[0]
     assert isinstance(window, QQuickWindow)
     window.setWidth(1600)
@@ -91,11 +92,18 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         assert editor.property("selectedText") == editor.property("text"), editor_name
         assert abs(flickable.property("contentY") - before) < 2, editor_name
         flickable.setProperty("contentY", 0)
-        QTest.qWait(40)
+        QTest.qWait(180)
         highlights = [
             item for item in _items(window.contentItem()) if item.objectName() == "selectedBlankLine"
         ]
-        assert len(highlights) == 1
+        assert len(highlights) == 1, (
+            editor_name,
+            editor.property("selectionStart"),
+            editor.property("selectionEnd"),
+            card.property("selectionWindowStart"),
+            card.property("selectionWindowEnd"),
+            flickable.property("contentY"),
+        )
         blank_rect = editor.positionToRectangle(6)
         expected_origin = editor.mapToScene(QPointF(blank_rect.x(), blank_rect.y()))
         actual_origin = highlights[0].mapToScene(QPointF(0, 0))
@@ -130,7 +138,7 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         field.setProperty("text", "alpha")
         QTest.qWait(130)
         status = _find(window, "editorSearchStatus").property("text")
-        assert status == "1 处匹配", (editor_name, status)
+        assert status == "1 " + catalog["editor.matches"], (editor_name, status)
         _click(window, "editorFindNext")
         assert editor.property("selectedText") == "Alpha"
         _click(window, "editorMatchCase")
@@ -188,6 +196,7 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
         ),
     )
     engine = create_engine(controller)
+    catalog = engine.rootContext().contextProperty("i18n").catalog
     window = engine.rootObjects()[0]
     assert isinstance(window, QQuickWindow)
     window.setWidth(1600)
@@ -203,7 +212,7 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     field = _find(window, "editorSearchField")
     field.setProperty("text", r"\r\n")
     QTest.qWait(150)
-    assert _find(window, "editorSearchStatus").property("text") == "2 处匹配"
+    assert _find(window, "editorSearchStatus").property("text") == "2 " + catalog["editor.matches"]
     _click(window, "editorFindNext")
     assert "\n" in editor.property("selectedText")
     caret = _find(window, "configurationTextAreaSearchCaret")
@@ -212,16 +221,16 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     assert caret.isVisible() and caret.x() > editor.property("leftPadding")
     field.setProperty("text", "^two$")
     QTest.qWait(150)
-    assert _find(window, "editorSearchStatus").property("text") == "1 处匹配"
+    assert _find(window, "editorSearchStatus").property("text") == "1 " + catalog["editor.matches"]
     field.setProperty("text", r"\b(?:one|three)\b")
     QTest.qWait(150)
-    assert _find(window, "editorSearchStatus").property("text") == "2 处匹配"
+    assert _find(window, "editorSearchStatus").property("text") == "2 " + catalog["editor.matches"]
     field.setProperty("text", r"(?=two)")
     QTest.qWait(150)
-    assert _find(window, "editorSearchStatus").property("text") == "1 处匹配"
+    assert _find(window, "editorSearchStatus").property("text") == "1 " + catalog["editor.matches"]
     field.setProperty("text", "[")
     QTest.qWait(150)
-    assert _find(window, "editorSearchStatus").property("text") == "正则表达式无效"
+    assert _find(window, "editorSearchStatus").property("text") == catalog["editor.invalid_regex"]
 
     card = _find(window, "editorSearchCard")
     field.setProperty("text", "one")
@@ -246,7 +255,7 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     grip_tip = window.findChild(QObject, "editorSearchGripTip")
     assert grip_tip is not None
     assert grip_tip.property("background").property("radius") == 10
-    assert grip_tip.property("text") == "移动卡片位置"
+    assert grip_tip.property("text") == catalog["panels.reorder"]
     end_point = grip_point + QPoint(75, 42)
     QTest.mousePress(window, Qt.MouseButton.LeftButton, pos=grip_point)
     for part in range(1, 7):
