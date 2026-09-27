@@ -91,7 +91,8 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         QTest.qWait(70)
         assert editor.property("selectedText") == editor.property("text"), editor_name
         assert abs(flickable.property("contentY") - before) < 2, editor_name
-        editor.select(0, 18)
+        editor.setProperty("text", "Alpha\n\n   \n\t\nBeta\n")
+        editor.selectAll()
         flickable.setProperty("contentY", 0)
         QTest.qWait(180)
         highlights = [
