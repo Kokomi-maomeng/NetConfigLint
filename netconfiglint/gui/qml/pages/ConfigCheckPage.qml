@@ -139,7 +139,7 @@ Item {
                 onDragMoved: sceneX => root.updateDrag(sceneX)
                 onDragFinished: sceneX => root.finishDrag(sceneX)
                 onStepRequested: direction => root.step(panelKey, direction)
-                onSearchRequested: searchCard.openFor(configEditor)
+                onSearchOpenRequested: searchCard.openFor(configEditor)
             }
             AnalysisPanel {
                 id: analysisPanel
@@ -175,7 +175,7 @@ Item {
                 text: root.controller.temporaryText
                 showSave: true
                 onSaveRequested: value => root.controller.saveTemporaryText(value)
-                onSearchRequested: searchCard.openFor(temporaryEditor)
+                onSearchOpenRequested: searchCard.openFor(temporaryEditor)
                 onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
                 onDragMoved: sceneX => root.updateDrag(sceneX)
                 onDragFinished: sceneX => root.finishDrag(sceneX)
@@ -187,6 +187,16 @@ Item {
         id: searchCard
         anchors.fill: parent
         z: 200
+    }
+    Shortcut {
+        sequences: [StandardKey.Find]
+        enabled: root.visible && (configEditor.editor.activeFocus
+            || temporaryEditor.editor.activeFocus || searchCard.opened)
+        onActivated: {
+            var card = configEditor.editor.activeFocus ? configEditor
+                : temporaryEditor.editor.activeFocus ? temporaryEditor : searchCard.targetCard
+            if (card) searchCard.toggleFor(card)
+        }
     }
     Item {
         id: dragProxy

@@ -20,7 +20,7 @@ AppCard {
     property real savedSelectionViewY: 0
     signal analyzeRequested()
     signal saveRequested(string value)
-    signal searchRequested()
+    signal searchOpenRequested()
     property int currentLine: 1
     property int editorFontSize: Typography.monospace.pixelSize
     property bool zoomModified: false
@@ -247,11 +247,6 @@ AppCard {
                 }
             }
         }
-    }
-    Shortcut {
-        sequences: [StandardKey.Find]
-        enabled: root.visible && editor.activeFocus
-        onActivated: root.searchRequested()
     }
     Shortcut { sequence: "Ctrl+G"; enabled: root.visible && editor.activeFocus; onActivated: jumpDialog.open() }
     Shortcut { sequences: ["Ctrl++", "Ctrl+="]; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(1) }

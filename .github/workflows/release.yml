@@ -102,7 +102,7 @@ jobs:
           pattern: release-*
           merge-multiple: true
           path: release
-      - name: Build checksums
+      - name: Verify portable archive identity
         env:
           RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
         run: |
@@ -110,12 +110,10 @@ jobs:
           version="${RELEASE_TAG#v}"
           archive="NetConfigLint-${version}-windows-x64-portable.zip"
           test -f "$archive"
-          sha256sum "$archive" > SHA256SUMS.txt
-          test "$(wc -l < SHA256SUMS.txt)" -eq 1
+          test "$(find . -maxdepth 1 -type f -name '*.zip' | wc -l)" -eq 1
+          sha256sum "$archive"
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
-          files: |
-            release/*.zip
-            release/SHA256SUMS.txt
+          files: release/*.zip
           generate_release_notes: true

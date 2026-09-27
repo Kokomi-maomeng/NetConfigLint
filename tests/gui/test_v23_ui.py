@@ -61,11 +61,13 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
     window.setWidth(1600)
     QTest.qWait(80)
     _click(window, "settingsButton")
+    QTest.qWait(300)
     _click(window, "displaySettingsSection-header")
     settings = window.findChild(QObject, "settingsDialog")
     settings.close()
     QTest.qWait(250)
     _click(window, "settingsButton")
+    QTest.qWait(300)
     assert window.findChild(QObject, "displaySettingsSection").property("expanded")
     settings.close()
     QTest.qWait(250)
@@ -117,7 +119,7 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         assert card.property("headerMinimumWidth") > original_minimum
         editor.forceActiveFocus()
         QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
-        QTest.qWait(50)
+        QTest.qWait(300)
         assert _find(window, "editorSearchCard").isVisible()
         assert card.property("searchActive")
         if _find(window, "editorMatchCase").property("checked"):
@@ -143,6 +145,27 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
         assert slider.property("from") > 0
         _click(window, "editorSearchClose")
         assert not card.property("searchActive")
+        QTest.qWait(300)
+        editor.forceActiveFocus()
+        assert editor.property("activeFocus")
+        assert not _find(window, "editorSearchOverlay").property("opened")
+        QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
+        QTest.qWait(40)
+        assert _find(window, "editorSearchOverlay").property("opened")
+        QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
+        assert not _find(window, "editorSearchOverlay").property("opened")
+        editor.select(0, 5)
+        editor.forceActiveFocus()
+        QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
+        assert field.property("text") == "Alpha"
+        beta = editor.property("text").index("Beta")
+        editor.forceActiveFocus()
+        editor.select(beta, beta + 4)
+        QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
+        assert _find(window, "editorSearchOverlay").property("opened")
+        assert field.property("text") == "Beta"
+        QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
+        assert not _find(window, "editorSearchOverlay").property("opened")
         flickable.setProperty("contentY", 0)
         QTest.qWait(30)
         menu_point = editor.mapToScene(QPointF(80, 80)).toPoint()
@@ -174,8 +197,9 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     editor.setProperty("text", "one\r\ntwo\nthree")
     editor.forceActiveFocus()
     QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
-    QTest.qWait(50)
+    QTest.qWait(300)
     _click(window, "editorRegex")
+    assert _find(window, "editorRegex").property("checked")
     field = _find(window, "editorSearchField")
     field.setProperty("text", r"\r\n")
     QTest.qWait(150)
@@ -266,13 +290,23 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     QTest.qWait(70)
     menu_item = _find(window, "editorSearchMenuItem")
     assert menu_item.property("background").property("radius") == 10
-    idle_color = menu_item.property("background").property("color")
+    hover_overlay = next(
+        child
+        for child in menu_item.property("background").childItems()
+        if child.objectName() == "menuItemHoverOverlay"
+    )
+    assert hover_overlay.opacity() == 0
     QTest.mouseMove(window, menu_item.mapToScene(QPointF(50, 20)).toPoint())
+    QTest.qWait(25)
+    assert 0 < hover_overlay.opacity() < 1
     QTest.qWait(150)
     assert menu_item.property("hovered")
-    assert menu_item.property("background").property("color") != idle_color
+    assert hover_overlay.opacity() == 1
     undo_item = _find(window, "editorUndoMenuItem")
     assert not undo_item.isEnabled()
+    QTest.mouseMove(window, undo_item.mapToScene(QPointF(50, 20)).toPoint())
+    QTest.qWait(150)
+    assert hover_overlay.opacity() == 0
     preferences = engine.rootContext().contextProperty("preferences")
     for mode in (1, 2):
         preferences.setValue("themeMode", mode)

@@ -14,7 +14,7 @@ AppMenu {
         height: visible ? implicitHeight : 0
         text: i18n.catalog["editor.search"]
         icon.source: Qt.resolvedUrl("../../../resources/icons/edit-search.svg")
-        onTriggered: menu.zoomTarget.searchRequested()
+        onTriggered: menu.zoomTarget.searchOpenRequested()
     }
     MenuSeparator { visible: menu.zoomTarget !== null; height: visible ? implicitHeight : 0 }
     AppMenuItem { objectName: "editorUndoMenuItem"; text: i18n.catalog["edit.undo"]; icon.source: Qt.resolvedUrl("../../../resources/icons/edit-undo.svg"); enabled: menu.editor.canUndo; onTriggered: menu.editor.undo() }
