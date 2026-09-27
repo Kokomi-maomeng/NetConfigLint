@@ -1,4 +1,4 @@
-# NetConfigLint v2.3
+# NetConfigLint v2.4
 
 Project versions, local release files, rollback records, and the consolidated task entry are mapped in [PROJECT_INDEX.md](PROJECT_INDEX.md).
 
@@ -11,10 +11,19 @@ source-linked diagnostics to the CLI and QML desktop application through one sha
 It is not a complete VRP emulator, network simulator, migration engine, or replacement for
 vendor-supported validation and lab testing.
 
-See the [v2.3 GUI acceptance notes](docs/v2.3-gui-acceptance.md), [v2.2 GUI acceptance notes](docs/v2.2-gui-acceptance.md), [v2.1 change scope](docs/v2.1-change-scope.md), [H3C coverage contract](docs/h3c-command-support.md),
+See the [v2.4 command and language scope](docs/v2.4-command-catalog-and-i18n.md), [v2.3 GUI acceptance notes](docs/v2.3-gui-acceptance.md), [v2.2 GUI acceptance notes](docs/v2.2-gui-acceptance.md), [v2.1 change scope](docs/v2.1-change-scope.md), [H3C coverage contract](docs/h3c-command-support.md),
 and [v2.0 acceptance report](docs/v2.0-acceptance.md) for earlier release evidence.
 
-## Desktop v2.3
+## Desktop v2.4
+
+The command coverage panel distinguishes parser-normalized lines, documented command families
+whose exact semantics remain unchecked, and unsupported lines. Huawei and H3C command families
+include STP, information center, LLDP, VLAN, routing and management services. Chinese prose
+annotations are excluded from command counts. Diagnostic messages, explanations and suggestions
+follow the selected English or Simplified Chinese language; protocol names and CLI tokens remain
+unchanged. See the [v2.4 scope and source record](docs/v2.4-command-catalog-and-i18n.md).
+
+### Existing desktop workflow
 
 The desktop puts its existing controls in one compact top bar, with a rounded workspace surface,
 collapsible Settings sections, palette-tinted cards, and bundled Noto Sans SC text.
@@ -279,7 +288,7 @@ checking the final dependency closure.
 .\scripts\build_msi.ps1 -SkipAppBuild
 ```
 
-The portable command creates `release/NetConfigLint-2.3.0-windows-x64-portable.zip`. Extract the
+The portable command creates `release/NetConfigLint-2.4.0-windows-x64-portable.zip`. Extract the
 single top-level folder and start `NetConfigLint.exe`; the Nuitka build uses the Windows GUI
 subsystem and therefore does not open a console window.
 

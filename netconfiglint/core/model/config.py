@@ -341,6 +341,8 @@ class DeviceConfig:
     snapshot: SnapshotEvidence = field(default_factory=SnapshotEvidence)
     parse_issues: list[Diagnostic] = field(default_factory=list)
     unsupported_lines: list[SourceRange] = field(default_factory=list)
+    catalogued_lines: list[SourceRange] = field(default_factory=list)
+    command_catalog: dict[str, dict[str, Any]] = field(default_factory=dict)
     ignored_lines: list[SourceRange] = field(default_factory=list)
     context_unknown_lines: list[SourceRange] = field(default_factory=list)
     incomplete_reasons: list[str] = field(default_factory=list)

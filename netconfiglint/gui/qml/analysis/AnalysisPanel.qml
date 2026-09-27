@@ -26,6 +26,11 @@ AppCard {
     onResultCurrentChanged: severityFilter = "ALL"
     function totalCount() { return (summary.ERROR || 0) + (summary.WARNING || 0) + (summary.INFO || 0) + (summary.UNKNOWN || 0) }
     function filteredCount() { return severityFilter === "ALL" ? totalCount() : (summary[severityFilter] || 0) }
+    function catalogFamilies() {
+        return (coverage.catalogued_families || []).map(function(item) {
+            return (i18n.catalog["command.family." + item.family] || item.family) + ": " + item.count
+        }).join(" · ")
+    }
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -61,8 +66,8 @@ AppCard {
                 objectName: "coverageToggle"
                 Layout.fillWidth: true
                 visible: root.resultCurrent
-                text: i18n.catalog["analysis.coverage"] + ": " + (root.coverage.recognized || 0)
-                      + " / " + ((root.coverage.recognized || 0) + (root.coverage.unparsed || 0) + (root.coverage.unsupported || 0))
+                text: i18n.catalog["analysis.coverage"] + ": " + ((root.coverage.recognized || 0) + (root.coverage.catalogued || 0))
+                      + " / " + ((root.coverage.recognized || 0) + (root.coverage.catalogued || 0) + (root.coverage.unparsed || 0) + (root.coverage.unsupported || 0))
                       + "  " + (root.coverage.complete === false ? i18n.catalog["analysis.incomplete"]
                           : (root.coverage.semantic_complete === false ? i18n.catalog["analysis.semantic_partial"] : ""))
                 onClicked: root.coverageExpanded = !root.coverageExpanded
@@ -73,6 +78,9 @@ AppCard {
                 visible: root.resultCurrent && root.coverageExpanded
                 font: Typography.caption
                 text: i18n.catalog["analysis.coverage_scope"] + "\n"
+                      + i18n.catalog["analysis.semantic_checked"] + ": " + (root.coverage.recognized || 0) + "\n"
+                      + i18n.catalog["analysis.catalogued"] + ": " + (root.coverage.catalogued || 0) + "\n"
+                      + root.catalogFamilies() + (root.catalogFamilies() ? "\n" : "")
                       + i18n.catalog["analysis.unparsed"] + ": " + (root.coverage.unparsed || 0) + "\n"
                       + i18n.catalog["analysis.unsupported_lines"] + ": " + (root.coverage.unsupported || 0) + "\n"
                       + i18n.catalog["issue.line"] + ": "
