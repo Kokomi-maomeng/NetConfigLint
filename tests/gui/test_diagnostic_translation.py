@@ -9,6 +9,7 @@ import pytest
 
 from netconfiglint import analyze
 from netconfiglint.gui.i18n.diagnostics import translate_diagnostic
+from netconfiglint.gui.i18n.manager import TranslationController
 
 
 def _static_prose(node: ast.expr) -> list[str]:
@@ -86,3 +87,13 @@ def test_template_placeholders_are_preserved_exactly() -> None:
     value = f"Route-policy references undefined ip-prefix {name}."
     assert name in translate_diagnostic(value)
     assert translate_diagnostic("port trunk allow-pass vlan 100") == "port trunk allow-pass vlan 100"
+
+
+def test_diagnostic_language_switch_preserves_cli_terms(qapp: object) -> None:
+    translator = TranslationController(system_locale="en_US", persist_settings=False)
+    message = "An observed OSPF neighbor is not Full."
+    assert translator.diagnostic(message) == message
+    translator.language = "zh_CN"
+    assert translator.diagnostic(message) == "观察到一个 OSPF 邻居未进入 Full 状态。"
+    assert translator.diagnostic("Operational snapshot") == "运行状态快照"
+    assert translator.diagnostic("stp global enable") == "stp global enable"

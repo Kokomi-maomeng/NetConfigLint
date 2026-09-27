@@ -399,5 +399,15 @@
   "Confirm the interface role; make endpoint VLANs silent/passive while still advertising their networks, and leave only intended routed adjacencies active.": "确认接口角色；终端 VLAN 应设为静默或被动接口并继续通告网段，只保留预期的路由邻接。",
   "No OSPF authentication command was observed.": "未观察到 OSPF 认证命令。",
   "Authentication requirements are design-specific; absence cannot be declared a defect without the routing security standard.": "认证要求取决于设计；没有路由安全标准时，不能仅凭缺失认证就判定为缺陷。",
-  "Confirm the design requirement and deploy matching authentication on both ends if required.": "确认设计要求；如需认证，在两端配置匹配的认证参数。"
+  "Confirm the design requirement and deploy matching authentication on both ends if required.": "确认设计要求；如需认证，在两端配置匹配的认证参数。",
+  "Operational snapshot": "运行状态快照",
+  "Operational state": "运行状态",
+  "Operational view": "运行信息视图",
+  "Saved configuration": "已保存配置",
+  "Log buffer": "日志缓冲区",
+  "Transceiver": "光模块",
+  "OSPF neighbor": "OSPF 邻居",
+  "M-LAG DRCP counters": "M-LAG DRCP 计数器",
+  "IRF peer port": "IRF 对等端口",
+  "H3C command coverage": "H3C 命令覆盖范围"
 }
