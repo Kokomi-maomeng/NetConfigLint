@@ -11,6 +11,7 @@ import pytest
 
 from scripts import resolve_windows_dlls, verify_release_identity
 from scripts.macho_provenance import deployment_match
+from scripts.prepare_macos_runtime import prune as prune_macos
 
 
 def test_portable_identity_is_bound_to_tag_commit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -121,3 +122,52 @@ def test_universal_macho_thinning_preserves_the_selected_architecture(tmp_path: 
     struct.pack_into("<ii", arm, 4, 0x100000C, 1)
     deployed.write_bytes(arm)
     assert not deployment_match(source, deployed)
+
+
+def test_macos_pruning_removes_unused_qml_but_preserves_native_dependencies(tmp_path: Path) -> None:
+    bundle = tmp_path / "dist/NetConfigLint.app"
+    pyside = bundle / "Contents/MacOS/PySide6"
+    for name in ("QtQuick/Controls/Material", "Qt3D/Animation", "QtQuick3D"):
+        (pyside / "qml" / name).mkdir(parents=True)
+        (pyside / "qml" / name / "qmldir").write_text("SYNTHETIC-MODULE")
+    (pyside / "QtCore.so").write_bytes(_macho("@rpath/QtCore", b"BINDING"))
+    core = bundle / "Contents/Frameworks/QtCore.framework/Versions/A/QtCore"
+    core.parent.mkdir(parents=True)
+    core.write_bytes(_macho("@rpath/QtSvg", b"CORE"))
+    svg = bundle / "Contents/MacOS/QtSvg"
+    svg.write_bytes(_macho("/usr/lib/libSystem.B.dylib", b"SVG"))
+    unused = bundle / "Contents/Frameworks/Qt3DCore.framework/Versions/A/Qt3DCore"
+    unused.parent.mkdir(parents=True)
+    unused.write_bytes(_macho("@rpath/QtCore", b"UNUSED-3D"))
+    result = prune_macos(bundle)
+    assert result["removed_count"]
+    assert core.is_file() and svg.is_file() and (pyside / "QtCore.so").is_file()
+    assert (pyside / "qml/QtQuick/Controls/Material/qmldir").is_file()
+    assert not (pyside / "qml/Qt3D").exists() and not (pyside / "qml/QtQuick3D").exists()
+    assert not (bundle / "Contents/Frameworks/Qt3DCore.framework").exists()
+
+
+def test_macos_bundle_uses_current_version_and_supported_os(tmp_path: Path, monkeypatch: object) -> None:
+    import plistlib
+    import runpy
+    import tomllib
+
+    root = Path(__file__).parents[2]
+    monkeypatch.syspath_prepend(str(root / "scripts"))
+    namespace = runpy.run_path(str(root / "scripts/build_desktop.py"))
+    expected = tomllib.loads((root / "pyproject.toml").read_text("utf-8"))["project"]["version"]
+    assert namespace["APP_VERSION"] == expected
+    qualify = namespace["_qualify_macos_bundle"]
+    qualify.__globals__["__file__"] = str(tmp_path / "scripts/build_desktop.py")
+    (tmp_path / "build").mkdir()
+    (tmp_path / "build/NetConfigLint.icns").write_bytes(b"SYNTHETIC-ICON")
+    bundle = tmp_path / "dist/deploy.app"
+    (bundle / "Contents/MacOS").mkdir(parents=True)
+    (bundle / "Contents/Resources").mkdir()
+    (bundle / "Contents/MacOS/deploy_main").write_bytes(b"SYNTHETIC-ENTRY")
+    (bundle / "Contents/Info.plist").write_bytes(plistlib.dumps({"CFBundleExecutable": "deploy_main"}))
+    target = qualify(bundle)
+    info = plistlib.loads((target / "Contents/Info.plist").read_bytes())
+    assert info["CFBundleVersion"] == info["CFBundleShortVersionString"] == expected
+    assert info["LSMinimumSystemVersion"] == "13.0"
+    assert (target / "Contents/MacOS/NetConfigLintApp").is_file()
