@@ -83,7 +83,7 @@
   "history.disable_confirm": "关闭历史记录会删除全部已保存的配置内容和分析结果。确定关闭吗？",
   "history.lines": "行",
   "history.issues": "项诊断",
-  "about.version": "版本 2.3.0",
+  "about.version": "版本 {version}",
   "about.project": "项目与作者",
   "about.license": "NetConfigLint 采用 Apache License 2.0 开源。配置分析完全在本机执行",
   "about.components": "开源组件",

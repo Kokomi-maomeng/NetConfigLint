@@ -12,9 +12,10 @@ from PySide6.QtQml import QQmlComponent
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
 
-from netconfiglint import analyze
+from netconfiglint import __version__, analyze
 from netconfiglint.gui.app.main import create_engine, dispose_engine
 from netconfiglint.gui.controllers.analysis import AnalysisController
+from netconfiglint.gui.i18n.manager import TranslationController
 from netconfiglint.gui.models.history import HistoryStore
 
 
@@ -35,6 +36,13 @@ def test_history_size_is_readable_and_two_instances_merge(tmp_path: Path, qapp: 
     assert len(reopened.entries) == 5
     assert path.stat().st_size <= 64 * 1024 * 1024
     assert all(len(item.source_text) == 4_000_000 for item in reopened.entries)
+
+
+def test_about_version_matches_the_running_application_in_both_languages(qapp: object) -> None:
+    translator = TranslationController(system_locale="en", persist_settings=False)
+    assert translator.catalog["about.version"] == f"Version {__version__}"
+    translator.language = "zh_CN"
+    assert translator.catalog["about.version"] == f"版本 {__version__}"
 
 
 def test_history_restore_clears_bundle_and_decoding_metadata(tmp_path: Path, qapp: object) -> None:

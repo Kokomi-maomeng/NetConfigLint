@@ -83,7 +83,7 @@
   "history.disable_confirm": "Turning off history deletes all saved configurations and analysis results. Continue?",
   "history.lines": "lines",
   "history.issues": "diagnostics",
-  "about.version": "Version 2.3.0",
+  "about.version": "Version {version}",
   "about.project": "Project and author",
   "about.license": "NetConfigLint is open source under the Apache License 2.0. Configuration analysis runs locally.",
   "about.components": "Open-source components",
