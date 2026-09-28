@@ -65,10 +65,10 @@ def test_resolver_bundles_interpreter_dlls_and_vc_runtime(
         assert (target / name).read_bytes() == b"SYNTHETIC-QUALIFIED-INTERPRETER"
 
 
-def _macho(loader: str, content: bytes, *, signed: bool = False) -> bytes:
+def _macho(loader: str, content: bytes, *, signed: bool = False, library_id: bool = False) -> bytes:
     encoded = loader.encode() + b"\0"
     size = (24 + len(encoded) + 7) // 8 * 8
-    dylib = struct.pack("<IIIIII", 0xC, size, 24, 0, 1, 1) + encoded
+    dylib = struct.pack("<IIIIII", 0xD if library_id else 0xC, size, 24, 0, 1, 1) + encoded
     dylib = dylib.ljust(size, b"\0")
     section = struct.pack(
         "<16s16sQQIIIIIIII", b"__text", b"__TEXT", 0x1000, len(content), 512, 0, 0, 0, 0, 0, 0, 0
@@ -90,4 +90,15 @@ def test_macho_relocation_and_signing_preserve_executable_sections(tmp_path: Pat
     deployed.write_bytes(_macho("@loader_path/QtCore", b"MODIFIED-CODE", signed=True))
     assert not deployment_match(source, deployed)
     deployed.write_bytes(_macho("@loader_path/ForeignCore", b"SYNTHETIC-CODE", signed=True))
+    assert not deployment_match(source, deployed)
+
+
+def test_macho_python_module_identity_allows_only_abi_suffix_removal(tmp_path: Path) -> None:
+    source, deployed = tmp_path / "source", tmp_path / "deployed"
+    source.write_bytes(_macho("@rpath/QtCore.abi3.so", b"SYNTHETIC-CODE", library_id=True))
+    deployed.write_bytes(_macho("QtCore.so", b"SYNTHETIC-CODE", signed=True, library_id=True))
+    assert deployment_match(source, deployed)
+    deployed.write_bytes(_macho("ForeignCore.so", b"SYNTHETIC-CODE", signed=True, library_id=True))
+    assert not deployment_match(source, deployed)
+    deployed.write_bytes(_macho("QtCore.so", b"SYNTHETIC-CODE", signed=True))
     assert not deployment_match(source, deployed)

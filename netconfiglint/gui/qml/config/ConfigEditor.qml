@@ -151,7 +151,7 @@ AppCard {
                 Layout.fillWidth: true
                 text: i18n.catalog["editor.preview_hint"]
                 color: Colors.textSecondary
-                font: Typography.labelSmall
+                font: Typography.caption
                 wrapMode: Text.Wrap
             }
             ToolButton {

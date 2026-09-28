@@ -113,17 +113,18 @@ AppCard {
                 color: Colors.textSecondary
                 font: Typography.caption
             }
-            RowLayout {
+            Flow {
+                objectName: "severityFilters"
                 Layout.fillWidth: true
+                Layout.preferredHeight: implicitHeight
                 spacing: 4
                 Repeater {
                     model: ["ERROR", "WARNING", "INFO", "UNKNOWN"]
                     delegate: StatusBadge {
                         required property string modelData
                         objectName: "severityFilter-" + modelData
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
+                        width: implicitWidth
+                        height: implicitHeight
                         label: i18n.catalog["analysis." + modelData.toLowerCase()] + " " + (root.summary[modelData] || 0)
                         statusColor: Colors.severity(modelData)
                         interactive: true

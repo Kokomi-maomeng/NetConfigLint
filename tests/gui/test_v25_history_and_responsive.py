@@ -7,7 +7,8 @@ from threading import Event
 from time import perf_counter
 
 import pytest
-from PySide6.QtCore import QObject, QSettings
+from PySide6.QtCore import QObject, QSettings, QUrl
+from PySide6.QtQml import QQmlComponent
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
 
@@ -128,6 +129,40 @@ def test_large_file_load_is_async_and_gutter_is_bounded(tmp_path: Path, qapp: ob
     gutter = _item(window, "configurationTextAreaGutter")
     assert len(gutter.childItems()) < 150
     assert gutter.property("firstLine") is not None
+    dispose_engine(qapp, engine, controller)
+
+
+def test_english_severity_filters_wrap_without_overlap(tmp_path: Path, qapp: object) -> None:
+    controller = AnalysisController(
+        async_enabled=False,
+        history_store=HistoryStore(tmp_path / "history.json", enabled=False, persist_settings=False),
+    )
+    engine = create_engine(controller)
+    window = engine.rootObjects()[0]
+    engine.rootContext().contextProperty("i18n").language = "en"
+    path = Path(__file__).parents[2] / "netconfiglint/gui/qml/analysis/AnalysisPanel.qml"
+    component = QQmlComponent(engine, QUrl.fromLocalFile(str(path)))
+    panel = component.createWithInitialProperties({"width": 240, "height": 560}, engine.rootContext())
+    assert isinstance(panel, QQuickItem), component.errors()
+    panel.setParentItem(window.contentItem())
+    QTest.qWait(100)
+    filters = panel.findChild(QQuickItem, "severityFilters")
+    assert filters is not None
+    badges = [item for item in filters.childItems() if item.objectName().startswith("severityFilter-")]
+    assert len(badges) == 4
+    rectangles = [(badge.x(), badge.y(), badge.width(), badge.height()) for badge in badges]
+    assert len({y for _, y, _, _ in rectangles}) > 1
+    assert all(x >= 0 and x + width <= filters.width() + 1 for x, _, width, _ in rectangles)
+    for index, (x, y, width, height) in enumerate(rectangles):
+        for other_x, other_y, other_width, other_height in rectangles[index + 1 :]:
+            assert (
+                x + width <= other_x
+                or other_x + other_width <= x
+                or y + height <= other_y
+                or other_y + other_height <= y
+            )
+    panel.setParentItem(None)
+    panel.deleteLater()
     dispose_engine(qapp, engine, controller)
 
 

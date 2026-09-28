@@ -174,7 +174,16 @@ def test_compact_cards_and_navigation_interactions(tmp_path: Path, qapp: object)
     assert _find(window, "temporarySaveButton").y() == 12
     scratch_path = tmp_path / "temporary" / "editor.txt"
     scratch_editor = _find(window, "temporaryTextArea")
+    # The responsive layout can stack these cards on a small CI screen. Scroll
+    # the real workspace before clicking, as a user would do in that layout.
+    scroll = _find(window, "workspaceScrollView")
+    flickable = scroll.property("contentItem")
+    assert isinstance(flickable, QQuickItem)
+    if _find(window, "configCheckPage").property("narrow"):
+        flickable.setProperty("contentY", _find(window, "temporaryEditor").y())
+        QTest.qWait(100)
     point = scratch_editor.mapToScene(QPointF(80, 100)).toPoint()
+    assert 0 <= point.y() < window.height()
     QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=point)
     QTest.keyClick(window, Qt.Key.Key_A)
     assert scratch_editor.property("text") == "a"
@@ -182,8 +191,9 @@ def test_compact_cards_and_navigation_interactions(tmp_path: Path, qapp: object)
     assert scratch_path.read_text(encoding="utf-8") == "a"
 
     badges = [_find(window, f"severityFilter-{value}") for value in ("ERROR", "WARNING", "INFO", "UNKNOWN")]
-    assert len({round(item.y()) for item in badges}) == 1
     assert len({round(item.height()) for item in badges}) == 1
+    filters = _find(window, "severityFilters")
+    assert all(item.x() >= 0 and item.x() + item.width() <= filters.width() + 1 for item in badges)
 
     _click(window, "sidebarToggle")
     QTest.qWait(320)
