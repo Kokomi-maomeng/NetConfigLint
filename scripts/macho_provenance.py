@@ -110,13 +110,23 @@ def _snapshot(data: bytes) -> dict[tuple[int, int], tuple]:
         cpu, subtype, offset, length, *_ = struct.unpack_from(fmt, data, 8 + index * size)
         if offset + length > len(data) or (cpu, subtype) in result:
             raise ValueError("Invalid universal Mach-O slice")
-        result[(cpu, subtype)] = _thin(data[offset : offset + length])
+        snapshot = _thin(data[offset : offset + length])
+        if snapshot[0][:2] != (cpu, subtype):
+            raise ValueError("Universal Mach-O CPU table differs from its slice")
+        result[(cpu, subtype)] = snapshot
     return result
 
 
 def deployment_match(source: Path, deployed: Path) -> bool:
     try:
-        return _snapshot(source.read_bytes()) == _snapshot(deployed.read_bytes())
+        original, copied = _snapshot(source.read_bytes()), _snapshot(deployed.read_bytes())
+        # The compiler removes unused CPU slices from official universal wheels.
+        # Every remaining architecture must exist upstream with identical code.
+        return (
+            bool(copied)
+            and copied.keys() <= original.keys()
+            and all(original[architecture] == snapshot for architecture, snapshot in copied.items())
+        )
     except (ValueError, struct.error, UnicodeError, OSError):
         return False
 
@@ -125,10 +135,10 @@ def comparison_reason(source: Path, deployed: Path) -> str:
     """Bounded mismatch categories for build logs; no source paths or binary data."""
     try:
         original, copied = _snapshot(source.read_bytes()), _snapshot(deployed.read_bytes())
-        if original.keys() != copied.keys():
+        if not copied or not copied.keys() <= original.keys():
             return "architecture inventory differs"
-        for architecture, source_slice in original.items():
-            destination = copied[architecture]
+        for architecture, destination in copied.items():
+            source_slice = original[architecture]
             if source_slice[:2] != destination[:2]:
                 return "Mach-O header differs"
             if source_slice[2] != destination[2]:

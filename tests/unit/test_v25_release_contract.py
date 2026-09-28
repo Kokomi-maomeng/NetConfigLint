@@ -102,3 +102,22 @@ def test_macho_python_module_identity_allows_only_abi_suffix_removal(tmp_path: P
     assert not deployment_match(source, deployed)
     deployed.write_bytes(_macho("QtCore.so", b"SYNTHETIC-CODE", signed=True))
     assert not deployment_match(source, deployed)
+
+
+def test_universal_macho_thinning_preserves_the_selected_architecture(tmp_path: Path) -> None:
+    x64 = _macho("@rpath/QtCore", b"SYNTHETIC-CODE")
+    arm = bytearray(x64)
+    struct.pack_into("<ii", arm, 4, 0x100000C, 0)
+    fat = struct.pack(">II", 0xCAFEBABE, 2)
+    fat += struct.pack(">iiIII", 0x1000007, 3, 4096, len(x64), 12)
+    fat += struct.pack(">iiIII", 0x100000C, 0, 8192, len(arm), 12)
+    source, deployed = tmp_path / "source", tmp_path / "deployed"
+    source.write_bytes(fat.ljust(4096, b"\0") + x64 + b"\0" * (4096 - len(x64)) + arm)
+    deployed.write_bytes(arm)
+    assert deployment_match(source, deployed)
+    arm[512] ^= 1
+    deployed.write_bytes(arm)
+    assert not deployment_match(source, deployed)
+    struct.pack_into("<ii", arm, 4, 0x100000C, 1)
+    deployed.write_bytes(arm)
+    assert not deployment_match(source, deployed)
