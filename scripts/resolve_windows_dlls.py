@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import shutil
+import sys
 from collections import deque
 from pathlib import Path
 
@@ -55,6 +56,8 @@ def resolve(distribution: Path, site_packages: Path) -> dict[str, object]:
         raise ValueError("Distribution link escapes its directory")
     wheel_roots = (site_packages / "PySide6", site_packages / "shiboken6")
     wheel_dlls = _index_dlls(wheel_roots)
+    python_roots = (Path(sys.base_prefix), Path(sys.base_prefix) / "DLLs")
+    python_dlls = _index_dlls(python_roots)
     system_root = Path(os.environ.get("SYSTEMROOT", "C:/Windows")) / "System32"
     system_dlls = _index_dlls((system_root,), (".dll", ".drv", ".cpl"))
     bundled = _index_dlls((distribution,))
@@ -86,18 +89,23 @@ def resolve(distribution: Path, site_packages: Path) -> dict[str, object]:
             if dependency in bundled:
                 queue.append(bundled[dependency])
                 continue
-            if dependency in system_dlls or dependency.startswith(_API_SET_PREFIXES):
+            redistributable = dependency.startswith(("vcruntime", "msvcp"))
+            if dependency.startswith(_API_SET_PREFIXES) or (
+                dependency in system_dlls and not redistributable
+            ):
                 continue
-            source = wheel_dlls.get(dependency)
+            source = wheel_dlls.get(dependency) or python_dlls.get(dependency)
             if source is None:
                 unresolved.add(dependency)
                 continue
             if source.is_relative_to(wheel_roots[0]):
                 relative = source.relative_to(wheel_roots[0])
                 target = distribution / "PySide6" / relative
-            else:
+            elif source.is_relative_to(wheel_roots[1]):
                 relative = source.relative_to(wheel_roots[1])
                 target = distribution / "shiboken6" / relative
+            else:
+                target = distribution / source.name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
             bundled[dependency] = target

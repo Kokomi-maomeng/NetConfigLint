@@ -104,9 +104,9 @@ class BgpNetworkCandidateRule:
                     and capture.vpn_instance == family.vpn_instance
                     for capture in context.config.snapshot.rib_captures
                 )
-                if context.mode == AnalysisMode.SNAPSHOT and key in snapshot_routes:
+                if context.mode in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT} and key in snapshot_routes:
                     continue
-                if context.mode == AnalysisMode.SNAPSHOT and complete_rib:
+                if context.mode in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT} and complete_rib:
                     severity = Severity.ERROR
                     message = f"BGP network {network} is absent from the supplied local RIB snapshot."
                     explanation = (
@@ -117,7 +117,12 @@ class BgpNetworkCandidateRule:
                 elif key in candidates:
                     continue
                 else:
-                    severity = Severity.UNKNOWN if context.mode == AnalysisMode.SNAPSHOT else Severity.WARNING
+                    severity = (
+                        Severity.UNKNOWN
+                        if context.mode == AnalysisMode.SNAPSHOT
+                        or (context.mode == AnalysisMode.FULL and bool(context.config.snapshot.rib_captures))
+                        else Severity.WARNING
+                    )
                     message = (
                         "The configured BGP network cannot be proven to exist in the local RIB "
                         "using configuration data alone."
@@ -146,7 +151,7 @@ class BgpPeerOperationalStateRule:
     metadata = RuleMetadata("HUA-BGP-003", "BGP peer not established", Severity.ERROR, "Huawei")
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
-        if context.mode != AnalysisMode.SNAPSHOT or context.config.bgp is None:
+        if context.mode not in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT} or context.config.bgp is None:
             return ()
         return tuple(
             Diagnostic(

@@ -137,6 +137,33 @@ class H3COperationalEvidenceRule:
                     Confidence.LOW,
                 )
             )
+        for number in facts.get("ospf", {}).get("two_way_lines", []):
+            result.append(
+                Diagnostic(
+                    Severity.UNKNOWN,
+                    "H3C-OPS-014",
+                    _line(number),
+                    "OSPF neighbor",
+                    "A 2-Way neighbor requires network-type and DR/BDR role context.",
+                    "2-Way is normal between DROther routers on a broadcast/NBMA "
+                    "segment; this table alone does not prove a fault.",
+                    "Check local/peer role and network type before expecting Full adjacency.",
+                    Confidence.LOW,
+                )
+            )
+        for number in facts.get("unverified_section_lines", []):
+            result.append(
+                Diagnostic(
+                    Severity.UNKNOWN,
+                    "H3C-OPS-015",
+                    _line(number),
+                    "Operational command",
+                    "This output is unsupported, empty, failed or truncated.",
+                    "A display command header does not prove a successfully parsed operational result.",
+                    "Collect complete successful output for a supported command and target release.",
+                    Confidence.LOW,
+                )
+            )
         for number in facts.get("ospf", {}).get("not_full_lines", []):
             result.append(
                 Diagnostic(

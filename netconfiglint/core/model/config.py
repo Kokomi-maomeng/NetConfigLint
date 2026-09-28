@@ -139,6 +139,8 @@ class BGPProcess:
     peers: dict[str, BGPPeer] = field(default_factory=dict)
     groups: dict[str, BGPGroup] = field(default_factory=dict)
     address_families: list[BGPAddressFamily] = field(default_factory=list)
+    # Transport settings inside a vendor's explicit BGP VPN view have their own namespace.
+    vpn_scopes: dict[str, BGPProcess] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

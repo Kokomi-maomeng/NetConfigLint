@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TextIO
 
 from netconfiglint import __version__, analyze
-from netconfiglint.core.analyzer.control import AnalysisLimits
+from netconfiglint.core.analyzer.control import AnalysisLimitReached, AnalysisLimits
 from netconfiglint.core.diagnostics import Diagnostic, Severity
 from netconfiglint.core.input import read_network_text
 
@@ -29,7 +29,10 @@ def build_parser() -> argparse.ArgumentParser:
     check = subparsers.add_parser("check", help="analyze a local configuration file")
     check.add_argument("path", type=Path)
     check.add_argument(
-        "--mode", choices=("snippet", "full", "snapshot"), default="snippet", help="default: snippet"
+        "--mode",
+        choices=("snippet", "message", "view", "full", "snapshot"),
+        default="snippet",
+        help="default: snippet",
     )
     check.add_argument("--vendor", choices=("auto", "huawei", "h3c"), default="auto")
     check.add_argument("--format", choices=("text", "json"), default="text", dest="output_format")
@@ -81,7 +84,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         decoded = read_network_text(args.path, AnalysisLimits())
         result = analyze(decoded.text, args.mode, args.vendor, initial_view=args.initial_view)
-    except (OSError, UnicodeError, ValueError) as exc:
+    except (OSError, UnicodeError, ValueError, AnalysisLimitReached) as exc:
         _error(f"Cannot read or analyze {args.path.name!r} ({type(exc).__name__}).")
         return 2
     if decoded.recovered:
@@ -104,6 +107,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         _error("Output could not be written completely.")
         # Prevent a second broken-pipe error during interpreter shutdown.
         sys.stdout = io.StringIO()
+        return 2
+    if not result.coverage["complete"]:
         return 2
     return 1 if any(item.severity == Severity.ERROR for item in result.diagnostics) else 0
 

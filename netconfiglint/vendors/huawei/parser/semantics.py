@@ -108,7 +108,7 @@ def route_arguments(
                 return destination, mask, "", vpn, "Cannot verify next-table route syntax", False
         else:
             return destination, mask, "", vpn, "Cannot verify next-table route installation", False
-    if rest and _INTERFACE.fullmatch(next_hop + rest[0]):
+    if rest and not _INTERFACE.fullmatch(next_hop) and _INTERFACE.fullmatch(next_hop + rest[0]):
         next_hop += rest.pop(0)
     try:
         address = ipaddress.ip_address(next_hop)
@@ -211,6 +211,12 @@ def acl_rule(tokens: tuple[str, ...], source: SourceRange, acl_type: str, family
             count = 2 if op == "range" else 1
             ports[key] = (op, *rest[:count])
             if op not in {"eq", "gt", "lt", "neq", "range"} or len(rest) < count:
+                known = False
+            values = rest[:count]
+            if any(
+                not value.isascii() or not value.isdigit() or len(value) > 5 or int(value) > 65535
+                for value in values
+            ) or (op == "range" and len(values) == 2 and int(values[0]) > int(values[1])):
                 known = False
             del rest[:count]
         else:

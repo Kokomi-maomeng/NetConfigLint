@@ -41,8 +41,16 @@ def decode_network_bytes(data: bytes, limits: AnalysisLimits | None = None) -> D
 
     encoding = "utf-8-sig"
     recovered = 0
+    if data.startswith((b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")):
+        raise ValueError("UTF-32 input is unsupported; export UTF-8 or UTF-16 text")
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        decoded = data.decode("utf-16")
+        encoding = "utf-16-le" if data.startswith(b"\xff\xfe") else "utf-16-be"
+    else:
+        decoded = ""
     try:
-        decoded = data.decode(encoding)
+        if not decoded:
+            decoded = data.decode(encoding if encoding == "utf-8-sig" else "utf-16")
     except UnicodeDecodeError:
         encoding = "gb18030"
         try:
@@ -60,6 +68,8 @@ def decode_network_bytes(data: bytes, limits: AnalysisLimits | None = None) -> D
             decoded = "".join(pieces)
             encoding = "gb18030-with-byte-markers"
 
+    if "\x00" in decoded:
+        raise ValueError("Binary/NUL data is not a configuration export")
     style = _newline_style(decoded)
     normalized = decoded.replace("\r\n", "\n").replace("\r", "\n")
     if len(normalized) > limits.max_characters:

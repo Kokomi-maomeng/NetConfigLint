@@ -1,0 +1,127 @@
+from __future__ import annotations
+
+import ipaddress
+from contextlib import suppress
+
+from netconfiglint.core.analyzer.control import checkpoint
+from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
+from netconfiglint.rules import RuleContext, RuleMetadata
+from netconfiglint.vendors.h3c.rules.helpers import missing_reference_diagnostic
+
+
+def _ospf_network(address: str, wildcard: str) -> ipaddress.IPv4Network | None:
+    try:
+        wildcard_int = int(ipaddress.IPv4Address(wildcard))
+        if wildcard_int & (wildcard_int + 1):
+            return None  # Non-contiguous wildcard support varies; do not reinterpret it as a netmask.
+        mask = ipaddress.IPv4Address((2**32 - 1) ^ wildcard_int)
+        return ipaddress.IPv4Network(f"{address}/{mask}", strict=False)
+    except (ValueError, ipaddress.AddressValueError, ipaddress.NetmaskValueError):
+        return None
+
+
+class OspfAreaAssociationRule:
+    metadata = RuleMetadata("H3C-OSPF-001", "Invalid OSPF area network", Severity.ERROR, "H3C Comware")
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        result = []
+        for process in context.config.ospf_processes.values():
+            checkpoint()
+            for network in process.networks:
+                checkpoint()
+                if network.area != "Unknown" and _ospf_network(network.address, network.wildcard):
+                    continue
+                severity = Severity.UNKNOWN if network.area == "Unknown" else Severity.ERROR
+                with suppress(ValueError):
+                    ipaddress.IPv4Address(network.address)
+                    ipaddress.IPv4Address(network.wildcard)
+                    severity = Severity.UNKNOWN
+                result.append(
+                    Diagnostic(
+                        severity,
+                        self.metadata.rule_id,
+                        network.source,
+                        f"OSPF {process.process_id}",
+                        "The OSPF network cannot be associated with a valid area/network pair.",
+                        "The area context is missing or the address/wildcard cannot be normalized.",
+                        "Place the network under an OSPF area and verify its IPv4 wildcard mask.",
+                        Confidence.VERIFIED if severity == Severity.ERROR else Confidence.GENERIC,
+                    )
+                )
+        return tuple(result)
+
+
+class MissingInterfaceOspfProcessRule:
+    metadata = RuleMetadata("H3C-OSPF-003", "Undefined interface OSPF process", Severity.ERROR, "H3C Comware")
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        return tuple(
+            missing_reference_diagnostic(
+                context,
+                rule_id=self.metadata.rule_id,
+                source=source,
+                object_name=interface.name,
+                full_message=f"Interface references undefined OSPF process {process_id}.",
+                snippet_message=f"OSPF process {process_id} was not found in the snippet.",
+                explanation="The interface-level ospf enable command references a process absent "
+                "from the full configuration.",
+                suggested_fix=f"Create OSPF process {process_id} or correct the interface binding.",
+            )
+            for interface in context.config.interfaces.values()
+            for process_id, _area, source in interface.ospf_bindings
+            if process_id not in context.config.ospf_processes
+            or context.config.ospf_processes[process_id].vpn_instance != interface.vpn_instance
+        )
+
+
+class OspfNoParticipatingInterfaceRule:
+    metadata = RuleMetadata("H3C-OSPF-002", "No apparent OSPF interface", Severity.WARNING, "H3C Comware")
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        interface_ips = []
+        for interface in context.config.interfaces.values():
+            checkpoint()
+            for address, _, source in interface.ip_addresses:
+                checkpoint()
+                if source.line in interface.secondary_ipv4_lines:
+                    continue
+                with suppress(ValueError):
+                    interface_ips.append(
+                        (interface.vpn_instance, ipaddress.IPv4Address(address.split("/")[0]))
+                    )
+        result = []
+        for process in context.config.ospf_processes.values():
+            checkpoint()
+            has_interface_binding = any(
+                binding[0] == process.process_id and interface.vpn_instance == process.vpn_instance
+                for interface in context.config.interfaces.values()
+                for binding in interface.ospf_bindings
+            )
+            if has_interface_binding:
+                continue
+            networks = [
+                candidate
+                for item in process.networks
+                if (candidate := _ospf_network(item.address, item.wildcard)) is not None
+            ]
+            if any(
+                ip in network
+                for vpn, ip in interface_ips
+                if vpn == process.vpn_instance
+                for network in networks
+            ):
+                continue
+            result.append(
+                Diagnostic(
+                    Severity.WARNING if networks else Severity.INFO,
+                    self.metadata.rule_id,
+                    process.source,
+                    f"OSPF {process.process_id}",
+                    "No interface can be shown to participate in this OSPF process.",
+                    "Static configuration evidence contains no interface address matching an OSPF "
+                    "network statement. Other activation mechanisms may exist.",
+                    "Review OSPF activation and interface addresses; validate runtime state separately.",
+                    Confidence.INFERRED,
+                )
+            )
+        return tuple(result)

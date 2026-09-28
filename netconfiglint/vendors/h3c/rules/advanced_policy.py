@@ -1,0 +1,111 @@
+from __future__ import annotations
+
+import re
+
+from netconfiglint.core.analyzer.control import checkpoint
+from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
+from netconfiglint.rules import RuleContext, RuleMetadata
+from netconfiglint.vendors.h3c.parser.acl_identity import acl_label
+from netconfiglint.vendors.h3c.rules.facts import all_commands
+from netconfiglint.vendors.h3c.rules.helpers import missing_reference_diagnostic
+
+_ROUTE_POLICY = re.compile(r"\broute-policy\s+(\S+)", re.IGNORECASE)
+
+
+class MissingRedistributionPolicyRule:
+    metadata = RuleMetadata(
+        "H3C-RPOL-003", "Undefined redistribution route-policy", Severity.ERROR, "H3C Comware"
+    )
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        result = []
+        for text, source, block in all_commands(context.config):
+            checkpoint()
+            if not text.lower().startswith(("import-route ", "export-route ")):
+                continue
+            if not re.match(r"^(?:bgp|ospf|ospfv3|isis|rip|ripng)(?: \d|$)", block.header, re.I):
+                continue
+            match = _ROUTE_POLICY.search(text)
+            if match is None or match.group(1) in context.config.route_policies:
+                continue
+            name = match.group(1)
+            result.append(
+                missing_reference_diagnostic(
+                    context,
+                    rule_id=self.metadata.rule_id,
+                    source=source,
+                    object_name=block.header,
+                    full_message=f"Route redistribution references undefined route-policy {name}.",
+                    snippet_message=f"Route-policy {name} was not found in the snippet.",
+                    explanation="The import/export command has no matching route-policy definition.",
+                    suggested_fix=f"Define route-policy {name} or correct/remove the redistribution filter.",
+                )
+            )
+        return tuple(result)
+
+
+class BroadPermitAclRule:
+    metadata = RuleMetadata("H3C-ACL-002", "Broad ACL permit rule", Severity.WARNING, "H3C Comware")
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        result = []
+        for acl in context.config.acls.values():
+            checkpoint()
+            for rule in acl.rules.values():
+                checkpoint()
+                if not rule.unrestricted:
+                    continue
+                result.append(
+                    Diagnostic(
+                        Severity.WARNING,
+                        self.metadata.rule_id,
+                        rule.source,
+                        f"{acl.family} ACL {acl.name}",
+                        "ACL rule permits traffic from any source to any destination.",
+                        "The documented omitted-address defaults match any address; no protocol, port "
+                        "or additional restriction is present. Impact depends on ACL order and consumers.",
+                        "Confirm the policy intent and narrow protocol, source, destination, "
+                        "or service fields.",
+                        Confidence.DOCUMENTED,
+                    )
+                )
+        return tuple(result)
+
+
+class EmptyReferencedAclRule:
+    metadata = RuleMetadata("H3C-ACL-003", "Referenced ACL has no rules", Severity.WARNING, "H3C Comware")
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        if context.mode.value == "snippet":
+            return ()
+        acl_has_rule = {
+            key: bool(acl.rules) or acl.unnormalized_rules for key, acl in context.config.acls.items()
+        }
+        references = list(context.config.acl_references)
+        for policy in context.config.route_policies.values():
+            checkpoint()
+            references.extend((name, policy.name, source) for name, source in policy.acl_references)
+        for classifier in context.config.traffic_classifiers.values():
+            checkpoint()
+            references.extend((name, classifier.name, source) for name, source in classifier.acl_references)
+        seen = set()
+        result = []
+        for name, object_name, source in references:
+            checkpoint()
+            if name in seen or acl_has_rule.get(name, True):
+                continue
+            seen.add(name)
+            result.append(
+                Diagnostic(
+                    Severity.WARNING,
+                    self.metadata.rule_id,
+                    source,
+                    object_name,
+                    f"Referenced ACL {acl_label(name)} contains no rules.",
+                    "An empty ACL can deny expected traffic or leave a policy ineffective "
+                    "depending on context.",
+                    "Add the intended ACL rules or remove the stale reference after impact review.",
+                    Confidence.VERIFIED,
+                )
+            )
+        return tuple(result)

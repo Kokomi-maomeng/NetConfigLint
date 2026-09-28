@@ -98,8 +98,8 @@ def test_window_geometry_survives_preferences_changes_and_maximize(qapp: object)
     QTest.qWait(100)
     available = qapp.primaryScreen().availableGeometry()
     assert (reopened.width(), reopened.height()) == (
-        min(1200, max(960, available.width())),
-        min(760, max(600, available.height())),
+        min(1200, available.width()),
+        min(760, available.height()),
     )
     reopened.close()
     reopened_controller.close()
@@ -187,6 +187,7 @@ def test_severity_badges_replace_combobox_and_toggle_filter(qapp: object) -> Non
     controller = AnalysisController(async_enabled=False)
     controller.vendor = "huawei"
     engine = create_engine(controller)
+    engine.rootObjects()[0].setWidth(1440)
     controller.sourceText = "sysname SYNTHETIC-LAB\ntelnet server enable\n"
     controller.analyzeConfig()
     QCoreApplication.processEvents()

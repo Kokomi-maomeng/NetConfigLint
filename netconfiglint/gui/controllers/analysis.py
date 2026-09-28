@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -18,15 +19,30 @@ from netconfiglint.core.analyzer.control import (
     CancellationToken,
 )
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
-from netconfiglint.core.input import read_network_text
+from netconfiglint.core.input import DecodedNetworkText, read_network_text
 from netconfiglint.gui.exporting import render_report
 from netconfiglint.gui.i18n import TranslationController
 from netconfiglint.gui.models import DiagnosticListModel, HistoryListModel, HistoryStore
-from netconfiglint.gui.models.history import default_temporary_path, local_timestamp
+from netconfiglint.gui.models.history import HistoryEntry, default_temporary_path, local_timestamp
 from netconfiglint.vendors import registry
-from netconfiglint.vendors.h3c.parser.diagnostic_bundle import extract_h3c_diagnostic_bundle
 
 Analyzer = Callable[[str, str, str], AnalysisResult]
+
+
+@dataclass(frozen=True)
+class _LoadedInput:
+    path: Path
+    decoded: DecodedNetworkText
+    preview: tuple[str, dict[int, int]] | None
+    revision: int
+
+
+@dataclass(frozen=True)
+class _CompletedAnalysis:
+    result: AnalysisResult
+    entries: list[HistoryEntry] | None
+    history_error: bool
+    history_epoch: int
 
 
 class AnalysisController(QObject):
@@ -51,6 +67,8 @@ class AnalysisController(QObject):
     toastRequested = Signal(str)
     _workerSucceeded = Signal(object)
     _workerFailed = Signal(str)
+    _fileLoaded = Signal(object)
+    _fileFailed = Signal(int)
 
     def __init__(
         self,
@@ -74,6 +92,9 @@ class AnalysisController(QObject):
         self._status_message = ""
         self._file_name = ""
         self._revision = 0
+        self._loading = False
+        self._load_revision = -1
+        self._history_epoch = 0
         self._running_revision = -1
         self._result_current = False
         self._export_payload: str | None = None
@@ -97,13 +118,15 @@ class AnalysisController(QObject):
         )
         try:
             with self._temporary_path.open("rb") as saved:
-                contents = saved.read(4_000_001)
+                contents = saved.read(16_000_001)
             self._temporary_text = (
-                contents.decode("utf-8").replace("\r\n", "\n") if len(contents) <= 4_000_000 else ""
+                contents.decode("utf-8").replace("\r\n", "\n") if len(contents) <= 16_000_000 else ""
             )
         except (OSError, UnicodeError):
             self._temporary_text = ""
         self._result_timestamp = ""
+        self._fileLoaded.connect(self._apply_loaded_input)
+        self._fileFailed.connect(self._apply_file_error)
         self._workerSucceeded.connect(self._apply_result)
         self._workerFailed.connect(self._apply_error)
 
@@ -278,6 +301,7 @@ class AnalysisController(QObject):
 
     def _set_history_enabled(self, value: bool) -> None:
         if value != self._history_store.enabled:
+            self._history_epoch += 1
             try:
                 self._history_store.set_enabled(value)
             except OSError:
@@ -320,42 +344,79 @@ class AnalysisController(QObject):
         self.summaryChanged.emit()
         self._set_status("")
 
+    @staticmethod
+    def _read_input_file(path: Path, revision: int) -> _LoadedInput:
+        decoded = read_network_text(path, AnalysisLimits())
+        return _LoadedInput(path, decoded, registry.extract_configuration_preview(decoded.text), revision)
+
     @Slot(str)
     def loadFile(self, value: str) -> None:
+        path = Path(QUrl(value).toLocalFile() if value.startswith("file:") else value)
+        if not self._async_enabled:
+            try:
+                self._apply_loaded_input(self._read_input_file(path, self._revision))
+            except (OSError, UnicodeError, ValueError, AnalysisLimitReached):
+                self.toastRequested.emit("file.open_error")
+            return
+        self._invalidate()
+        self._loading = True
+        self._set_busy(True)
+        revision = self._revision
+        self._load_revision = revision
+        future = self._executor.submit(self._read_input_file, path, revision)
+        future.add_done_callback(lambda item: self._file_done(item, revision))
+
+    def _file_done(self, future: Future[_LoadedInput], revision: int) -> None:
+        if self._closing:
+            return
         try:
-            path = Path(QUrl(value).toLocalFile() if value.startswith("file:") else value)
-            decoded = read_network_text(path, AnalysisLimits())
-            bundle = extract_h3c_diagnostic_bundle(decoded.text)
-            if bundle is None:
-                self._set_source_text(decoded.text)
-            else:
-                self._source_text = decoded.text
-                self._invalidate()
-                self.sourceTextChanged.emit()
-                lines = decoded.text.splitlines()
-                selected = sorted(bundle.analysis_lines)
-                preview = "\n".join(lines[number - 1] for number in selected)
-                if preview and decoded.text.endswith("\n"):
-                    preview += "\n"
-                self._set_editor_text(
-                    preview,
-                    read_only=True,
-                    line_map={source_line: index for index, source_line in enumerate(selected, 1)},
-                )
-                self._bundle_configuration = preview
-            self._input_metadata = {
-                "encoding": decoded.encoding,
-                "newline_style": decoded.newline_style,
-                "recovered_bytes": decoded.recovered_bytes,
-            }
-            self._file_name = path.name
-            self.fileNameChanged.emit()
-            if decoded.recovered:
-                self.toastRequested.emit("file.encoding_recovered")
-            if bundle is not None:
-                self.toastRequested.emit("file.bundle_preview")
-        except (OSError, UnicodeError, AnalysisLimitReached):
-            self.toastRequested.emit("file.open_error")
+            self._fileLoaded.emit(future.result())
+        except Exception:  # Input boundary: error values/source paths are never logged.
+            self._fileFailed.emit(revision)
+
+    @Slot(int)
+    def _apply_file_error(self, revision: int) -> None:
+        if revision != self._load_revision:
+            return
+        if revision != self._revision:
+            if self._loading:
+                self._loading = False
+                self._set_busy(False)
+            return
+        self._loading = False
+        self._set_busy(False)
+        self.toastRequested.emit("file.open_error")
+
+    @Slot(object)
+    def _apply_loaded_input(self, item: object) -> None:
+        if isinstance(item, _LoadedInput) and self._async_enabled and item.revision != self._load_revision:
+            return
+        if not isinstance(item, _LoadedInput) or item.revision != self._revision:
+            self._loading = False
+            self._set_busy(False)
+            return
+        decoded, preview = item.decoded, item.preview
+        if preview is None:
+            self._set_source_text(decoded.text)
+        else:
+            self._source_text = decoded.text
+            self._invalidate()
+            self.sourceTextChanged.emit()
+            self._set_editor_text(preview[0], read_only=True, line_map=preview[1])
+            self._bundle_configuration = preview[0]
+        self._input_metadata = {
+            "encoding": decoded.encoding,
+            "newline_style": decoded.newline_style,
+            "recovered_bytes": decoded.recovered_bytes,
+        }
+        self._file_name = item.path.name
+        self._loading = False
+        self._set_busy(False)
+        self.fileNameChanged.emit()
+        if decoded.recovered:
+            self.toastRequested.emit("file.encoding_recovered")
+        if preview is not None:
+            self.toastRequested.emit("file.bundle_preview")
 
     @Slot(str, str, bool, result=bool)
     def prepareExport(self, scope: str, format: str, diagnostics_first: bool) -> bool:
@@ -414,7 +475,13 @@ class AnalysisController(QObject):
             self._run_synchronously()
             return
         future = self._executor.submit(
-            self._analyze_input, self._source_text, self._mode, self._vendor, self._cancellation
+            self._analyze_and_persist,
+            self._source_text,
+            self._mode,
+            self._vendor,
+            self._cancellation,
+            self._active_history_id,
+            self._history_epoch,
         )
         future.add_done_callback(self._worker_done)
 
@@ -428,7 +495,7 @@ class AnalysisController(QObject):
         except Exception as exc:  # analyzer boundary: surfaced without source text
             self._apply_error(str(exc))
 
-    def _worker_done(self, future: Future[AnalysisResult]) -> None:
+    def _worker_done(self, future: Future[_CompletedAnalysis]) -> None:
         if self._closing:
             return
         try:
@@ -437,6 +504,39 @@ class AnalysisController(QObject):
             self._workerFailed.emit("cancelled")
         except Exception as exc:  # analyzer boundary: surfaced without source text
             self._workerFailed.emit(str(exc))
+
+    def _analyze_and_persist(
+        self,
+        source: str,
+        mode: str,
+        vendor: str,
+        cancellation: CancellationToken,
+        active_history_id: str | None,
+        epoch: int,
+    ) -> _CompletedAnalysis:
+        result = self._analyze_input(source, mode, vendor, cancellation)
+        if cancellation.cancelled:
+            raise AnalysisCancelled()
+        entries = None
+        error = False
+        if self._history_store.enabled and active_history_id is None:
+            store = HistoryStore(
+                self._history_store.path,
+                enabled=True,
+                persist_settings=False,
+                limit=self._history_store.limit,
+            )
+            try:
+                store.append(
+                    result,
+                    source,
+                    vendor,
+                    guard=lambda: epoch == self._history_epoch and not cancellation.cancelled,
+                )
+                entries = list(store.entries)
+            except OSError:
+                error = True
+        return _CompletedAnalysis(result, entries, error, epoch)
 
     def _analyze_input(
         self, source: str, mode: str, vendor: str, cancellation: CancellationToken
@@ -457,6 +557,11 @@ class AnalysisController(QObject):
 
     @Slot(object)
     def _apply_result(self, result: object) -> None:
+        completed = result if isinstance(result, _CompletedAnalysis) else None
+        if completed is not None:
+            result = completed.result
+        if self._loading:
+            return
         if self._busy and self._cancellation.cancelled:
             self._apply_error("cancelled")
             return
@@ -476,7 +581,14 @@ class AnalysisController(QObject):
         counts = Counter(item.severity.value for item in result.diagnostics)
         self._summary = {key: counts[key] for key in self._summary}
         try:
-            if self._active_history_id is None:
+            if completed is not None:
+                if completed.history_error:
+                    raise OSError("Background history write failed")
+                if completed.entries is not None and completed.history_epoch == self._history_epoch:
+                    self._history_store.entries = completed.entries
+                    if completed.entries:
+                        self._active_history_id = completed.entries[0].entry_id
+            elif self._active_history_id is None:
                 self._history_store.append(result, self._source_text, self._vendor)
                 if self._history_store.enabled and self._history_store.entries:
                     self._active_history_id = self._history_store.entries[0].entry_id
@@ -500,6 +612,8 @@ class AnalysisController(QObject):
 
     @Slot(str)
     def _apply_error(self, message: str) -> None:
+        if self._loading:
+            return
         self._set_busy(False)
         if self._running_revision != self._revision:
             self._set_status("analysis.changed" if self._source_text.strip() else "")
@@ -552,6 +666,7 @@ class AnalysisController(QObject):
 
     @Slot()
     def clearHistory(self) -> None:
+        self._history_epoch += 1
         try:
             self._history_store.clear()
             self._active_history_id = None
@@ -583,7 +698,11 @@ class AnalysisController(QObject):
         except (KeyError, TypeError, ValueError):
             self.toastRequested.emit("history.recovery_warning")
             return
-        self._source_text = entry.source_text
+        self._set_source_text(entry.source_text)
+        self._bundle_configuration = ""
+        self._input_metadata = {}
+        self._file_name = ""
+        self.fileNameChanged.emit()
         self._set_editor_text(entry.source_text, read_only=False)
         self._invalidate()
         self._mode = entry.mode
@@ -617,6 +736,7 @@ class AnalysisController(QObject):
 
     @Slot("QVariantList")
     def removeHistories(self, entry_ids: list[str]) -> None:
+        self._history_epoch += 1
         try:
             self._history_store.remove_ids(set(entry_ids))
             self._history_model.replace(self._history_store.entries)

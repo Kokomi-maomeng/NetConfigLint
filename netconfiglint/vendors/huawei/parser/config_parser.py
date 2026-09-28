@@ -196,6 +196,13 @@ class HuaweiConfigParser:
             # Unknown trailing view qualifiers must not become invented interface names.
             if " " in name:
                 return None
+            if match := re.fullmatch(r"vlanif(\d+)", name, re.I):
+                value = match.group(1)
+                if len(value) > 4 or not 1 <= int(value) <= 4094:
+                    self._issue(
+                        config, line, "HUA-PARSE-INTERFACE", "VLAN interface", "Invalid VLAN interface number"
+                    )
+                    return None
             interface = config.interfaces.setdefault(name, Interface(name, source))
             return ("interface", interface)
         if len(tokens) >= 2 and lower.startswith("bgp "):
@@ -275,9 +282,19 @@ class HuaweiConfigParser:
             config.ipv6_static_routes.append(self._parse_ipv6_static_route(line))
             return True
         if lower.startswith("ip ip-prefix ") and len(tokens) >= 3:
+            if not self._valid_prefix(line.tokens, 4):
+                self._issue(
+                    config, line, "HUA-PARSE-PREFIX", tokens[2], "Invalid prefix, mask, or ge/le range"
+                )
+                return True
             config.prefix_lists.setdefault(tokens[2], PrefixList(tokens[2], source))
             return True
         if lower.startswith("ip ipv6-prefix ") and len(tokens) >= 3:
+            if not self._valid_prefix(line.tokens, 6):
+                self._issue(
+                    config, line, "HUA-PARSE-PREFIX", tokens[2], "Invalid IPv6 prefix, mask, or ge/le range"
+                )
+                return True
             config.ipv6_prefix_lists.setdefault(tokens[2], PrefixList(tokens[2], source))
             return True
         if lower.startswith("acl ") and len(tokens) >= 2:
@@ -664,6 +681,38 @@ class HuaweiConfigParser:
             policy.classifier_bindings.append((tokens[1], tokens[3], source))
             return True
         return False
+
+    @staticmethod
+    def _valid_prefix(tokens: tuple[str, ...], family: int) -> bool:
+        try:
+            offset = next(i for i, word in enumerate(tokens) if word.lower() in {"permit", "deny"}) + 1
+            address, mask = tokens[offset : offset + 2]
+            network = ipaddress.ip_network(f"{address}/{mask}", strict=False)
+            if network.version != family:
+                return False
+            lower = network.prefixlen
+            upper: int = network.max_prefixlen
+            rest = tokens[offset + 2 :]
+            if len(rest) % 2:
+                return False
+            seen: set[str] = set()
+            for key, value in zip(rest[::2], rest[1::2], strict=True):
+                if (
+                    key in seen
+                    or key not in {"greater-equal", "less-equal", "ge", "le"}
+                    or not value.isascii()
+                    or not value.isdigit()
+                    or len(value) > 3
+                ):
+                    return False
+                seen.add(key)
+                if key in {"greater-equal", "ge"}:
+                    lower = int(value)
+                else:
+                    upper = int(value)
+            return network.prefixlen <= lower <= upper <= network.max_prefixlen
+        except (ValueError, IndexError, StopIteration):
+            return False
 
     @staticmethod
     def _issue(config: DeviceConfig, line: SourceLine, rule_id: str, object_name: str, issue: str) -> None:

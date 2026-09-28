@@ -44,9 +44,17 @@ AppCard {
             onDragFinished: sceneX => root.dragFinished(sceneX)
             onStepRequested: direction => root.stepRequested(direction)
         }
-        ColumnLayout {
+        ScrollView {
+            id: metadataScroll
+            objectName: "analysisMetadataScroll"
             Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(metadataColumn.implicitHeight, Math.max(80, root.height * 0.48))
             Layout.margins: 12
+            clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ColumnLayout {
+                id: metadataColumn
+                width: metadataScroll.availableWidth
             spacing: 8
             SelectableText {
                 objectName: "analysisStatus"
@@ -133,9 +141,11 @@ AppCard {
                 font: Typography.caption
             }
         }
+        }
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.minimumHeight: Math.min(160, root.height * 0.28)
             IssueList {
                 anchors.fill: parent
                 anchors.margins: 12

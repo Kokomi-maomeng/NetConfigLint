@@ -1,6 +1,6 @@
 # H3C Comware command support contract
 
-NetConfigLint v2.1 preserves every non-empty H3C configuration line and never rejects a file merely
+NetConfigLint v2.5 preserves every non-empty H3C configuration line and never rejects a file merely
 because it contains an unknown command. This is complete **content retention**, not a claim that a
 finite static analyzer can emulate every command across every H3C model, card, license, and Comware
 release.
@@ -16,7 +16,9 @@ evidence supports a narrower future profile.
 - `port access vlan`, interface bridge/route mode, source ARP filtering, `Vlan-interface`,
   interface IPv4/IPv6, VPN, STP, and interface OSPF bindings/network type;
 - IPv4/IPv6 static routes, BGP peers/groups/address families, OSPF, IS-IS, ACL/ACL6;
-- route-policy/prefix-list, traffic classifier/behavior/policy, VPN instance, VXLAN/EVPN;
+- route-policy/prefix-list, traffic classifier/behavior declarations and `qos policy` references,
+  plus supported VPN-instance bindings. Behavior actions and platform-specific VXLAN/EVPN forms
+  remain unverified unless explicitly modeled; family cataloging is not semantic support;
 - Telnet/FTP/SSH service settings, VTY protocols/authentication, read/write SNMP community risk,
   NTP authentication, legacy SSL/TLS enablement, plaintext passwords, local-user Telnet scope,
   broad OSPF adjacency exposure, and OSPF authentication evidence.
@@ -29,8 +31,14 @@ evidence supports a narrower future profile.
 - LLDP list rows can produce source-linked observed neighbor edges when the documented columns
   are present. Column order varies by release; unsupported layouts remain unverified.
 
-The plugin exposes 47 registered `H3C-*` rule evaluators. Shared normalized checks are wrapped with H3C-only
-IDs and wording; H3C analysis never emits a `HUA-*` rule ID.
+The plugin owns its `H3C-*` rule evaluators and Comware parser/reducer modules. It imports no
+Huawei implementation, translates no source to VRP, and wraps no Huawei rule object. H3C analysis
+never emits a `HUA-*` rule ID. Generic normalized data structures and the rule engine are shared.
+
+VTY ranges inherit class settings unless overridden. An explicit range does not prove total VTY
+capacity, so remaining class exposure stays UNKNOWN. OSPF silence/authentication evidence is scoped
+to the process and area; a 2-Way peer without local role/network-type evidence is not a fault verdict.
+Failed, empty, truncated and unsupported operational captures cannot produce a successful-parse summary.
 
 ## Explicit unsupported-command behavior
 

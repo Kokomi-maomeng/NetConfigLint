@@ -81,7 +81,11 @@ ProfileDatabase resolves source-linked metadata only; the capability repair is t
 ## Threading and GUI
 
 QML owns layout and interaction. Python exposes QObject controllers and list models. The
-controller runs analysis through a worker thread so large inputs cannot freeze the UI.
+controller runs analysis through a worker thread with cooperative resource limits. Large
+documents use explicit read-only preview pages, bounded native text layout and visible line
+numbers. Source text remains complete in the controller; diagnostic jumps select the matching
+preview page and exports/history never consume the shortened display. Preview search covers
+the current page.
 QML receives display-ready roles and jump targets; it never parses commands or evaluates a
 rule.
 
@@ -110,7 +114,7 @@ otherwise rules remain generic or return UNKNOWN instead of asserting incompatib
 
 A per-call ContextVar carries cooperative cancellation and byte, character, line, line-length,
 work, diagnostic, VLAN-membership and elapsed-time limits. Parser state belongs to
-DeviceConfig, so the shared vendor parser cannot cross-contaminate OSPF area context.
+DeviceConfig, so independent vendor parsers cannot cross-contaminate OSPF area context.
 Partial rule output remains available with SYS-LIMIT-001; parse-stage limits return
 an explicit incomplete result. Cancellation raises AnalysisCancelled and the GUI
 publishes no result/history for cancelled work. The built-in analyzer checks during
@@ -123,7 +127,8 @@ An optional initial_view is available to API/CLI snippet callers; the original s
 and line numbers are retained. Unsupported undo forms and OSPFv3 remain explicit
 unsupported coverage, not guessed effective configuration.
 
-File adapters share one bounded decoder. Strict UTF-8 is attempted first, then strict GB18030;
+File adapters share one bounded decoder. A UTF-16 BOM is decoded explicitly; otherwise strict
+UTF-8 is attempted first, then strict GB18030. UTF-32 and NUL-containing binary input are rejected;
 remaining invalid bytes are rendered as visible byte markers rather than silently dropped. Newlines
 are normalized before analysis and the original encoding/newline classification is carried into
 explicit exports. H3C diagnostic bundles retain full source line numbers while an analysis-line set
@@ -132,3 +137,17 @@ restricts configuration coverage to the running-configuration section.
 CommandTree and CommandProfile/ProfileOverlay are isolated in
 experiments/huawei_grammar, outside the shipped package. They have no active parser
 or rule consumer and do not advertise production grammar coverage.
+
+## Independent vendor extension contract (v2.5)
+
+Each `vendors/<vendor>/` package owns detection, configuration/snapshot parsing, effective-command
+reduction, semantics, rules, profile facts and vendor-specific message hypotheses. A vendor must
+not import another vendor package or convert its input to another vendor's CLI. An AST regression
+guard enforces this for the shipped implementations. Shared models, protocol-neutral input/error
+handling, resource limits, message rendering and RuleEngine are infrastructure.
+
+Register one VendorPlugin with its aliases, parser, rules, snapshot parser and view rules. Optional
+input_preview and message_events are supplied by that vendor. Core/GUI dispatch does not branch on
+vendor keys. Add its localized name/profile data and independent positive/negative fixtures. A new
+vendor must not be described as supported until those cases and source-preserving UNKNOWN behavior
+are qualified. Current model-specific defaults remain vendor-owned.

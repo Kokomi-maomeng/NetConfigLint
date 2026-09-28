@@ -13,6 +13,7 @@ Item {
     readonly property real minimumWorkspaceWidth: configEditor.headerMinimumWidth
         + (analysisPanel.visible ? 240 + 16 : 0)
         + (temporaryEditor.visible ? temporaryEditor.headerMinimumWidth + 16 : 0) + 64
+    readonly property bool narrow: width < minimumWorkspaceWidth
     property string draggedKey: ""
     property real dragSceneX: 0
     property real dragStartSceneX: 0
@@ -48,7 +49,7 @@ Item {
     }
     function startDrag(key, sceneX) {
         var item = panel(key)
-        if (!item || !item.visible) return
+        if (root.narrow || !item || !item.visible) return
         settleAnimation.stop()
         draggedKey = key
         dragSourceItem = item
@@ -110,14 +111,27 @@ Item {
         anchors.topMargin: 20
         anchors.bottomMargin: 20
         spacing: 12
-        SplitView {
-            id: workspaceSplit
-            objectName: "workspaceSplitView"
+        ScrollView {
+            id: workspaceScroll
+            objectName: "workspaceScrollView"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            orientation: Qt.Horizontal
+            clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: root.narrow ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+            Item {
+                width: workspaceScroll.availableWidth
+                height: root.narrow ? Math.max(workspaceScroll.availableHeight,
+                    480 * (1 + (analysisPanel.visible ? 1 : 0) + (temporaryEditor.visible ? 1 : 0)))
+                    : workspaceScroll.availableHeight
+        SplitView {
+            anchors.fill: parent
+            id: workspaceSplit
+            objectName: "workspaceSplitView"
+            orientation: root.narrow ? Qt.Vertical : Qt.Horizontal
             handle: Item {
                 implicitWidth: 16
+                implicitHeight: 16
             }
             ConfigEditor {
                 id: configEditor
@@ -126,10 +140,12 @@ Item {
                 editorObjectName: "configurationTextArea"
                 visible: true
                 SplitView.preferredWidth: 300
-                SplitView.minimumWidth: headerMinimumWidth
+                SplitView.minimumWidth: root.narrow ? 0 : headerMinimumWidth
+                SplitView.preferredHeight: 480
+                SplitView.minimumHeight: root.narrow ? 400 : 0
                 title: root.controller.editorReadOnly ? i18n.catalog["editor.bundle_preview"] : i18n.catalog["editor.configuration"]
                 titleObjectName: "checkPageTitle"
-                text: root.controller.editorText
+                text: syntaxHighlighter.prepareText(configEditor.editor ? configEditor.editor.textDocument : null, root.controller.editorText, configEditor.editor)
                 readOnly: root.controller.editorReadOnly
                 showAnalyze: true
                 analysisBusy: root.controller.busy
@@ -147,7 +163,10 @@ Item {
                 objectName: "analysisPanel"
                 visible: preferences.values.panels.indexOf(panelKey) >= 0
                 SplitView.fillWidth: true
-                SplitView.minimumWidth: 240
+                SplitView.minimumWidth: root.narrow ? 0 : 240
+                SplitView.fillHeight: root.narrow
+                SplitView.preferredHeight: 480
+                SplitView.minimumHeight: root.narrow ? 400 : 0
                 diagnosticsModel: root.controller.diagnosticsModel
                 detection: root.controller.detection
                 resultTimestamp: root.controller.resultTimestamp
@@ -170,9 +189,11 @@ Item {
                 editorObjectName: "temporaryTextArea"
                 visible: preferences.values.panels.indexOf(panelKey) >= 0
                 SplitView.preferredWidth: 300
-                SplitView.minimumWidth: headerMinimumWidth
+                SplitView.minimumWidth: root.narrow ? 0 : headerMinimumWidth
+                SplitView.preferredHeight: 480
+                SplitView.minimumHeight: root.narrow ? 400 : 0
                 title: i18n.catalog["editor.temporary"]
-                text: root.controller.temporaryText
+                text: syntaxHighlighter.prepareText(temporaryEditor.editor ? temporaryEditor.editor.textDocument : null, root.controller.temporaryText, temporaryEditor.editor)
                 showSave: true
                 onSaveRequested: value => root.controller.saveTemporaryText(value)
                 onSearchOpenRequested: searchCard.openFor(temporaryEditor)
@@ -180,6 +201,8 @@ Item {
                 onDragMoved: sceneX => root.updateDrag(sceneX)
                 onDragFinished: sceneX => root.finishDrag(sceneX)
                 onStepRequested: direction => root.step(panelKey, direction)
+            }
+        }
             }
         }
     }

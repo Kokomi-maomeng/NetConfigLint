@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '2.4.0',
+    [string]$Version = '2.5.0',
     [string]$CertificateThumbprint = '',
     [string]$PfxPath = '',
     [string]$WixBin = '',
@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path -LiteralPath (Split-Path -Parent $PSScriptRoot)).Path
 Set-Location -LiteralPath $projectRoot
-$python = Join-Path $projectRoot '.venv\Scripts\python.exe'
+$python = if ($env:NETCONFIGLINT_BUILD_PYTHON) { $env:NETCONFIGLINT_BUILD_PYTHON } else { Join-Path $projectRoot '.venv\Scripts\python.exe' }
 if (-not (Test-Path -LiteralPath $python)) { $python = (Get-Command python -ErrorAction Stop).Source }
 
 if (-not $SkipAppBuild) {
@@ -48,8 +48,6 @@ if (Test-Path -LiteralPath $sourceRoot) {
 Copy-Item -LiteralPath $distribution.FullName -Destination $sourceRoot -Recurse
 Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') -Destination $sourceRoot
 Copy-Item -LiteralPath (Join-Path $projectRoot 'THIRD_PARTY_NOTICES.md') -Destination $sourceRoot
-& $python (Join-Path $PSScriptRoot 'assemble_licenses.py') $sourceRoot
-if ($LASTEXITCODE -ne 0) { throw 'MSI payload license assembly failed.' }
 
 $licenseRtf = Join-Path $buildRoot 'LICENSE.rtf'
 & $python (Join-Path $PSScriptRoot 'license_to_rtf.py') (Join-Path $projectRoot 'LICENSE') $licenseRtf
@@ -73,6 +71,10 @@ if ($CertificateThumbprint -or $PfxPath) {
     if ($exeSignature.Status -ne 'Valid') { throw "Executable signature validation failed: $($exeSignature.Status)" }
 }
 
+& $python (Join-Path $PSScriptRoot 'assemble_licenses.py') $sourceRoot
+if ($LASTEXITCODE -ne 0) { throw 'MSI payload license assembly failed.' }
+& $python (Join-Path $PSScriptRoot 'assemble_licenses.py') $sourceRoot --verify
+if ($LASTEXITCODE -ne 0) { throw 'Final payload verification failed.' }
 $heat = Join-Path $wix 'heat.exe'
 $candle = Join-Path $wix 'candle.exe'
 $light = Join-Path $wix 'light.exe'

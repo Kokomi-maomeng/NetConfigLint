@@ -133,6 +133,13 @@ def main() -> None:
     distribution = distributions[0]
     if sys.platform == "darwin":
         distribution = _qualify_macos_bundle(distribution)
+        subprocess.run(
+            [sys.executable, str(root / "scripts/assemble_licenses.py"), str(distribution)], check=True
+        )
+        subprocess.run(
+            [sys.executable, str(root / "scripts/assemble_licenses.py"), str(distribution), "--verify"],
+            check=True,
+        )
         print(distribution.name)
         return
     executable = next(

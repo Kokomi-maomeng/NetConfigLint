@@ -26,6 +26,7 @@ from netconfiglint.vendors.huawei.rules.interface import (
 from netconfiglint.vendors.huawei.rules.ipv6 import IPv6InterfaceAddressRule, IPv6StaticRouteFormatRule
 from netconfiglint.vendors.huawei.rules.isis import MissingIsisNetworkEntityRule, MissingIsisProcessRule
 from netconfiglint.vendors.huawei.rules.layer2 import MissingBpduProtectionRule
+from netconfiglint.vendors.huawei.rules.operational import HuaweiLldpEvidenceRule
 from netconfiglint.vendors.huawei.rules.ospf import (
     MissingInterfaceOspfProcessRule,
     OspfAreaAssociationRule,
@@ -68,6 +69,7 @@ from netconfiglint.vendors.huawei.rules.vlan import (
 from netconfiglint.vendors.huawei.rules.vpn import MissingBgpVpnRule, MissingInterfaceVpnRule
 
 HUAWEI_RULES: tuple[Rule, ...] = (
+    HuaweiLldpEvidenceRule(),
     MissingTrunkVlanRule(),
     MissingAccessVlanRule(),
     MissingHybridVlanRule(),

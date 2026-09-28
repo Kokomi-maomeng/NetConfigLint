@@ -3,6 +3,8 @@
 from pathlib import Path
 from xml.etree import ElementTree
 
+import pytest
+
 
 def test_windows_msi_checks_actual_build_number() -> None:
     source = Path(__file__).resolve().parents[2] / "installer" / "NetConfigLint.wxs"
@@ -13,7 +15,7 @@ def test_windows_msi_checks_actual_build_number() -> None:
     assert search.attrib["Name"] == "CurrentBuildNumber"
     assert search.attrib["Win64"] == "yes"
     conditions = root.findall(".//w:Product/w:Condition", namespace)
-    assert any("OSBUILDNUMBER >= 10240" in (condition.text or "") for condition in conditions)
+    assert any("OSBUILDNUMBER >= 17763" in (condition.text or "") for condition in conditions)
     assert all("WindowsBuild" not in (condition.text or "") for condition in conditions)
 
 
@@ -38,3 +40,34 @@ def test_msi_acceptance_waits_for_gui_smoke_process() -> None:
     assert "Start-Process -FilePath $Executable" in script
     assert "-Wait -PassThru -WindowStyle Hidden" in script
     assert "$LASTEXITCODE" not in script
+
+
+def test_portable_rejects_unsupported_windows_before_importing_qt(monkeypatch: pytest.MonkeyPatch) -> None:
+    import builtins
+    import runpy
+    import sys
+    from types import SimpleNamespace
+
+    original_import = builtins.__import__
+    messages: list[tuple[object, ...]] = []
+
+    def guarded_import(name: str, *args: object, **kwargs: object) -> object:
+        if name.startswith(("PySide6", "netconfiglint.gui")):
+            raise AssertionError("Unsupported Windows reached Qt import")
+        return original_import(name, *args, **kwargs)  # type: ignore[arg-type]
+
+    with monkeypatch.context() as patch:
+        patch.setattr(sys, "platform", "win32")
+        patch.setattr(sys, "getwindowsversion", lambda: SimpleNamespace(build=17134), raising=False)
+        patch.setitem(
+            sys.modules,
+            "ctypes",
+            SimpleNamespace(
+                windll=SimpleNamespace(user32=SimpleNamespace(MessageBoxW=lambda *a: messages.append(a)))
+            ),
+        )
+        patch.setattr(builtins, "__import__", guarded_import)
+        with pytest.raises(SystemExit) as stopped:
+            runpy.run_path(str(Path(__file__).resolve().parents[2] / "netconfiglint" / "deploy_main.py"))
+    assert stopped.value.code == 2
+    assert len(messages) == 1

@@ -10,25 +10,9 @@ import re
 from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
 
-_EVENTS: tuple[tuple[str, str, Severity, str, str, str], ...] = (
-    (
-        r"(?:MAD|multi-active).{0,70}(?:recovery|split|faulty)",
-        "MAD-RECOVERY",
-        Severity.ERROR,
-        "IRF multi-active detection event",
-        "MAD may have placed a split IRF fabric in recovery and shut down service ports.",
-        "Check display mad verbose, IRF links, member identity and surviving forwarding fabric.",
-    ),
-    (
-        r"(?:IRF|stack).{0,70}(?:link|port).{0,35}(?:down|failed|inactive)|"
-        r"(?:IRF|stack).{0,45}(?:split|merge failed)",
-        "IRF-LINK",
-        Severity.WARNING,
-        "IRF link or fabric event",
-        "An IRF link/fabric problem is reported. Possible causes include peer-port numbering, "
-        "physical link, member ID and activation state.",
-        "Compare display irf, display irf link, both members' IRF port bindings and physical link state.",
-    ),
+EventDefinition = tuple[str, str, Severity, str, str, str]
+
+_COMMON_EVENTS: tuple[EventDefinition, ...] = (
     (
         r"(?:BGP|BGP/).{0,80}(?:down|idle|active|notification|reset|cease)",
         "BGP-PEER",
@@ -124,6 +108,13 @@ _EVENTS: tuple[tuple[str, str, Severity, str, str, str], ...] = (
 
 
 def interpret_messages(source: str, vendor: str, *, include_unmatched: bool = True) -> tuple[Diagnostic, ...]:
+    from netconfiglint.vendors.registry import get_vendor_plugin
+
+    try:
+        specific = get_vendor_plugin(vendor).message_events
+    except ValueError:
+        specific = ()
+    events = (*specific, *_COMMON_EVENTS)
     diagnostics: list[Diagnostic] = []
     for number, line in enumerate(source.splitlines(), 1):
         checkpoint()
@@ -132,7 +123,7 @@ def interpret_messages(source: str, vendor: str, *, include_unmatched: bool = Tr
             continue
         if not include_unmatched and text.lower().startswith(("description ", "remark ")):
             continue
-        for pattern, code, severity, title, explanation, fix in _EVENTS:
+        for pattern, code, severity, title, explanation, fix in events:
             if re.search(pattern, text, re.IGNORECASE):
                 diagnostics.append(
                     Diagnostic(

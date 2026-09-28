@@ -17,6 +17,7 @@ from netconfiglint.core.model import (
     SnapshotRoute,
 )
 from netconfiglint.core.model.config import RibCapture
+from netconfiglint.core.parser.numbers import bounded_integer
 from netconfiglint.vendors.huawei.parser.views import interface_name
 
 _BGP_STATES = {"idle", "connect", "active", "opensent", "openconfirm", "established", "no", "noneg"}
@@ -106,7 +107,7 @@ class HuaweiSnapshotParser:
                         capture.scope_known = False
                 count = re.search(r"destinations?\s*:\s*(\d+)", text, re.I)
                 if count:
-                    capture.expected_count = int(count.group(1))
+                    capture.expected_count = bounded_integer(count.group(1))
                     if capture.expected_count == 0:
                         capture.header_seen = True
                 if ("destination/mask" in lower and "nexthop" in lower) or (
@@ -313,7 +314,7 @@ class HuaweiSnapshotParser:
             return None
         received = None
         if state_index + 1 < len(tokens) and tokens[state_index + 1].isdigit():
-            received = int(tokens[state_index + 1])
+            received = bounded_integer(tokens[state_index + 1])
         return SnapshotBgpPeer(
             address=address,
             remote_as=tokens[2] if len(tokens) > 2 else "Unknown",

@@ -8,6 +8,7 @@ import plistlib
 import shutil
 import stat
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -17,7 +18,7 @@ def run(*args: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--version", default="2.4.0")
+    parser.add_argument("--version", default="2.5.0")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     app = root / "dist/NetConfigLint.app"
@@ -75,6 +76,11 @@ read "reply?Press Return to close."
     release.mkdir(exist_ok=True)
     component = root / "build/macos-pkg/NetConfigLint-component.pkg"
     identity = os.environ.get("MACOS_APPLICATION_IDENTITY", "")
+    # Keep the final inventory outside the signed app, so updating hashes cannot
+    # invalidate its sealed resources. License texts were assembled before signing.
+    staged_app = applications / app.name
+    inventory = applications / "NetConfigLint-SBOM.json"
+    shutil.move(str(staged_app / "SBOM.json"), inventory)
     if identity:
         run(
             "codesign",
@@ -88,6 +94,24 @@ read "reply?Press Return to close."
             str(applications / app.name),
         )
         run("codesign", "--verify", "--deep", "--strict", str(applications / app.name))
+    run(
+        sys.executable,
+        str(root / "scripts/assemble_licenses.py"),
+        str(staged_app),
+        "--manifest-path",
+        str(inventory),
+        "--preserve-material",
+    )
+    run(
+        sys.executable,
+        str(root / "scripts/assemble_licenses.py"),
+        str(staged_app),
+        "--manifest-path",
+        str(inventory),
+        "--verify",
+    )
+    if identity:
+        run("codesign", "--verify", "--deep", "--strict", str(staged_app))
     package_identity = os.environ.get("MACOS_INSTALLER_IDENTITY", "")
     pkgbuild = [
         "pkgbuild",

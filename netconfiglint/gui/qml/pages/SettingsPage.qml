@@ -71,6 +71,12 @@ AppDialog {
                 Layout.fillWidth: true
                 title: i18n.catalog["settings.theme"]
                 detail: i18n.catalog[["settings.system", "settings.light", "settings.dark"][Theme.mode]]
+                CheckBox {
+                    objectName: "reduceMotionToggle"
+                    text: i18n.catalog["settings.reduce_motion"]
+                    checked: preferences.values.reduceMotion
+                    onToggled: preferences.setValue("reduceMotion", checked)
+                }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12

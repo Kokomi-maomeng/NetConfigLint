@@ -108,22 +108,6 @@ def _analyze(
     from netconfiglint.rules import RuleContext, RuleEngine
 
     diagnostics = list(RuleEngine(plugin.rules).run(RuleContext(config, analysis_mode, detection)))
-    if analysis_mode == AnalysisMode.FULL and plugin.key == "huawei":
-        from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
-
-        for edge in config.snapshot.operational.get("lldp", {}).get("edges", []):
-            diagnostics.append(
-                Diagnostic(
-                    Severity.INFO,
-                    "HUA-VIEW-003",
-                    SourceRange(edge["line"]),
-                    edge["local"],
-                    f"LLDP shows {edge['local']} connected to {edge['remote']} {edge['port']}.",
-                    "This neighbor was observed at collection time; forwarding is not proven.",
-                    "Compare peer-side LLDP and the intended cabling/topology plan.",
-                    Confidence.DOCUMENTED,
-                )
-            )
     if analysis_mode in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT}:
         from netconfiglint.core.analyzer.messages import interpret_messages
 

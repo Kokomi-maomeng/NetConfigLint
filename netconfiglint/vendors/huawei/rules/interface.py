@@ -121,7 +121,7 @@ class OperationalInterfaceDownRule:
     metadata = RuleMetadata("HUA-IF-004", "Business interface operationally down", Severity.WARNING, "Huawei")
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
-        if context.mode != AnalysisMode.SNAPSHOT:
+        if context.mode not in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT}:
             return ()
         result = []
         for interface in context.config.interfaces.values():
@@ -184,7 +184,9 @@ class MissingVlanifVlanRule:
         for interface in context.config.interfaces.values():
             checkpoint()
             match = re.fullmatch(r"vlanif\s*(\d+)", interface.name, re.IGNORECASE)
-            if match is None or int(match.group(1)) in {*context.config.vlans, 1}:
+            if match is None or len(match.group(1)) > 4:
+                continue
+            if int(match.group(1)) in {*context.config.vlans, 1}:
                 continue
             vlan_id = int(match.group(1))
             result.append(
