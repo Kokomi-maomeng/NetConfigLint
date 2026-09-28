@@ -8,6 +8,7 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+
 def launch() -> int:
     # Check the OS before importing Qt: its DLLs may not load on older builds.
     if sys.platform == "win32" and sys.getwindowsversion().build < 17763:
