@@ -133,12 +133,14 @@ jobs:
       - name: Fresh Unicode path, native/software smoke and Windows release license gate
         shell: pwsh
         run: |
-          $distribution = Get-ChildItem dist -Directory | Where-Object { $_.Extension -in @('.dist', '.app') }
+          $distribution = if ($IsLinux) { Get-Item build/deb/root/opt/netconfiglint } else {
+            Get-ChildItem dist -Directory | Where-Object { $_.Extension -in @('.dist', '.app') }
+          }
           if (@($distribution).Count -ne 1) { throw 'Expected one distribution' }
           $fresh = Join-Path $PWD 'build/独立 验收/runtime'
           New-Item -ItemType Directory -Force (Split-Path $fresh) | Out-Null
           Copy-Item -LiteralPath $distribution.FullName -Destination $fresh -Recurse
-          if ($IsWindows) {
+          if ($IsWindows -or $IsLinux) {
             python scripts/assemble_licenses.py $fresh --verify
             if ($LASTEXITCODE -ne 0) { throw 'License gate failed' }
           }
@@ -183,7 +185,7 @@ jobs:
       - name: Prepare internal Linux runtime for native desktop qualification
         if: runner.os == 'Linux'
         run: |
-          python -c 'import pathlib,tarfile; p=next(pathlib.Path("dist").glob("*.dist")); t=tarfile.open("build/linux-runtime-qa.tar.gz","w:gz"); t.add(p,arcname="runtime"); t.close()'
+          python -c 'import pathlib,tarfile; p=pathlib.Path("build/deb/root/opt/netconfiglint"); assert (p/"SBOM.json").is_file(); t=tarfile.open("build/linux-runtime-qa.tar.gz","w:gz"); t.add(p,arcname="runtime"); t.close()'
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always() && (runner.os != 'Windows' || steps.portable_privacy.outcome == 'success')
         with:
