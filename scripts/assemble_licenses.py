@@ -23,8 +23,10 @@ from pathlib import Path, PurePosixPath
 from zipfile import ZipFile
 
 if __package__:
+    from .macho_provenance import comparison_reason as macho_comparison_reason
     from .macho_provenance import deployment_match as macho_deployment_match
 else:
+    from macho_provenance import comparison_reason as macho_comparison_reason
     from macho_provenance import deployment_match as macho_deployment_match
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -475,8 +477,15 @@ def assemble(
                     None,
                 )
                 if match is None:
+                    reasons = "; ".join(
+                        f"{p.name}: {macho_comparison_reason(p, path)}"
+                        for name in origin_names(path.name)
+                        for p, _, _ in indexed.get(name, [])[:3]
+                        if p.is_file()
+                    )
                     raise ValueError(
-                        f"Unregistered native file (add exact provenance/license mapping): {relative}"
+                        f"Unregistered native file (add exact provenance/license mapping): "
+                        f"{relative}; {reasons}"
                     )
                 component, origin = match
             elif relative.startswith(("PySide6/", "shiboken6/")):
