@@ -77,6 +77,16 @@ def dispose_engine(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    if sys.platform == "win32" and sys.getwindowsversion().build < 17763:
+        import ctypes
+
+        ctypes.windll.user32.MessageBoxW(
+            None,
+            "NetConfigLint requires Windows 10 version 1809 (build 17763) or newer.",
+            "NetConfigLint",
+            0x10,
+        )
+        return 2
     configure_portable_storage()
     os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Material")
     QQuickStyle.setStyle("Material")

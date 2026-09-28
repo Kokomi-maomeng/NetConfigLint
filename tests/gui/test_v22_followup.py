@@ -345,7 +345,12 @@ def test_open_then_analyze_keeps_result_visible(tmp_path: Path, qapp: object) ->
     sample = tmp_path / "sample.cfg"
     sample.write_text("Huawei Versatile Routing Platform\nsysname PACKAGED_OPEN_OK\n", encoding="utf-8")
     controller.loadFile(str(sample))
-    QTest.qWait(150)
+    for _ in range(100):
+        if not controller.busy:
+            break
+        QTest.qWait(20)
+    assert not controller.busy
+    QTest.qWait(60)  # Allow the button's enabled binding to observe the completed file load.
     _click(window, "analyzeButton")
     for _ in range(80):
         if not controller.busy:

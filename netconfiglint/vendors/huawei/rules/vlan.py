@@ -169,7 +169,7 @@ class UnusedVlanRule:
                 checkpoint()
                 used.update(set(context.config.vlans) - interface.vlan_exclusions.get(key, set()))
             match = re.fullmatch(r"vlanif\s*(\d+)", interface.name, re.IGNORECASE)
-            if match is not None:
+            if match is not None and len(match.group(1)) <= 4:
                 used.add(int(match.group(1)))
         unused = sorted(
             (vlan for vlan in context.config.vlans.values() if vlan.vlan_id not in used),

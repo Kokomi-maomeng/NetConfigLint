@@ -182,5 +182,7 @@
   "analysis.semantic_partial": "Partly verified",
   "analysis.unparsed": "Unparsed",
   "analysis.unsupported_lines": "Unsupported",
-  "analysis.coverage_scope": "Only supported rules are checked. Recognition does not mean full validation. Up to 80 line numbers are shown; exports contain the full list."
+  "analysis.coverage_scope": "Only supported rules are checked. Recognition does not mean full validation. Up to 80 line numbers are shown; exports contain the full list.",
+  "settings.reduce_motion": "Reduce interface animations",
+  "editor.preview_hint": "Read-only pages for large text. Search covers this page; analysis and saving use the complete text."
 }

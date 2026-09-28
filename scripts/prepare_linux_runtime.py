@@ -34,6 +34,9 @@ _QT_PLUGIN_GROUPS = {
     "platforminputcontexts",
     "platforms",
     "xcbglintegrations",
+    "wayland-decoration-client",
+    "wayland-graphics-integration-client",
+    "wayland-shell-integration",
 }
 _PLUGIN_FILES = {
     "iconengines": {"libqsvgicon.so"},
@@ -42,8 +45,15 @@ _PLUGIN_FILES = {
         "libcomposeplatforminputcontextplugin.so",
         "libibusplatforminputcontextplugin.so",
     },
-    "platforms": {"libqminimal.so", "libqoffscreen.so", "libqxcb.so"},
+    "platforms": {"libqminimal.so", "libqoffscreen.so", "libqxcb.so", "libqwayland.so"},
 }
+_PLUGIN_FILES.update(
+    {
+        "wayland-decoration-client": {"libbradient.so", "libadwaita.so"},
+        "wayland-graphics-integration-client": {"libqt-plugin-wayland-egl.so", "libshm-emulation-server.so"},
+        "wayland-shell-integration": {"libxdg-shell.so", "libwl-shell-plugin.so"},
+    }
+)
 _DEBIAN_SYSTEM_LIBRARIES = {
     "libbz2.so.1.0",
     "libcrypto.so.3",

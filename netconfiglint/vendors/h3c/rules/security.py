@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import ipaddress
 import re
 
 from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
+from netconfiglint.core.model import ConfigBlock
 from netconfiglint.rules import RuleContext, RuleMetadata
 
 
@@ -115,111 +117,200 @@ class LegacyTlsVersionRule:
         )
 
 
+def _vty_settings(context: RuleContext, prefix: str) -> list[tuple[str, SourceRange, str, bool]]:
+    """Reduce class inheritance and each explicit line range without assuming line capacity."""
+    classes = [b for b in context.config.blocks if b.header.lower() == "line class vty"]
+    ranges = [b for b in context.config.blocks if re.fullmatch(r"line vty \d+(?: \d+)?", b.header, re.I)]
+    inherited = [
+        (c.text.lower(), c.source) for b in classes for c in b.commands if c.text.lower().startswith(prefix)
+    ]
+    result = []
+    for block in ranges:
+        explicit = [(c.text.lower(), c.source) for c in block.commands if c.text.lower().startswith(prefix)]
+        values = explicit or inherited
+        value, source = values[-1] if values else ("", block.source)
+        result.append((value, source, block.header, False))
+    if classes:
+        value, source = inherited[-1] if inherited else ("", classes[-1].source)
+        # Explicit ranges cannot prove that the platform has no additional VTY lines.
+        result.append((value, source, "line class vty (remaining capacity unknown)", bool(ranges)))
+    return result
+
+
 class H3CVtyInboundProtocolRule:
     metadata = RuleMetadata("H3C-SEC-009", "VTY not restricted to SSH", Severity.WARNING, "H3C")
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
-        telnet_enabled = any(
-            re.fullmatch(r"telnet\s+server\s+enable", command, re.I)
-            for command, _source, _header in _commands(context)
-        )
         result = []
-        candidates = [
-            block for block in context.config.blocks if re.match(r"line\s+vty\b", block.header, re.I)
-        ]
-        if not candidates:
-            candidates = [
-                block
-                for block in context.config.blocks
-                if re.match(r"line\s+class\s+vty\b", block.header, re.I)
-            ]
-        for block in candidates:
-            protocols = [
-                command.text.lower()
-                for command in block.commands
-                if command.text.lower().startswith("protocol inbound ")
-            ]
-            if protocols == ["protocol inbound ssh"]:
+        for value, source, header, uncertain in _vty_settings(context, "protocol inbound "):
+            if value == "protocol inbound ssh":
                 continue
+            documented = value in {"protocol inbound telnet", "protocol inbound all"} and not uncertain
             result.append(
                 Diagnostic(
-                    Severity.WARNING if telnet_enabled or protocols else Severity.UNKNOWN,
+                    Severity.WARNING if documented else Severity.UNKNOWN,
                     self.metadata.rule_id,
-                    block.source,
-                    block.header,
-                    "The VTY is not explicitly restricted to SSH.",
-                    "Telnet is enabled globally or the effective inbound protocol cannot be proven "
-                    "SSH-only from this configuration.",
-                    "Verify console/SSH rollback access, then configure protocol inbound ssh and "
-                    "disable the Telnet server.",
-                    Confidence.DOCUMENTED if telnet_enabled else Confidence.LOW,
+                    source,
+                    header,
+                    "The effective VTY protocol is not SSH-only."
+                    if documented
+                    else "SSH-only access cannot be proven for this VTY scope.",
+                    "Line settings override class settings. Additional line capac"
+                    "ity and release defaults cannot be assumed.",
+                    "Check all available VTY ranges and effective inheritance, th"
+                    "en restrict intended remote access to SSH.",
+                    Confidence.DOCUMENTED if documented else Confidence.LOW,
                 )
             )
         return tuple(result)
+
+
+class H3CVtyAuthenticationRule:
+    metadata = RuleMetadata("H3C-SEC-010", "VTY authentication policy", Severity.WARNING, "H3C")
+
+    def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
+        result = []
+        for value, source, header, uncertain in _vty_settings(context, "authentication-mode "):
+            if value == "authentication-mode scheme":
+                continue
+            severity = Severity.ERROR if value == "authentication-mode none" else Severity.WARNING
+            if not value or uncertain:
+                severity = Severity.UNKNOWN
+            result.append(
+                Diagnostic(
+                    severity,
+                    self.metadata.rule_id,
+                    source,
+                    header,
+                    "VTY authentication is disabled."
+                    if value.endswith(" none") and not uncertain
+                    else "VTY authentication requires verification.",
+                    "Authentication inherits from the line class unless overridde"
+                    "n for this range; capacity and omitted defaults are unknown.",
+                    "Confirm working console/SSH rollback access and apply the ap"
+                    "proved scheme to every intended VTY range.",
+                    Confidence.LOW if severity == Severity.UNKNOWN else Confidence.DOCUMENTED,
+                )
+            )
+        return tuple(result)
+
+
+def _ospf_block(context: RuleContext, process_id: str) -> ConfigBlock | None:
+    return next(
+        (
+            b
+            for b in context.config.blocks
+            if (process_id == "1" and b.header.lower() == "ospf")
+            or re.match(rf"^ospf\s+{re.escape(process_id)}(?:\s|$)", b.header, re.I)
+        ),
+        None,
+    )
 
 
 class H3COspfExposureRule:
     metadata = RuleMetadata("H3C-OSPF-004", "Broad OSPF access network", Severity.WARNING, "H3C")
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
-        silent = any(
-            re.match(r"(?:silent-interface|passive-interface)\b", command, re.I)
-            for command, _source, _header in _commands(context)
-        )
-        if silent:
-            return ()
+
         result = []
         for process in context.config.ospf_processes.values():
+            block = _ospf_block(context, process.process_id)
+            silent = (
+                {
+                    c.text.split()[1].lower()
+                    for c in block.commands
+                    if not c.views and re.fullmatch(r"silent-interface \S+", c.text, re.I)
+                }
+                if block
+                else set()
+            )
+            if "all" in silent:
+                continue
             for network in process.networks:
+                checkpoint()
                 try:
-                    host_bits = sum(bin(int(part)).count("1") for part in network.wildcard.split("."))
+                    scope = ipaddress.IPv4Network(
+                        (
+                            network.address,
+                            str(
+                                ipaddress.IPv4Address(
+                                    int(ipaddress.IPv4Address(network.wildcard)) ^ 0xFFFFFFFF
+                                )
+                            ),
+                        ),
+                        strict=False,
+                    )
                 except ValueError:
                     continue
-                if host_bits < 3:
+                if scope.num_addresses < 8:
+                    continue
+                participants = [
+                    interface
+                    for interface in context.config.interfaces.values()
+                    if any(
+                        _address_in_scope(address, scope)
+                        for address, _mask, _source in interface.ip_addresses
+                    )
+                ]
+                if participants and all(interface.name.lower() in silent for interface in participants):
                     continue
                 result.append(
                     Diagnostic(
-                        Severity.WARNING,
+                        Severity.WARNING if not silent else Severity.UNKNOWN,
                         self.metadata.rule_id,
                         network.source,
-                        f"OSPF {process.process_id}",
-                        "A multi-host subnet participates in OSPF without an observed "
-                        "silent/passive interface policy.",
-                        "Endpoint-facing VLANs can form unintended adjacencies when OSPF hellos are emitted.",
-                        "Confirm the interface role; make endpoint VLANs silent/passive while "
-                        "still advertising "
-                        "their networks, and leave only intended routed adjacencies active.",
-                        Confidence.GENERIC,
+                        f"OSPF {process.process_id} area {network.area}",
+                        "A multi-host OSPF network has no proven complete silent-interface policy.",
+                        "A silent interface in another process or on another subnet d"
+                        "oes not protect this network.",
+                        "Check the participating interfaces and endpoint roles; confi"
+                        "gure silence only on intended access interfaces.",
+                        Confidence.GENERIC if not silent else Confidence.LOW,
                     )
                 )
         return tuple(result)
+
+
+def _address_in_scope(address: str, scope: ipaddress.IPv4Network) -> bool:
+
+    try:
+        return ipaddress.IPv4Address(address.split("/")[0]) in scope
+    except ValueError:
+        return False
 
 
 class H3COspfAuthenticationRule:
     metadata = RuleMetadata("H3C-OSPF-005", "OSPF authentication not observed", Severity.INFO, "H3C")
 
     def evaluate(self, context: RuleContext) -> tuple[Diagnostic, ...]:
-        if context.mode.value == "snippet" or not context.config.ospf_processes:
+        if context.mode.value == "snippet":
             return ()
-        authenticated = any(
-            "authentication" in command.lower()
-            for command, _source, header in _commands(context)
-            if header.lower().startswith("ospf ")
-        )
-        if authenticated:
-            return ()
-        process = next(iter(context.config.ospf_processes.values()))
-        return (
-            Diagnostic(
-                Severity.INFO,
-                self.metadata.rule_id,
-                process.source,
-                f"OSPF {process.process_id}",
-                "No OSPF authentication command was observed.",
-                "Authentication requirements are design-specific; absence cannot be declared a "
-                "defect without "
-                "the routing security standard.",
-                "Confirm the design requirement and deploy matching authentication on both ends if required.",
-                Confidence.LOW,
-            ),
-        )
+        result = []
+        for process in context.config.ospf_processes.values():
+            block = _ospf_block(context, process.process_id)
+            for area in sorted(process.areas or {"Unknown"}):
+                commands = [c for c in block.commands if c.views == (f"area {area}",)] if block else []
+                authenticated = any(
+                    re.fullmatch(
+                        r"authentication-mode (?:simple|md5|hmac-md5|hmac-sha-256)(?: .+)?", c.text, re.I
+                    )
+                    for c in commands
+                )
+                if authenticated:
+                    continue
+                result.append(
+                    Diagnostic(
+                        Severity.INFO,
+                        self.metadata.rule_id,
+                        process.source,
+                        f"OSPF {process.process_id} area {area}",
+                        "Area authentication was not observed in this scope.",
+                        "Authentication on another process/area does not prove protec"
+                        "tion here; interface overrides and design requirements still"
+                        " require verification.",
+                        "Check every intended adjacency and matching peer authenticat"
+                        "ion against the routing security standard.",
+                        Confidence.LOW,
+                    )
+                )
+        return tuple(result)

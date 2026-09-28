@@ -1,10 +1,46 @@
 from netconfiglint.rules import Rule
-from netconfiglint.vendors.h3c.rules.adapter import H3CAdaptedRule
+from netconfiglint.vendors.h3c.rules.advanced_policy import (
+    BroadPermitAclRule,
+    EmptyReferencedAclRule,
+    MissingRedistributionPolicyRule,
+)
+from netconfiglint.vendors.h3c.rules.basic_security import (
+    FtpServerRule,
+    SensitiveConfigurationRule,
+    TelnetServerRule,
+    UnauthenticatedNtpRule,
+)
+from netconfiglint.vendors.h3c.rules.bgp import MissingBgpPeerGroupRule, MissingBgpPeerRemoteAsRule
+from netconfiglint.vendors.h3c.rules.interface import (
+    InvalidInterfaceAddressRule,
+    LinkTypeMismatchRule,
+    ShutdownWithBusinessConfigRule,
+)
+from netconfiglint.vendors.h3c.rules.ipv6 import IPv6InterfaceAddressRule, IPv6StaticRouteFormatRule
+from netconfiglint.vendors.h3c.rules.isis import MissingIsisNetworkEntityRule, MissingIsisProcessRule
+from netconfiglint.vendors.h3c.rules.layer2 import MissingBpduProtectionRule
 from netconfiglint.vendors.h3c.rules.operational import H3COperationalEvidenceRule
+from netconfiglint.vendors.h3c.rules.ospf import (
+    MissingInterfaceOspfProcessRule,
+    OspfAreaAssociationRule,
+    OspfNoParticipatingInterfaceRule,
+)
+from netconfiglint.vendors.h3c.rules.policy import (
+    MissingAclRule,
+    MissingBgpRoutePolicyRule,
+    MissingPrefixListRule,
+    UnusedRoutePolicyRule,
+)
+from netconfiglint.vendors.h3c.rules.routes import (
+    AbnormalNextHopRule,
+    MissingStaticRouteVpnRule,
+    StaticRouteFormatRule,
+)
 from netconfiglint.vendors.h3c.rules.security import (
     H3COspfAuthenticationRule,
     H3COspfExposureRule,
     H3CSnmpCommunityRule,
+    H3CVtyAuthenticationRule,
     H3CVtyInboundProtocolRule,
     LegacyTlsVersionRule,
     LocalUserTelnetRule,
@@ -15,56 +51,19 @@ from netconfiglint.vendors.h3c.rules.structural import (
     MissingVlanInterfaceVlanRule,
     UnsupportedCommandSummaryRule,
 )
-from netconfiglint.vendors.huawei.rules.advanced_policy import (
-    BroadPermitAclRule,
-    EmptyReferencedAclRule,
-    MissingRedistributionPolicyRule,
-)
-from netconfiglint.vendors.huawei.rules.bgp import MissingBgpPeerGroupRule, MissingBgpPeerRemoteAsRule
-from netconfiglint.vendors.huawei.rules.interface import (
-    InvalidInterfaceAddressRule,
-    LinkTypeMismatchRule,
-    ShutdownWithBusinessConfigRule,
-)
-from netconfiglint.vendors.huawei.rules.ipv6 import IPv6InterfaceAddressRule, IPv6StaticRouteFormatRule
-from netconfiglint.vendors.huawei.rules.isis import MissingIsisNetworkEntityRule, MissingIsisProcessRule
-from netconfiglint.vendors.huawei.rules.layer2 import MissingBpduProtectionRule
-from netconfiglint.vendors.huawei.rules.ospf import (
-    MissingInterfaceOspfProcessRule,
-    OspfAreaAssociationRule,
-    OspfNoParticipatingInterfaceRule,
-)
-from netconfiglint.vendors.huawei.rules.policy import (
-    MissingAclRule,
-    MissingBgpRoutePolicyRule,
-    MissingPrefixListRule,
-    UnusedRoutePolicyRule,
-)
-from netconfiglint.vendors.huawei.rules.routes import (
-    AbnormalNextHopRule,
-    MissingStaticRouteVpnRule,
-    StaticRouteFormatRule,
-)
-from netconfiglint.vendors.huawei.rules.security import (
-    FtpServerRule,
-    SensitiveConfigurationRule,
-    TelnetServerRule,
-    UnauthenticatedNtpRule,
-    VtyPasswordAuthenticationRule,
-)
-from netconfiglint.vendors.huawei.rules.traffic_policy import (
+from netconfiglint.vendors.h3c.rules.traffic_policy import (
     MissingAppliedTrafficPolicyRule,
     MissingTrafficPolicyComponentRule,
 )
-from netconfiglint.vendors.huawei.rules.vlan import (
+from netconfiglint.vendors.h3c.rules.vlan import (
     MissingAccessVlanRule,
     MissingHybridVlanRule,
     MissingPvidVlanRule,
     MissingTrunkVlanRule,
 )
-from netconfiglint.vendors.huawei.rules.vpn import MissingBgpVpnRule, MissingInterfaceVpnRule
+from netconfiglint.vendors.h3c.rules.vpn import MissingBgpVpnRule, MissingInterfaceVpnRule
 
-_NORMALIZED_RULES: tuple[Rule, ...] = (
+_COMWARE_RULES: tuple[Rule, ...] = (
     MissingTrunkVlanRule(),
     MissingAccessVlanRule(),
     MissingHybridVlanRule(),
@@ -100,17 +99,17 @@ _NORMALIZED_RULES: tuple[Rule, ...] = (
     TelnetServerRule(),
     FtpServerRule(),
     UnauthenticatedNtpRule(),
-    VtyPasswordAuthenticationRule(),
 )
 
 H3C_RULES: tuple[Rule, ...] = (
-    *(H3CAdaptedRule(rule) for rule in _NORMALIZED_RULES),
+    *_COMWARE_RULES,
     MissingBridgeAggregationRule(),
     MissingVlanInterfaceVlanRule(),
     PlaintextPasswordRule(),
     LocalUserTelnetRule(),
     H3CSnmpCommunityRule(),
     H3CVtyInboundProtocolRule(),
+    H3CVtyAuthenticationRule(),
     LegacyTlsVersionRule(),
     H3COspfExposureRule(),
     H3COspfAuthenticationRule(),

@@ -1,4 +1,4 @@
-# NetConfigLint v2.4
+# NetConfigLint v2.5
 
 Project versions, local release files, rollback records, and the consolidated task entry are mapped in [PROJECT_INDEX.md](PROJECT_INDEX.md).
 
@@ -14,7 +14,29 @@ vendor-supported validation and lab testing.
 See the [v2.4 command and language scope](docs/v2.4-command-catalog-and-i18n.md), [v2.3 GUI acceptance notes](docs/v2.3-gui-acceptance.md), [v2.2 GUI acceptance notes](docs/v2.2-gui-acceptance.md), [v2.1 change scope](docs/v2.1-change-scope.md), [H3C coverage contract](docs/h3c-command-support.md),
 and [v2.0 acceptance report](docs/v2.0-acceptance.md) for earlier release evidence.
 
-## Desktop v2.4
+## Desktop v2.5
+
+Huawei VRP and H3C Comware now own separate parsers, effective-view reducers,
+semantic rules and operational parsers. Comware does not translate its source into
+VRP or wrap Huawei rule objects. The shared layer supplies data models, resource
+bounds, protocol-neutral message hypotheses and plugin dispatch. See the
+[v2.5 repairs and qualification](docs/v2.5-repairs-and-qualification.md).
+
+Narrow windows stack the cards in a scrollable workspace. Expanded coverage details
+scroll without consuming the issue list. File decoding and history persistence run
+outside the GUI thread; editors render only visible line numbers. Above 250,000 characters,
+read-only pages bound native text layout. Search covers the current preview page;
+diagnostic jumps switch pages, while analysis, history, scratch saving and exports retain
+the complete text. Settings includes Reduce interface animations.
+UTF-16 BOM exports are accepted alongside UTF-8 and GB18030. History remains enabled
+by default with full source and diagnostics; the aggregate 64 MiB quota retains the
+newest entries and concurrent instances merge writes under a file lock.
+
+The v2.5 public release contains only the Windows x64 portable ZIP. Windows 10
+version 1809/build 17763 or newer is required by the qualified Qt runtime. Linux
+supports XCB/Xwayland and includes client Wayland plugins. macOS editor shortcuts use
+Command where appropriate. Native platform evidence and untested boundaries are
+listed in the qualification record.
 
 The command coverage panel distinguishes parser-normalized lines, documented command families
 whose exact semantics remain unchecked, and unsupported lines. Huawei and H3C command families
@@ -115,9 +137,9 @@ also disclose network design; review exported files before sharing.
 ## Install from source
 
 Requirements: Python 3.12–3.13; PySide6 >=6.9,<6.12 is optional for CLI-only use.
-The release toolchain is pinned in `constraints/release.txt` (Python 3.13.2,
+The release toolchain is pinned in `constraints/release.txt` (Python 3.13.15,
 Qt/PySide6 6.11.2, Nuitka 4.2). `scripts/check_build_environment.py` rejects drift.
-The quality matrix covers Python 3.12.10/3.13.2 across Windows/Linux/macOS and
+The quality matrix covers Python 3.12.10/3.13.15 across Windows/Linux/macOS and
 3.12.14 on Linux, with Qt 6.9.0/6.11.2. GitHub's 3.12.14 manifest contains no
 Windows/macOS artifacts. Native platform support is qualified only after the
 actual compiled desktop smoke gates pass; authored CI is not a passed test.

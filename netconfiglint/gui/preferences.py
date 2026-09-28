@@ -27,6 +27,7 @@ class Preferences(QObject):
         "themeMode": 0,
         "themeColor": "violet",
         "sidebarExpanded": True,
+        "reduceMotion": False,
         "panels": ["configuration", "diagnostics", "temporary"],
         "panelOrder": ["configuration", "diagnostics", "temporary"],
         "windowWidth": 1440,
@@ -78,14 +79,14 @@ class Preferences(QObject):
         elif key == "themeColor":
             if value not in self.COLORS:
                 return
-        elif key in ("sidebarExpanded", "windowMaximized", "windowPositionSaved"):
+        elif key in ("sidebarExpanded", "windowMaximized", "windowPositionSaved", "reduceMotion"):
             value = value is True or value == "true"
         elif key in ("windowWidth", "windowHeight", "windowX", "windowY"):
             try:
                 value = int(value)
             except (ValueError, TypeError):
                 return
-            if key in ("windowWidth", "windowHeight") and not 600 <= value <= 10000:
+            if key in ("windowWidth", "windowHeight") and not 320 <= value <= 10000:
                 return
             if key in ("windowX", "windowY") and not -10000 <= value <= 10000:
                 return
@@ -142,7 +143,7 @@ class Preferences(QObject):
     @Slot(int, int, int, int, bool)
     def saveWindowGeometry(self, x: int, y: int, width: int, height: int, maximized: bool) -> None:
         self._assign("windowMaximized", maximized, save=True)
-        if width >= 960 and height >= 600:
+        if width >= 320 and height >= 320:
             self._assign("windowPositionSaved", True, save=True)
             for key, value in (
                 ("windowX", x),

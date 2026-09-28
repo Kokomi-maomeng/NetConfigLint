@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '2.4.0',
+    [string]$Version = '2.5.0',
     [string]$CertificateThumbprint = '',
     [string]$PfxPath = '',
     [switch]$SkipAppBuild
@@ -50,10 +50,8 @@ Set-Content -LiteralPath (Join-Path $temporary 'README.txt') -Encoding UTF8 -Val
     'This file can contain sensitive text. Back it up or remove it with the portable folder.'
 )
 
-$python = Join-Path $projectRoot '.venv\Scripts\python.exe'
+$python = if ($env:NETCONFIGLINT_BUILD_PYTHON) { $env:NETCONFIGLINT_BUILD_PYTHON } else { Join-Path $projectRoot '.venv\Scripts\python.exe' }
 if (-not (Test-Path -LiteralPath $python)) { $python = (Get-Command python).Source }
-& $python (Join-Path $PSScriptRoot 'assemble_licenses.py') $stagingRoot
-if ($LASTEXITCODE -ne 0) { throw 'Portable license assembly failed.' }
 $signed = $false
 if ($CertificateThumbprint -or $PfxPath) {
     $signTool = Get-ChildItem -Path (Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin') -Filter signtool.exe -File -Recurse -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
@@ -72,6 +70,10 @@ if ($CertificateThumbprint -or $PfxPath) {
     if ($signature.Status -ne 'Valid') { throw "Portable executable signature validation failed: $($signature.Status)" }
     $signed = $true
 }
+& $python (Join-Path $PSScriptRoot 'assemble_licenses.py') $stagingRoot
+if ($LASTEXITCODE -ne 0) { throw 'Portable license assembly failed.' }
+& $python (Join-Path $PSScriptRoot 'assemble_licenses.py') $stagingRoot --verify
+if ($LASTEXITCODE -ne 0) { throw 'Final payload verification failed.' }
 Compress-Archive -LiteralPath $stagingRoot -DestinationPath $archivePath -CompressionLevel Optimal
 & $python (Join-Path $PSScriptRoot 'assemble_licenses.py') $archivePath --verify-archive
 if ($LASTEXITCODE -ne 0) { throw 'Final ZIP license gate failed.' }

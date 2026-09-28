@@ -84,7 +84,13 @@ class AnalysisResult:
             ],
             "context_unknown_lines": sorted({item.line for item in config.context_unknown_lines}),
             "complete": not config.incomplete_reasons,
-            "semantic_complete": not (unsupported or unparsed or catalogued or config.incomplete_reasons),
+            "semantic_complete": not (
+                unsupported
+                or unparsed
+                or catalogued
+                or config.incomplete_reasons
+                or config.metadata.get("operational_only") == "true"
+            ),
             "incomplete_reasons": list(config.incomplete_reasons),
             "scope": (
                 "Catalogued lines identify a documented command family only; recognized lines are not a "

@@ -5,7 +5,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.model import SnapshotEvidence
+from netconfiglint.core.parser.numbers import bounded_integer
 
 _HEADER = re.compile(r"^\s*=+\s*(.*?)\s*=+\s*$")
 _BOUNDARY = re.compile(r"^\s*=+\s*$")
@@ -13,32 +15,23 @@ _PROMPT = re.compile(r"^\s*(?:<[^>]+>|\[[^]]+\])\s*(display\s+.+?)\s*$", re.I)
 
 
 def _sections(source: str) -> dict[str, tuple[int, list[tuple[int, str]]]]:
-    lines = source.splitlines()
     result: dict[str, tuple[int, list[tuple[int, str]]]] = {}
-    for index, line in enumerate(lines):
-        match = _HEADER.fullmatch(line)
-        if not match or not match.group(1).strip():
-            continue
-        name = match.group(1).strip().lower()
-        end = next(
-            (value for value in range(index + 1, len(lines)) if _BOUNDARY.fullmatch(lines[value])),
-            len(lines),
-        )
-        result.setdefault(name, (index + 1, [(i + 1, lines[i]) for i in range(index + 1, end)]))
-    for index, line in enumerate(lines):
-        match = _PROMPT.fullmatch(line)
-        if match is None:
-            continue
-        name = match.group(1).strip().lower()
-        end = next(
-            (
-                i
-                for i in range(index + 1, len(lines))
-                if _PROMPT.fullmatch(lines[i]) or _HEADER.fullmatch(lines[i])
-            ),
-            len(lines),
-        )
-        result.setdefault(name, (index + 1, [(i + 1, lines[i]) for i in range(index + 1, end)]))
+    active: list[tuple[int, str]] | None = None
+    for number, line in enumerate(source.splitlines(), 1):
+        checkpoint()
+        match = _HEADER.fullmatch(line) or _PROMPT.fullmatch(line)
+        if match and match.group(1).strip():
+            name = match.group(1).strip().lower()
+            # Keep the first capture; never merge states from different collection times.
+            if name not in result:
+                active = []
+                result[name] = (number, active)
+            else:
+                active = None
+        elif _BOUNDARY.fullmatch(line) or re.fullmatch(r"\s*(?:<[^>]+>|\[[^]]+\])\s*", line):
+            active = None
+        elif active is not None:
+            active.append((number, line))
     return result
 
 
@@ -47,7 +40,37 @@ class H3CSnapshotParser:
         evidence = SnapshotEvidence()
         sections = _sections(source)
         facts: dict[str, Any] = {}
-        facts["observed_sections"] = len(sections)
+        facts["observed_sections"] = 0
+        supported = {
+            "display device verbose",
+            "display fan",
+            "display power",
+            "display environment",
+            "display link-aggregation summary",
+            "display m-lag summary",
+            "display m-lag system",
+            "display m-lag drcp statistics",
+            "display ospf peer",
+            "display ip routing-table all-routes",
+            "display lldp neighbor-information list",
+            "display transceiver alarm interface",
+            "display logbuffer size 512",
+        }
+        rejected: list[int] = []
+        for name, (number, rows) in list(sections.items()):
+            checkpoint()
+            failed = any(
+                re.search(
+                    r"(?i)(?:^\s*(?:%\s*)?(?:error|failed|permission|access denied|unrecognized|"
+                    r"incomplete command)|--+\s*more|truncat)",
+                    text,
+                )
+                for _, text in rows
+            )
+            if name not in supported or failed or not any(text.strip() for _, text in rows):
+                rejected.append(number)
+                del sections[name]
+        facts["unverified_section_lines"] = rejected
 
         def section(name: str) -> list[tuple[int, str]]:
             return sections.get(name, (0, []))[1]
@@ -88,7 +111,7 @@ class H3CSnapshotParser:
             tokens = line.split()
             if len(tokens) >= 7 and tokens[0].isdigit() and tokens[2].isdigit():
                 try:
-                    temperature, warning = int(tokens[3]), int(tokens[5])
+                    temperature, warning = bounded_integer(tokens[3]), bounded_integer(tokens[5])
                 except ValueError:
                     continue
                 max_temperature = (
@@ -105,9 +128,9 @@ class H3CSnapshotParser:
                 lag_rows.append(
                     {
                         "name": match.group(1),
-                        "selected": int(match.group(2)),
-                        "unselected": int(match.group(3)),
-                        "individual": int(match.group(4)),
+                        "selected": bounded_integer(match.group(2)),
+                        "unselected": bounded_integer(match.group(3)),
+                        "individual": bounded_integer(match.group(4)),
                         "line": number,
                     }
                 )
@@ -121,34 +144,42 @@ class H3CSnapshotParser:
                 mlag.update(keepalive=match.group(1), keepalive_line=number)
         for number, line in section("display m-lag system"):
             if match := re.search(r"Health level\s*:\s*(\d+)", line, re.I):
-                mlag.update(health=int(match.group(1)), health_line=number)
+                mlag.update(health=bounded_integer(match.group(1)), health_line=number)
         for number, line in section("display m-lag drcp statistics"):
             match = re.search(r"(\d+)/(\d+)/(\d+)\s*$", line)
             if match:
                 mlag.update(
-                    received_normal=int(match.group(1)),
-                    received_error=int(match.group(2)),
-                    received_unknown=int(match.group(3)),
+                    received_normal=bounded_integer(match.group(1)),
+                    received_error=bounded_integer(match.group(2)),
+                    received_unknown=bounded_integer(match.group(3)),
                     drcp_line=number,
                 )
         facts["m_lag"] = mlag
 
         ospf_count = 0
         ospf_not_full: list[int] = []
+        ospf_two_way: list[int] = []
         for number, line in section("display ospf peer"):
-            match = re.match(r"^\s*\d+(?:\.\d+){3}\s+\d+(?:\.\d+){3}\s+\d+\s+\d+\s+(\S+)", line)
-            if match:
+            row = re.match(r"^\s*\d+(?:\.\d+){3}\s+\d+(?:\.\d+){3}\s+\d+\s+\d+\s+", line)
+            match = re.search(r"(?i)\b(Full|2-Way|2Way|Init|Down|ExStart|Exchange|Loading|Attempt)\b", line)
+            if row and match:
                 ospf_count += 1
-                if not match.group(1).lower().startswith("full/"):
+                if match.group(1).lower().startswith(("2-way", "2way")):
+                    ospf_two_way.append(number)
+                elif not match.group(1).lower().startswith("full"):
                     ospf_not_full.append(number)
-        facts["ospf"] = {"neighbors": ospf_count, "not_full_lines": ospf_not_full}
+        facts["ospf"] = {
+            "neighbors": ospf_count,
+            "not_full_lines": ospf_not_full,
+            "two_way_lines": ospf_two_way,
+        }
 
         routes: dict[str, Any] = {}
         for number, line in section("display ip routing-table all-routes"):
             if match := re.search(r"Destinations\s*:\s*(\d+)\s+Routes\s*:\s*(\d+)", line, re.I):
                 routes = {
-                    "destinations": int(match.group(1)),
-                    "routes": int(match.group(2)),
+                    "destinations": bounded_integer(match.group(1)),
+                    "routes": bounded_integer(match.group(2)),
                     "line": number,
                 }
                 break
@@ -174,19 +205,45 @@ class H3CSnapshotParser:
 
         active_alarms: list[int] = []
         alarm_section = section("display transceiver alarm interface")
-        for index, (number, line) in enumerate(alarm_section):
+        following_alarm: int | None = None
+        for number, line in alarm_section:
+            checkpoint()
+            if following_alarm is not None and line.strip():
+                if line.strip().lower() not in {"none", "the transceiver is absent."}:
+                    active_alarms.append(following_alarm)
+                following_alarm = None
             if "current alarm information:" not in line.lower():
                 continue
-            following = next((text.strip() for _, text in alarm_section[index + 1 :] if text.strip()), "")
-            if following and following.lower() not in {"none", "the transceiver is absent."}:
-                active_alarms.append(number)
+            following_alarm = number
         facts["transceivers"] = {"active_alarm_lines": active_alarms}
 
         log_facts: dict[str, Any] = {}
         for number, line in section("display logbuffer size 512"):
             if match := re.search(r"Overwritten messages\s*:\s*(\d+)", line, re.I):
-                log_facts = {"overwritten": int(match.group(1)), "line": number}
+                log_facts = {"overwritten": bounded_integer(match.group(1)), "line": number}
                 break
         facts["log_buffer"] = log_facts
+        # A command header alone is not evidence of a successfully parsed output format.
+        families = (
+            "hardware",
+            "fans",
+            "power",
+            "temperature",
+            "link_aggregation",
+            "m_lag",
+            "ospf",
+            "ipv4_routing_table",
+            "lldp",
+            "transceivers",
+            "log_buffer",
+        )
+        parsed = sum(bool(any(value for value in facts[name].values())) for name in families)
+        # Normal hardware and fan output also provides positive state evidence.
+        normal_rows = any(
+            re.search(r"(?i)\b(?:normal|master|standby)\b", text)
+            for name in ("display device verbose", "display fan", "display power")
+            for _, text in section(name)
+        )
+        facts["observed_sections"] = parsed + (1 if normal_rows else 0)
         evidence.operational = facts
         return evidence

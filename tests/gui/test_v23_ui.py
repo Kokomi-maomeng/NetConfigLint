@@ -67,7 +67,7 @@ def test_v23_editor_search_selection_and_card_width(tmp_path: Path, qapp: object
 
     for section in ("general", "display", "color", "privacy"):
         assert not window.findChild(QObject, section + "SettingsSection").property("expanded")
-    assert window.minimumWidth() >= 960
+    assert window.minimumWidth() <= 640
     window.setWidth(window.minimumWidth())
     QTest.qWait(320)
     for card_name, editor_name in (

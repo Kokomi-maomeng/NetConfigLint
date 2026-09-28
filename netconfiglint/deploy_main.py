@@ -8,6 +8,21 @@ from pathlib import Path
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from netconfiglint.gui.app.main import main
+def launch() -> int:
+    # Check the OS before importing Qt: its DLLs may not load on older builds.
+    if sys.platform == "win32" and sys.getwindowsversion().build < 17763:
+        import ctypes
 
-raise SystemExit(main())
+        ctypes.windll.user32.MessageBoxW(
+            None,
+            "NetConfigLint requires Windows 10 version 1809 (build 17763) or newer.",
+            "NetConfigLint",
+            0x10,
+        )
+        return 2
+    from netconfiglint.gui.app.main import main
+
+    return main()
+
+
+raise SystemExit(launch())

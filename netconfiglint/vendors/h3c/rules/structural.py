@@ -5,7 +5,7 @@ import re
 from netconfiglint.core.analyzer.control import checkpoint
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity
 from netconfiglint.rules import RuleContext, RuleMetadata
-from netconfiglint.vendors.huawei.rules.helpers import missing_reference_diagnostic
+from netconfiglint.vendors.h3c.rules.helpers import missing_reference_diagnostic
 
 
 class MissingVlanInterfaceVlanRule:
@@ -16,7 +16,9 @@ class MissingVlanInterfaceVlanRule:
         for interface in context.config.interfaces.values():
             checkpoint()
             match = re.fullmatch(r"vlan-interface\s*(\d+)", interface.name, re.IGNORECASE)
-            if match is None or int(match.group(1)) in {*context.config.vlans, 1}:
+            if match is None or len(match.group(1)) > 4:
+                continue
+            if int(match.group(1)) in {*context.config.vlans, 1}:
                 continue
             vlan_id = int(match.group(1))
             result.append(

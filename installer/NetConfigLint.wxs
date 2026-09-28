@@ -15,7 +15,7 @@
     <Property Id="OSBUILDNUMBER" Secure="yes">
       <RegistrySearch Id="FindActualWindowsBuild" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion" Name="CurrentBuildNumber" Type="raw" Win64="yes" />
     </Property>
-    <Condition Message="NetConfigLint requires 64-bit Windows 10 or newer.">Installed OR (VersionNT64 &gt;= 603 AND OSBUILDNUMBER &gt;= 10240)</Condition>
+    <Condition Message="NetConfigLint requires 64-bit Windows 10 version 1809 (build 17763) or newer.">Installed OR (VersionNT64 &gt;= 603 AND OSBUILDNUMBER &gt;= 17763)</Condition>
 
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLBASE" />
     <Property Id="REMOVEUSERDATA" Value="0" Secure="yes" />

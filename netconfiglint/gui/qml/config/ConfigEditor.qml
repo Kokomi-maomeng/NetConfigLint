@@ -6,7 +6,7 @@ import "../components"
 AppCard {
     id: root
     property alias text: editor.text
-    property alias readOnly: editor.readOnly
+    property bool readOnly: false
     property alias editor: editor
     property string editorObjectName: "configEditorTextArea"
     property string title: i18n.catalog["editor.configuration"]
@@ -71,17 +71,17 @@ AppCard {
         }
         return ranges
     }
-    function lineNumberText() {
-        var result = []
-        for (var i = 1; i <= Math.max(1, editor.lineCount); ++i) result.push(i)
-        return result.join("\n")
-    }
     function updateCurrentLine() {
-        currentLine = editor.text.slice(0, editor.cursorPosition).split("\n").length
+        var value = editor.text
+        var count = 1
+        var offset = value.indexOf("\n")
+        while (offset >= 0 && offset < editor.cursorPosition) { count++; offset = value.indexOf("\n", offset + 1) }
+        currentLine = count
     }
     function jumpToLine(line) {
         if (!isFinite(line)) return
-        var safeLine = Math.max(1, Math.min(Math.floor(line), editor.lineCount))
+        var relativeLine = syntaxHighlighter.lineInPreview(editor, Math.floor(line))
+        var safeLine = Math.max(1, Math.min(relativeLine, editor.lineCount))
         var position = 0
         var lines = editor.text.split("\n")
         for (var i = 1; i < safeLine; ++i) position += lines[i - 1].length + 1
@@ -134,13 +134,39 @@ AppCard {
             actionText: root.showAnalyze ? (root.analysisBusy ? i18n.catalog["toolbar.analyzing"] : i18n.catalog["toolbar.analyze"]) : (root.showSave ? i18n.catalog["common.save"] : "")
             actionObjectName: root.showSave ? "temporarySaveButton" : "analyzeButton"
             actionEnabled: root.showSave || (!root.analysisBusy && root.text.trim().length > 0)
-            onActionClicked: { if (root.showSave) root.saveRequested(root.text); else root.analyzeRequested() }
-            detail: root.currentLine + " / " + Math.max(1, editor.lineCount)
+            onActionClicked: { if (root.showSave) root.saveRequested(syntaxHighlighter.fullText(editor)); else root.analyzeRequested() }
+            detail: (root.currentLine + editor.previewStartLine - 1) + " / " + (editor.pagedPreview ? editor.previewTotalLines : Math.max(1, editor.lineCount))
             minimumDetailDigits: Math.max(5, String(root.currentLine).length, String(Math.max(1, editor.lineCount)).length)
             onDragStarted: sceneX => root.dragStarted(sceneX)
             onDragMoved: sceneX => root.dragMoved(sceneX)
             onDragFinished: sceneX => root.dragFinished(sceneX)
             onStepRequested: direction => root.stepRequested(direction)
+        }
+        RowLayout {
+            visible: editor.pagedPreview
+            Layout.fillWidth: true
+            Layout.leftMargin: 12
+            Layout.rightMargin: 12
+            Label {
+                Layout.fillWidth: true
+                text: i18n.catalog["editor.preview_hint"]
+                color: Colors.textSecondary
+                font: Typography.labelSmall
+                wrapMode: Text.Wrap
+            }
+            ToolButton {
+                objectName: root.editorObjectName + "PagePrevious"
+                text: "‹"
+                enabled: editor.previewPage > 1
+                onClicked: syntaxHighlighter.stepPreviewPage(editor, -1)
+            }
+            Label { text: editor.previewPage + " / " + editor.previewPageCount; color: Colors.textSecondary }
+            ToolButton {
+                objectName: root.editorObjectName + "PageNext"
+                text: "›"
+                enabled: editor.previewPage < editor.previewPageCount
+                onClicked: syntaxHighlighter.stepPreviewPage(editor, 1)
+            }
         }
         Item {
             id: editorBody
@@ -168,6 +194,12 @@ AppCard {
                 }
                 TextArea {
                     id: editor
+                    property bool pagedPreview: false
+                    property int previewPage: 1
+                    property int previewPageCount: 1
+                    property int previewStartLine: 1
+                    property int previewTotalLines: 1
+                    readOnly: root.readOnly || pagedPreview
             WheelHandler {
                 target: null
                 acceptedModifiers: Qt.ControlModifier
@@ -233,7 +265,7 @@ AppCard {
                         z: 3
                     }
                     ContextMenu.menu: TextEditMenu { editor: root.editor; zoomTarget: root }
-                    onTextChanged: { root.textEdited(text); Qt.callLater(root.updateCurrentLine) }
+                    onTextChanged: { if (!pagedPreview) root.textEdited(text); Qt.callLater(root.updateCurrentLine) }
                     onCursorPositionChanged: Qt.callLater(root.updateCurrentLine)
                 }
             }
@@ -247,22 +279,31 @@ AppCard {
                 color: Colors.surfaceContainerLow
                 clip: true
                 z: 2
-                Text {
-                    x: 6
-                    y: editor.topPadding - scrollView.contentItem.contentY
-                    width: lineNumberGutter.width - 12
-                    text: root.lineNumberText()
-                    color: Colors.textSecondary
-                    font: editor.font
-                    renderType: Text.QtRendering
-                    horizontalAlignment: Text.AlignRight
+                readonly property real lineHeight: Math.max(1, editor.positionToRectangle(0).height)
+                readonly property int firstLine: Math.max(0, Math.floor((scrollView.contentItem.contentY - editor.topPadding) / lineHeight))
+                Repeater {
+                    model: Math.max(0, Math.min(editor.lineCount - lineNumberGutter.firstLine,
+                        Math.ceil(lineNumberGutter.height / lineNumberGutter.lineHeight) + 3))
+                    Text {
+                        required property int index
+                        x: 6
+                        y: editor.topPadding + (lineNumberGutter.firstLine + index) * lineNumberGutter.lineHeight
+                            - scrollView.contentItem.contentY
+                        width: lineNumberGutter.width - 12
+                        height: lineNumberGutter.lineHeight
+                        text: lineNumberGutter.firstLine + index + 1
+                        color: Colors.textSecondary
+                        font: editor.font
+                        renderType: Text.QtRendering
+                        horizontalAlignment: Text.AlignRight
+                    }
                 }
             }
         }
     }
-    Shortcut { sequence: "Ctrl+G"; enabled: root.visible && editor.activeFocus; onActivated: jumpDialog.open() }
-    Shortcut { sequences: ["Ctrl++", "Ctrl+="]; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(1) }
-    Shortcut { sequence: "Ctrl+-"; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(-1) }
+    Shortcut { sequence: Qt.platform.os === "osx" ? "Meta+G" : "Ctrl+G"; enabled: root.visible && editor.activeFocus; onActivated: jumpDialog.open() }
+    Shortcut { sequences: [StandardKey.ZoomIn, Qt.platform.os === "osx" ? "Meta+=" : "Ctrl+="]; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(1) }
+    Shortcut { sequences: [StandardKey.ZoomOut]; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(-1) }
     Component.onCompleted: { syntaxHighlighter.attach(editor.textDocument); syntaxHighlighter.setDark(Theme.dark) }
     Connections { target: Theme; function onDarkChanged() { syntaxHighlighter.setDark(Theme.dark) } }
     Connections {

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
+import tempfile
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import IntEnum
@@ -13,6 +17,7 @@ from uuid import uuid4
 from PySide6.QtCore import (
     QAbstractListModel,
     QByteArray,
+    QLockFile,
     QModelIndex,
     QPersistentModelIndex,
     QSettings,
@@ -173,7 +178,9 @@ class HistoryStore:
         ):
             raise ValueError("Invalid history diagnostics")
         selected_vendor = item.get("selected_vendor", "auto")
-        if selected_vendor not in {"auto", "h3c", "huawei"}:
+        from netconfiglint.vendors.registry import VENDOR_PLUGINS
+
+        if selected_vendor not in {"auto", *(plugin.key for plugin in VENDOR_PLUGINS)}:
             raise ValueError("Invalid selected vendor")
         coverage = item.get("coverage")
         if coverage is not None and not isinstance(coverage, dict):
@@ -202,46 +209,95 @@ class HistoryStore:
         if self._persist_settings:
             QSettings().setValue("privacy/historyEnabled", enabled)
 
-    def append(self, result: AnalysisResult, source_text: str = "", selected_vendor: str = "auto") -> None:
-        if not self.enabled:
-            return
+    @contextmanager
+    def _transaction(self) -> Iterator[None]:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        lock = QLockFile(str(self.path) + ".lock")
+        lock.setStaleLockTime(30_000)
+        if not lock.tryLock(1000):
+            raise OSError("History is busy in another application instance")
+        previous = list(self.entries)
+        try:
+            yield
+        except OSError:
+            self.entries = previous
+            raise
+        finally:
+            lock.unlock()
+
+    def _refresh_for_write(self) -> None:
+        self.entries = self._load()
         if self.load_warning:
             raise OSError("Damaged history preserved; recover or explicitly clear it before saving")
-        previous = list(self.entries)
+
+    def append(
+        self,
+        result: AnalysisResult,
+        source_text: str = "",
+        selected_vendor: str = "auto",
+        *,
+        guard: Callable[[], bool] | None = None,
+    ) -> None:
+        if not self.enabled:
+            return
         if len(source_text) > 4_000_000:
             raise OSError("History source exceeds per-entry limit")
-        self.entries.insert(0, HistoryEntry.from_result(result, source_text, selected_vendor))
-        del self.entries[self.limit :]
-        try:
+        entry = HistoryEntry.from_result(result, source_text, selected_vendor)
+        with self._transaction():
+            self._refresh_for_write()
+            if guard is not None and not guard():
+                return
+            self.entries.insert(0, entry)
+            del self.entries[self.limit :]
             self._write()
-        except OSError:
-            self.entries = previous
-            raise
 
     def clear(self) -> None:
-        if self.path.exists():
-            self.path.unlink()
-        self.entries.clear()
-        self.load_warning = False
+        with self._transaction():
+            self.path.unlink(missing_ok=True)
+            self.entries.clear()
+            self.load_warning = False
 
     def remove_ids(self, ids: set[str]) -> None:
-        previous = list(self.entries)
-        self.entries = [entry for entry in self.entries if entry.entry_id not in ids]
-        try:
+        with self._transaction():
+            self._refresh_for_write()
+            self.entries = [entry for entry in self.entries if entry.entry_id not in ids]
             self._write()
-        except OSError:
-            self.entries = previous
-            raise
 
     def get(self, entry_id: str) -> HistoryEntry | None:
         return next((item for item in self.entries if item.entry_id == entry_id), None)
 
     def _write(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"schema_version": 2, "entries": [asdict(entry) for entry in self.entries]}
-        temporary = self.path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        temporary.replace(self.path)
+        # The aggregate UTF-8 quota matches the reader, including JSON overhead.
+        prefix = b'{"schema_version":2,"entries":['
+        encoded: list[bytes] = []
+        retained: list[HistoryEntry] = []
+        size = len(prefix) + 2
+        for entry in self.entries:
+            data = json.dumps(asdict(entry), ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            additional = len(data) + bool(encoded)
+            if size + additional > 64 * 1024 * 1024:
+                if not encoded:
+                    raise OSError("History entry exceeds aggregate storage limit")
+                break
+            encoded.append(data)
+            retained.append(entry)
+            size += additional
+        handle, name = tempfile.mkstemp(prefix=self.path.name + ".", suffix=".tmp", dir=self.path.parent)
+        temporary = Path(name)
+        try:
+            with os.fdopen(handle, "wb") as stream:
+                stream.write(prefix)
+                for index, data in enumerate(encoded):
+                    if index:
+                        stream.write(b",")
+                    stream.write(data)
+                stream.write(b"]}")
+                stream.flush()
+                os.fsync(stream.fileno())
+            temporary.replace(self.path)
+            self.entries = retained
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 class HistoryRole(IntEnum):

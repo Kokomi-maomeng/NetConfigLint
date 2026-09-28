@@ -7,8 +7,8 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
 
-$python = Join-Path $projectRoot '.venv\Scripts\python.exe'
-$deploy = Join-Path $projectRoot '.venv\Scripts\pyside6-deploy.exe'
+$python = if ($env:NETCONFIGLINT_BUILD_PYTHON) { $env:NETCONFIGLINT_BUILD_PYTHON } else { Join-Path $projectRoot '.venv\Scripts\python.exe' }
+$deploy = Join-Path (Split-Path -Parent $python) 'pyside6-deploy.exe'
 if (-not (Test-Path -LiteralPath $python)) {
     $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
     if (-not $pythonCommand) { throw 'Python is required for packaging.' }

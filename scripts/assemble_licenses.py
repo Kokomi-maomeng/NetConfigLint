@@ -14,12 +14,18 @@ import json
 import os
 import re
 import shutil
+import ssl
 import struct
 import subprocess
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path, PurePosixPath
 from zipfile import ZipFile
+
+if __package__:
+    from .macho_provenance import deployment_match as macho_deployment_match
+else:
+    from macho_provenance import deployment_match as macho_deployment_match
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = "netconfiglint-distribution-sbom/1"
@@ -96,6 +102,10 @@ def origins() -> dict[str, list[tuple[Path, str, str]]]:
                 (Path(distribution.locate_file(item)), qt_component(relative), relative)
             )
     base = Path(sys.base_prefix)
+    framework_python = base / "Python"
+    if framework_python.is_file():
+        for name in ("python", "libpython3.13.dylib"):
+            result[name].append((framework_python, "Python", "Python.framework/Python"))
     for folder in (base, base / "DLLs", base / "lib", base / "lib" / "python3.13" / "lib-dynload"):
         if folder.is_dir():
             for item in folder.iterdir():
@@ -371,7 +381,9 @@ def windows_runtime_origin(path: Path, digest: str) -> tuple[str, str] | None:
     return None
 
 
-def assemble(distribution: Path) -> dict:
+def assemble(
+    distribution: Path, manifest_path: Path | None = None, *, preserve_material: bool = False
+) -> dict:
     if not distribution.is_dir() or distribution.is_symlink():
         raise ValueError("Expected a real standalone directory")
     components = catalog()
@@ -384,9 +396,10 @@ def assemble(distribution: Path) -> dict:
         for item in record["files"]:
             if sha((ROOT / "licenses" / item["file"]).read_bytes()) != item["sha256"]:
                 raise ValueError("Pinned upstream license material changed")
-    for name in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
-        shutil.copy2(ROOT / name, distribution / name)
-    shutil.copytree(ROOT / "licenses", distribution / "licenses", dirs_exist_ok=True)
+    if not preserve_material:
+        for name in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
+            shutil.copy2(ROOT / name, distribution / name)
+        shutil.copytree(ROOT / "licenses", distribution / "licenses", dirs_exist_ok=True)
     # Preserve the actual interpreter's full license, also on Unix builds.
     runtime_license = next(
         (
@@ -400,9 +413,11 @@ def assemble(distribution: Path) -> dict:
         None,
     )
     if runtime_license:
-        shutil.copy2(runtime_license, distribution / "licenses" / "Python-runtime.txt")
+        if not preserve_material:
+            shutil.copy2(runtime_license, distribution / "licenses" / "Python-runtime.txt")
         components["Python"]["licenses"].append("licenses/Python-runtime.txt")
     components["Python"]["version"] = ".".join(map(str, sys.version_info[:3]))
+    components["OpenSSL"]["version"] = ssl.OPENSSL_VERSION.split()[1]
     indexed = origins()
     files = []
     used = {"NetConfigLint", "Nuitka-runtime"}
@@ -450,9 +465,20 @@ def assemble(distribution: Path) -> dict:
             if match:
                 component, origin = match
             elif native(path):
-                raise ValueError(
-                    f"Unregistered native file (add exact provenance/license mapping): {relative}"
+                match = next(
+                    (
+                        (category, upstream + " (verified Mach-O loader relocation/signing)")
+                        for name in origin_names(path.name)
+                        for p, category, upstream in indexed.get(name, [])
+                        if p.is_file() and macho_deployment_match(p, path)
+                    ),
+                    None,
                 )
+                if match is None:
+                    raise ValueError(
+                        f"Unregistered native file (add exact provenance/license mapping): {relative}"
+                    )
+                component, origin = match
             elif relative.startswith(("PySide6/", "shiboken6/")):
                 raise ValueError(f"Unregistered Qt data: {relative}")
         if component != "license-material":
@@ -474,13 +500,19 @@ def assemble(distribution: Path) -> dict:
                 raise ValueError(f"Required license missing: {license_path}")
     result = {
         "schema": SCHEMA,
+        "source_commit": subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True
+        ).stdout.strip(),
+        "application_version": importlib.metadata.version("netconfiglint"),
         "components": selected,
         "files": files,
         "qt_source_catalog": "licenses/sources.json",
         "scope": "Actual distributed files; Qt source attributions are a conservative module superset. "
         "Unknown native files fail assembly. Not an assertion that every source dependency is linked.",
     }
-    (distribution / "SBOM.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", "utf-8")
+    (manifest_path or distribution / "SBOM.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2) + "\n", "utf-8"
+    )
     return result
 
 
@@ -517,11 +549,12 @@ def verify_entries(entries: dict[str, bytes]) -> dict:
     return {"passed": True, "files": len(listed), "components": len(manifest["components"])}
 
 
-def verify(path: Path) -> dict:
+def verify(path: Path, manifest_path: Path | None = None) -> dict:
     if path.is_dir():
-        return verify_entries(
-            {p.relative_to(path).as_posix(): p.read_bytes() for p in path.rglob("*") if p.is_file()}
-        )
+        entries = {p.relative_to(path).as_posix(): p.read_bytes() for p in path.rglob("*") if p.is_file()}
+        if manifest_path is not None:
+            entries["SBOM.json"] = manifest_path.read_bytes()
+        return verify_entries(entries)
     with ZipFile(path) as archive:
         names = [item.filename for item in archive.infolist() if not item.is_dir()]
         if len(names) != len(set(names)) or any(not safe_name(name) for name in names):
@@ -536,10 +569,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("distribution", type=Path)
     parser.add_argument("--verify", "--verify-archive", action="store_true")
+    parser.add_argument("--manifest-path", type=Path)
+    parser.add_argument("--preserve-material", action="store_true")
     args = parser.parse_args()
     if not args.verify:
-        assemble(args.distribution)
-    print(json.dumps(verify(args.distribution), indent=2))
+        assemble(args.distribution, args.manifest_path, preserve_material=args.preserve_material)
+    print(json.dumps(verify(args.distribution, args.manifest_path), indent=2))
 
 
 if __name__ == "__main__":

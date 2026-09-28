@@ -182,5 +182,7 @@
   "analysis.semantic_partial": "部分命令未验证",
   "analysis.unparsed": "未解析",
   "analysis.unsupported_lines": "暂不支持",
-  "analysis.coverage_scope": "只检查已支持的规则；识别命令不代表完整验证。下方最多显示 80 个行号，完整列表见导出。"
+  "analysis.coverage_scope": "只检查已支持的规则；识别命令不代表完整验证。下方最多显示 80 个行号，完整列表见导出。",
+  "settings.reduce_motion": "减少界面动画",
+  "editor.preview_hint": "大文本只读分页预览，搜索仅限当前页；分析和保存使用完整内容。"
 }

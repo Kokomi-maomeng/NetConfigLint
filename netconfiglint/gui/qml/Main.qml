@@ -11,8 +11,8 @@ ApplicationWindow {
     visible: true
     width: 1440
     height: 900
-    minimumWidth: Math.ceil(Math.max(960, checkPage.minimumWorkspaceWidth))
-    minimumHeight: 600
+    minimumWidth: Math.min(640, Screen.desktopAvailableWidth)
+    minimumHeight: Math.min(400, Screen.desktopAvailableHeight)
     title: preferences.values.panelTitle
     font: Typography.body
     color: Colors.surfaceContainerLow
@@ -49,7 +49,7 @@ ApplicationWindow {
     }
     Timer {
         id: minimizeTimer
-        interval: 110
+        interval: Math.max(1, Theme.motionShort)
         onTriggered: window.showMinimized()
     }
     function rememberNormalGeometry() {
@@ -254,7 +254,7 @@ ApplicationWindow {
     }
     SequentialAnimation {
         id: windowStateTransition
-        NumberAnimation { target: shell; property: "opacity"; to: 0.38; duration: 90; easing.type: Easing.InCubic }
+        NumberAnimation { target: shell; property: "opacity"; to: 0.38; duration: Theme.motionShort * 0.9; easing.type: Easing.InCubic }
         ScriptAction {
             script: {
                 if (window.targetMaximized) {
@@ -268,14 +268,14 @@ ApplicationWindow {
             }
         }
         ParallelAnimation {
-            NumberAnimation { target: shell; property: "opacity"; to: 1; duration: 180; easing.type: Easing.OutCubic }
-            NumberAnimation { target: shell; property: "scale"; to: 1; duration: 180; easing.type: Easing.OutCubic }
+            NumberAnimation { target: shell; property: "opacity"; to: 1; duration: Theme.motionShort * 1.8; easing.type: Easing.OutCubic }
+            NumberAnimation { target: shell; property: "scale"; to: 1; duration: Theme.motionShort * 1.8; easing.type: Easing.OutCubic }
         }
     }
     ParallelAnimation {
         id: closingAnimation
-        NumberAnimation { target: shell; property: "opacity"; to: 0; duration: 170; easing.type: Easing.InCubic }
-        NumberAnimation { target: shell; property: "scale"; to: 0.985; duration: 170; easing.type: Easing.InCubic }
+        NumberAnimation { target: shell; property: "opacity"; to: 0; duration: Theme.motionShort * 1.7; easing.type: Easing.InCubic }
+        NumberAnimation { target: shell; property: "scale"; to: 0.985; duration: Theme.motionShort * 1.7; easing.type: Easing.InCubic }
         onFinished: {
             window.allowClose = true
             window.close()
