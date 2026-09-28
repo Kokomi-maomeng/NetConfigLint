@@ -6,13 +6,17 @@ import plistlib
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 from check_build_environment import check
 from prepare_linux_runtime import prune as prune_linux_runtime
+from prepare_macos_runtime import prune as prune_macos_runtime
 
 APP_NAME = "NetConfigLint"
-APP_VERSION = "2.4.0"
+APP_VERSION = tomllib.loads(
+    (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+)["project"]["version"]
 MACOS_EXECUTABLE = "NetConfigLintApp"
 
 
@@ -72,6 +76,7 @@ def _qualify_macos_bundle(distribution: Path) -> Path:
             "CFBundleIconFile": "NetConfigLint.icns",
             "CFBundleExecutable": MACOS_EXECUTABLE,
             "NSHighResolutionCapable": True,
+            "LSMinimumSystemVersion": "13.0",
         }
     )
     with plist_path.open("wb") as stream:
@@ -133,6 +138,8 @@ def main() -> None:
     distribution = distributions[0]
     if sys.platform == "darwin":
         distribution = _qualify_macos_bundle(distribution)
+        result = prune_macos_runtime(distribution)
+        print(f"Pruned {result['removed_count']} unused macOS runtime entries")
         subprocess.run(
             [sys.executable, str(root / "scripts/assemble_licenses.py"), str(distribution)], check=True
         )

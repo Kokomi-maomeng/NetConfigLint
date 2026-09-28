@@ -131,6 +131,20 @@ def deployment_match(source: Path, deployed: Path) -> bool:
         return False
 
 
+def dependencies(path: Path) -> tuple[str, ...]:
+    """Validated dependency names across every CPU slice of a Mach-O file."""
+    return tuple(
+        sorted(
+            {
+                command[1]
+                for snapshot in _snapshot(path.read_bytes()).values()
+                for command in snapshot[2]
+                if command[0] in {0xC, 0x80000018, 0x8000001F, 0x20, 0x80000023}
+            }
+        )
+    )
+
+
 def comparison_reason(source: Path, deployed: Path) -> str:
     """Bounded mismatch categories for build logs; no source paths or binary data."""
     try:
