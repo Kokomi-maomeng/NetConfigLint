@@ -6,6 +6,8 @@ from typing import Any
 
 from PySide6.QtCore import Property, QLocale, QObject, QSettings, Signal, Slot
 
+from netconfiglint import __version__
+
 
 class TranslationController(QObject):
     languageChanged = Signal()
@@ -33,6 +35,9 @@ class TranslationController(QObject):
         for code in ("en", "zh_CN"):
             value: dict[str, Any] = json.loads((root / f"{code}.json").read_text(encoding="utf-8"))
             catalogs[code] = {str(key): str(text) for key, text in value.items()}
+            catalogs[code]["about.version"] = catalogs[code]["about.version"].replace(
+                "{version}", __version__
+            )
         if set(catalogs["en"]) != set(catalogs["zh_CN"]):
             raise ValueError("Translation catalogs must contain identical keys")
         return catalogs
