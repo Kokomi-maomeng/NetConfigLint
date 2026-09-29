@@ -33,7 +33,7 @@ def _path(data: bytes, offset: int, *, library_id: bool = False) -> str:
     return name
 
 
-def _thin(data: bytes) -> tuple:
+def _thin(data: bytes, *, inspect_rpaths: bool = False) -> tuple:
     if len(data) < 32 or data[:4] != b"\xcf\xfa\xed\xfe":
         raise ValueError("Only little-endian Mach-O64 is qualified")
     header = struct.unpack_from("<IiiIIIII", data)
@@ -73,8 +73,13 @@ def _thin(data: bytes) -> tuple:
             if signature_offset + signature_size > len(data):
                 raise ValueError("Invalid code signature bounds")
         elif command == 0x8000001C:  # LC_RPATH
-            value = raw[struct.unpack_from("<I", raw, 8)[0] :].split(b"\0", 1)[0].decode("utf-8")
-            if not value.startswith(("@loader_path", "@executable_path")):
+            path_offset = struct.unpack_from("<I", raw, 8)[0]
+            if not 12 <= path_offset < size:
+                raise ValueError("Invalid Mach-O runtime search path offset")
+            value = raw[path_offset:].split(b"\0", 1)[0].decode("utf-8")
+            if inspect_rpaths:
+                commands.append((command, value))
+            elif not value.startswith(("@loader_path", "@executable_path")):
                 kind = (
                     "rpath"
                     if value.startswith("@rpath")
@@ -104,9 +109,9 @@ def _thin(data: bytes) -> tuple:
     return header[1:4], header[6:], tuple(commands), tuple(sections)
 
 
-def _snapshot(data: bytes) -> dict[tuple[int, int], tuple]:
+def _snapshot(data: bytes, *, inspect_rpaths: bool = False) -> dict[tuple[int, int], tuple]:
     if data[:4] == b"\xcf\xfa\xed\xfe":
-        result = _thin(data)
+        result = _thin(data, inspect_rpaths=inspect_rpaths)
         return {result[0][:2]: result}
     if data[:4] not in {b"\xca\xfe\xba\xbe", b"\xca\xfe\xba\xbf"}:
         raise ValueError("Unsupported Mach-O container")
@@ -120,11 +125,25 @@ def _snapshot(data: bytes) -> dict[tuple[int, int], tuple]:
         cpu, subtype, offset, length, *_ = struct.unpack_from(fmt, data, 8 + index * size)
         if offset + length > len(data) or (cpu, subtype) in result:
             raise ValueError("Invalid universal Mach-O slice")
-        snapshot = _thin(data[offset : offset + length])
+        snapshot = _thin(data[offset : offset + length], inspect_rpaths=inspect_rpaths)
         if snapshot[0][:2] != (cpu, subtype):
             raise ValueError("Universal Mach-O CPU table differs from its slice")
         result[(cpu, subtype)] = snapshot
     return result
+
+
+def runtime_search_paths(path: Path) -> tuple[str, ...]:
+    """Inspect app RPATHs before normalization; provenance matching stays strict."""
+    return tuple(
+        sorted(
+            {
+                command[1]
+                for snapshot in _snapshot(path.read_bytes(), inspect_rpaths=True).values()
+                for command in snapshot[2]
+                if command[0] == 0x8000001C
+            }
+        )
+    )
 
 
 def deployment_match(source: Path, deployed: Path) -> bool:

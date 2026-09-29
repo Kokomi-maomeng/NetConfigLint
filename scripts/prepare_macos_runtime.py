@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import plistlib
+import posixpath
 import re
 import shutil
+import subprocess
+import sys
 from collections import deque
 from pathlib import Path
 
 if __package__:
     from .assemble_licenses import native
-    from .macho_provenance import dependencies
+    from .macho_provenance import dependencies, runtime_search_paths
     from .prepare_linux_runtime import (
         _CONTROL_STYLES,
         _PLUGIN_FILES,
@@ -22,7 +25,7 @@ if __package__:
     )
 else:
     from assemble_licenses import native
-    from macho_provenance import dependencies
+    from macho_provenance import dependencies, runtime_search_paths
     from prepare_linux_runtime import (
         _CONTROL_STYLES,
         _PLUGIN_FILES,
@@ -32,6 +35,38 @@ else:
         _QTQUICK_MODULES,
         _prune_children,
     )
+
+
+def _normalized_rpath(value: str) -> str | None:
+    if value.startswith(("@loader_path", "@executable_path")):
+        return None
+    if not value:
+        return ""
+    if not re.fullmatch(r"[A-Za-z0-9_.+/-]{1,120}", value) or value.startswith("/"):
+        raise ValueError(f"Unsupported app RPATH (length={len(value)}, prefix={value[:1].encode().hex()})")
+    location = posixpath.normpath("Contents/MacOS/" + value)
+    if not location.startswith("Contents/"):
+        raise ValueError("App RPATH escapes its bundle")
+    return "@executable_path" if value == "." else "@executable_path/" + value
+
+
+def _normalize_app_rpaths(executable: Path) -> None:
+    changed = False
+    for value in runtime_search_paths(executable):
+        replacement = _normalized_rpath(value)
+        if replacement is None:
+            continue
+        args = (
+            ["install_name_tool", "-rpath", value, replacement]
+            if replacement
+            else ["install_name_tool", "-delete_rpath", value]
+        )
+        subprocess.run([*args, str(executable)], check=True)
+        changed = True
+    if changed:
+        # arm64 executes only a correctly signed Mach-O after load-command edits.
+        subprocess.run(["codesign", "--force", "--sign", "-", str(executable)], check=True)
+        dependencies(executable)
 
 
 def prune(distribution: Path) -> dict[str, object]:
@@ -93,6 +128,8 @@ def prune(distribution: Path) -> dict[str, object]:
     executable = distribution / "Contents/MacOS" / entry
     if not executable.is_file() or executable.is_symlink():
         raise ValueError("macOS application executable missing")
+    if sys.platform == "darwin":
+        _normalize_app_rpaths(executable)
     files = [
         path for path in distribution.rglob("*") if path.is_file() and (native(path) or path == executable)
     ]
