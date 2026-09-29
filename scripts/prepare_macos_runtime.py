@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import plistlib
 import re
 import shutil
 from collections import deque
@@ -83,7 +84,20 @@ def prune(distribution: Path) -> dict[str, object]:
                     path.unlink()
                     removed.append(path.relative_to(distribution).as_posix())
 
-    files = [path for path in distribution.rglob("*") if path.is_file() and native(path)]
+    # Nuitka's app executable has no file extension, so native() does not
+    # identify it. It is the root of the Qt framework dependency graph.
+    with (distribution / "Contents/Info.plist").open("rb") as stream:
+        entry = plistlib.load(stream).get("CFBundleExecutable")
+    if not isinstance(entry, str) or not entry or Path(entry).name != entry:
+        raise ValueError("Invalid macOS application executable name")
+    executable = distribution / "Contents/MacOS" / entry
+    if not executable.is_file() or executable.is_symlink():
+        raise ValueError("macOS application executable missing")
+    files = [
+        path
+        for path in distribution.rglob("*")
+        if path.is_file() and (native(path) or path == executable)
+    ]
     metadata = {path: dependencies(path) for path in files}
     by_name: dict[str, set[Path]] = {}
     for path in files:

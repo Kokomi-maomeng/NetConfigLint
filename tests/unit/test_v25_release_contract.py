@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import plistlib
 import struct
 from pathlib import Path
 from zipfile import ZipFile
@@ -130,7 +131,12 @@ def test_macos_pruning_removes_unused_qml_but_preserves_native_dependencies(tmp_
     for name in ("QtQuick/Controls/Material", "Qt3D/Animation", "QtQuick3D"):
         (pyside / "qml" / name).mkdir(parents=True)
         (pyside / "qml" / name / "qmldir").write_text("SYNTHETIC-MODULE")
-    (pyside / "QtCore.so").write_bytes(_macho("@rpath/QtCore", b"BINDING"))
+    executable = bundle / "Contents/MacOS/NetConfigLintApp"
+    executable.parent.mkdir(parents=True, exist_ok=True)
+    (bundle / "Contents/Info.plist").write_bytes(
+        plistlib.dumps({"CFBundleExecutable": "NetConfigLintApp"})
+    )
+    executable.write_bytes(_macho("@rpath/QtCore.framework/Versions/A/QtCore", b"APPLICATION"))
     core = bundle / "Contents/Frameworks/QtCore.framework/Versions/A/QtCore"
     core.parent.mkdir(parents=True)
     core.write_bytes(_macho("@rpath/QtSvg", b"CORE"))
@@ -141,7 +147,7 @@ def test_macos_pruning_removes_unused_qml_but_preserves_native_dependencies(tmp_
     unused.write_bytes(_macho("@rpath/QtCore", b"UNUSED-3D"))
     result = prune_macos(bundle)
     assert result["removed_count"]
-    assert core.is_file() and svg.is_file() and (pyside / "QtCore.so").is_file()
+    assert executable.is_file() and core.is_file() and svg.is_file()
     assert (pyside / "qml/QtQuick/Controls/Material/qmldir").is_file()
     assert not (pyside / "qml/Qt3D").exists() and not (pyside / "qml/QtQuick3D").exists()
     assert not (bundle / "Contents/Frameworks/Qt3DCore.framework").exists()
