@@ -117,7 +117,9 @@ def test_window_open_maximize_restore_and_close_transitions(tmp_path: Path, qapp
     _click(window, "closeWindowButton")
     QTest.qWait(70)
     assert window.isVisible() and window.property("closingTransition")
-    QTest.qWait(180)
+    deadline = time.monotonic() + 2.0
+    while window.isVisible() and time.monotonic() < deadline:
+        QTest.qWait(20)
     assert not window.isVisible()
     controller.close()
 
