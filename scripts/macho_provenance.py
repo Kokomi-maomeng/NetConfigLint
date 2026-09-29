@@ -82,7 +82,10 @@ def _thin(data: bytes) -> tuple:
                     if value.startswith("/")
                     else "relative"
                 )
-                raise ValueError(f"Unqualified Mach-O runtime search path ({kind})")
+                detail = (
+                    value if kind == "relative" and re.fullmatch(r"[A-Za-z0-9_./+-]{1,80}", value) else kind
+                )
+                raise ValueError(f"Unqualified Mach-O runtime search path ({detail})")
         elif command in {0xC, 0xD, 0x80000018, 0x8000001F, 0x20, 0x80000023}:
             if size < 24:
                 raise ValueError("Invalid dylib command")
