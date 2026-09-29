@@ -162,7 +162,7 @@ def test_macos_pruning_removes_unused_qml_but_preserves_native_dependencies(tmp_
     executable = bundle / "Contents/MacOS/NetConfigLintApp"
     executable.parent.mkdir(parents=True, exist_ok=True)
     (bundle / "Contents/Info.plist").write_bytes(plistlib.dumps({"CFBundleExecutable": "NetConfigLintApp"}))
-    executable.write_bytes(_macho("@rpath/QtCore.framework/Versions/A/QtCore", b"APPLICATION"))
+    executable.write_bytes(_macho("/usr/lib/libSystem.B.dylib", b"APPLICATION"))
     core = bundle / "Contents/Frameworks/QtCore.framework/Versions/A/QtCore"
     core.parent.mkdir(parents=True)
     core.write_bytes(_macho("@rpath/QtSvg", b"CORE"))

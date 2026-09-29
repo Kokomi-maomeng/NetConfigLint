@@ -79,6 +79,14 @@ def _normalize_app_rpaths(executable: Path) -> None:
         dependencies(executable)
 
 
+def _required_qt_module(path: Path) -> bool:
+    name = path.name.removeprefix("lib").removesuffix(".dylib")
+    name = re.sub(r"\.\d+(?:\.\d+)*$", "", name)
+    if name.startswith("Qt6"):
+        name = "Qt" + name[3:]
+    return name in _PYSIDE_MODULES
+
+
 def prune(distribution: Path) -> dict[str, object]:
     if distribution.is_symlink():
         raise ValueError("Refusing a linked macOS bundle")
@@ -155,7 +163,9 @@ def prune(distribution: Path) -> dict[str, object]:
     candidates = {
         path for path in files if re.fullmatch(r"(?:lib)?Qt[A-Z0-9]\w*(?:\.\d+)*(?:\.dylib)?", path.name)
     }
-    required = set(files) - candidates
+    # Qt Python bindings load their frameworks dynamically; Mach-O links alone
+    # cannot establish these roots even though the app needs them at runtime.
+    required = (set(files) - candidates) | {path for path in candidates if _required_qt_module(path)}
     queue = deque(required)
     while queue:
         for name in metadata[queue.popleft()]:
