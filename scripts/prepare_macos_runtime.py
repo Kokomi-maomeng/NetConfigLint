@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from collections import deque
 from pathlib import Path
 
@@ -67,7 +68,14 @@ def _normalize_app_rpaths(executable: Path) -> None:
         changed = True
     if changed:
         # arm64 executes only a correctly signed Mach-O after load-command edits.
-        subprocess.run(["codesign", "--force", "--sign", "-", str(executable)], check=True)
+        # Signing inside Contents/MacOS makes codesign interpret adjacent Nuitka
+        # data directories as unsigned nested bundles. Sign the raw binary alone.
+        with tempfile.TemporaryDirectory(prefix="netconfiglint-macos-sign-") as directory:
+            temporary = Path(directory) / executable.name
+            shutil.copy2(executable, temporary)
+            subprocess.run(["codesign", "--force", "--sign", "-", str(temporary)], check=True)
+            subprocess.run(["codesign", "--verify", "--strict", str(temporary)], check=True)
+            shutil.copy2(temporary, executable)
         dependencies(executable)
 
 
