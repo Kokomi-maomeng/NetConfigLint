@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QPointF, Qt
@@ -321,7 +322,9 @@ def test_settings_section_and_window_controls_animate(tmp_path: Path, qapp: obje
     _click(window, "minimizeWindowButton")
     QTest.qWait(40)
     assert window.property("minimizing")
-    QTest.qWait(130)
+    deadline = time.monotonic() + 2.0
+    while window.visibility() != QQuickWindow.Visibility.Minimized and time.monotonic() < deadline:
+        QTest.qWait(20)
     assert window.visibility() == QQuickWindow.Visibility.Minimized
     window.showNormal()
     QTest.qWait(300)
