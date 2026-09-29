@@ -109,8 +109,12 @@ def test_compiled_macos_app_rpaths_are_normalized_without_relaxing_provenance(tm
     executable.write_bytes(_macho("@rpath/QtCore", b"APP", rpath=""))
     assert runtime_search_paths(executable) == ("",)
     assert not deployment_match(executable, executable)
+    executable.write_bytes(_macho("@rpath/QtCore", b"APP", rpath="$ORIGIN"))
+    assert runtime_search_paths(executable) == ("$ORIGIN",)
+    assert not deployment_match(executable, executable)
     assert _normalized_rpath("") == ""
     assert _normalized_rpath(".") == "@executable_path"
+    assert _normalized_rpath("$ORIGIN") == "@executable_path"
     assert _normalized_rpath("../Frameworks") == "@executable_path/../Frameworks"
     assert _normalized_rpath("@loader_path/../Frameworks") is None
     with pytest.raises(ValueError):

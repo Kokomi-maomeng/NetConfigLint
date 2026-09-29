@@ -40,6 +40,8 @@ else:
 def _normalized_rpath(value: str) -> str | None:
     if value.startswith(("@loader_path", "@executable_path")):
         return None
+    if value == "$ORIGIN":
+        return "@executable_path"
     if not value:
         return ""
     if not re.fullmatch(r"[A-Za-z0-9_.+/-]{1,120}", value) or value.startswith("/"):
