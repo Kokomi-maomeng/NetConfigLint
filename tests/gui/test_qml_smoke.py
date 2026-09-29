@@ -155,10 +155,12 @@ def test_workspace_is_three_resizable_columns_with_visible_editor_viewports(qapp
     engine = create_engine(controller)
     window = engine.rootObjects()[0]
     assert isinstance(window, QQuickWindow)
-    window.setWidth(1280)
+    page = _visual_by_name(window, "configCheckPage")
+    window.setWidth(max(1800, int(page.property("minimumWorkspaceWidth")) + 400))
     window.setHeight(800)
     QCoreApplication.processEvents()
     QTest.qWait(100)
+    assert page.width() >= page.property("minimumWorkspaceWidth")
 
     configuration = _visual_by_name(window, "configurationEditor")
     diagnostics = _visual_by_name(window, "analysisPanel")
