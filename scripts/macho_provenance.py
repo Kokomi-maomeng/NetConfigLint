@@ -75,7 +75,14 @@ def _thin(data: bytes) -> tuple:
         elif command == 0x8000001C:  # LC_RPATH
             value = raw[struct.unpack_from("<I", raw, 8)[0] :].split(b"\0", 1)[0].decode("utf-8")
             if not value.startswith(("@loader_path", "@executable_path")):
-                raise ValueError("Unqualified Mach-O runtime search path")
+                kind = (
+                    "rpath"
+                    if value.startswith("@rpath")
+                    else "absolute"
+                    if value.startswith("/")
+                    else "relative"
+                )
+                raise ValueError(f"Unqualified Mach-O runtime search path ({kind})")
         elif command in {0xC, 0xD, 0x80000018, 0x8000001F, 0x20, 0x80000023}:
             if size < 24:
                 raise ValueError("Invalid dylib command")

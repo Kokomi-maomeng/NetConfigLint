@@ -94,11 +94,14 @@ def prune(distribution: Path) -> dict[str, object]:
     if not executable.is_file() or executable.is_symlink():
         raise ValueError("macOS application executable missing")
     files = [
-        path
-        for path in distribution.rglob("*")
-        if path.is_file() and (native(path) or path == executable)
+        path for path in distribution.rglob("*") if path.is_file() and (native(path) or path == executable)
     ]
-    metadata = {path: dependencies(path) for path in files}
+    metadata = {}
+    for path in files:
+        try:
+            metadata[path] = dependencies(path)
+        except ValueError as exc:
+            raise ValueError(f"{path.relative_to(distribution).as_posix()}: {exc}") from exc
     by_name: dict[str, set[Path]] = {}
     for path in files:
         by_name.setdefault(path.name, set()).add(path)
