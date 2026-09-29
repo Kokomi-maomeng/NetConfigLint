@@ -11,7 +11,8 @@ from zipfile import ZipFile
 import pytest
 
 from scripts import resolve_windows_dlls, verify_release_identity
-from scripts.macho_provenance import deployment_match
+from scripts.macho_provenance import deployment_match, runtime_search_paths
+from scripts.prepare_macos_runtime import _normalized_rpath
 from scripts.prepare_macos_runtime import prune as prune_macos
 
 
@@ -67,7 +68,9 @@ def test_resolver_bundles_interpreter_dlls_and_vc_runtime(
         assert (target / name).read_bytes() == b"SYNTHETIC-QUALIFIED-INTERPRETER"
 
 
-def _macho(loader: str, content: bytes, *, signed: bool = False, library_id: bool = False) -> bytes:
+def _macho(
+    loader: str, content: bytes, *, signed: bool = False, library_id: bool = False, rpath: str | None = None
+) -> bytes:
     encoded = loader.encode() + b"\0"
     size = (24 + len(encoded) + 7) // 8 * 8
     dylib = struct.pack("<IIIIII", 0xD if library_id else 0xC, size, 24, 0, 1, 1) + encoded
@@ -77,9 +80,15 @@ def _macho(loader: str, content: bytes, *, signed: bool = False, library_id: boo
     )
     segment = struct.pack("<II16sQQQQiiII", 0x19, 152, b"__TEXT", 0x1000, 4096, 0, 1024, 7, 5, 1, 0) + section
     commands = segment + dylib
+    if rpath is not None:
+        encoded_rpath = rpath.encode() + b"\0"
+        rpath_size = (12 + len(encoded_rpath) + 7) // 8 * 8
+        commands += (struct.pack("<III", 0x8000001C, rpath_size, 12) + encoded_rpath).ljust(rpath_size, b"\0")
     if signed:
         commands += struct.pack("<IIII", 0x1D, 16, 768, 8)
-    header = struct.pack("<IiiIIIII", 0xFEEDFACF, 0x1000007, 3, 6, 3 if signed else 2, len(commands), 0, 0)
+    header = struct.pack(
+        "<IiiIIIII", 0xFEEDFACF, 0x1000007, 3, 6, 2 + signed + (rpath is not None), len(commands), 0, 0
+    )
     data = (header + commands).ljust(512, b"\0") + content
     return data.ljust(768, b"\0") + (b"SYNTHSIG" if signed else b"")
 
@@ -93,6 +102,21 @@ def test_macho_relocation_and_signing_preserve_executable_sections(tmp_path: Pat
     assert not deployment_match(source, deployed)
     deployed.write_bytes(_macho("@loader_path/ForeignCore", b"SYNTHETIC-CODE", signed=True))
     assert not deployment_match(source, deployed)
+
+
+def test_compiled_macos_app_rpaths_are_normalized_without_relaxing_provenance(tmp_path: Path) -> None:
+    executable = tmp_path / "NetConfigLintApp"
+    executable.write_bytes(_macho("@rpath/QtCore", b"APP", rpath=""))
+    assert runtime_search_paths(executable) == ("",)
+    assert not deployment_match(executable, executable)
+    assert _normalized_rpath("") == ""
+    assert _normalized_rpath(".") == "@executable_path"
+    assert _normalized_rpath("../Frameworks") == "@executable_path/../Frameworks"
+    assert _normalized_rpath("@loader_path/../Frameworks") is None
+    with pytest.raises(ValueError):
+        _normalized_rpath("../../../outside")
+    with pytest.raises(ValueError):
+        _normalized_rpath("/tmp/foreign")
 
 
 def test_macho_python_module_identity_allows_only_abi_suffix_removal(tmp_path: Path) -> None:
