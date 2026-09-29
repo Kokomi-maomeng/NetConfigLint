@@ -133,9 +133,7 @@ def test_macos_pruning_removes_unused_qml_but_preserves_native_dependencies(tmp_
         (pyside / "qml" / name / "qmldir").write_text("SYNTHETIC-MODULE")
     executable = bundle / "Contents/MacOS/NetConfigLintApp"
     executable.parent.mkdir(parents=True, exist_ok=True)
-    (bundle / "Contents/Info.plist").write_bytes(
-        plistlib.dumps({"CFBundleExecutable": "NetConfigLintApp"})
-    )
+    (bundle / "Contents/Info.plist").write_bytes(plistlib.dumps({"CFBundleExecutable": "NetConfigLintApp"}))
     executable.write_bytes(_macho("@rpath/QtCore.framework/Versions/A/QtCore", b"APPLICATION"))
     core = bundle / "Contents/Frameworks/QtCore.framework/Versions/A/QtCore"
     core.parent.mkdir(parents=True)
