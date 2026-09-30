@@ -500,7 +500,12 @@ def assemble(
     if not any(application_entry(item["path"]) for item in files):
         raise ValueError("Compiled application entry point missing")
     # LGPL libraries must remain external and replaceable; no onefile payload accepted.
-    if not any("qt6core" in item["path"].lower() or "/QtCore.framework/" in item["path"] for item in files):
+    core_names = r"Qt6Core\.dll|libQt6Core\.so(?:\.\d+)*|(?:lib)?Qt6?Core(?:\.\d+)*\.dylib|QtCore"
+    if not any(
+        item["component"] == "qtbase"
+        and re.fullmatch(core_names, PurePosixPath(item["path"]).name, re.IGNORECASE)
+        for item in files
+    ):
         raise ValueError("External Qt Core library missing; onefile/static builds are not qualified")
     selected = {name: components[name] for name in sorted(used)}
     for component in selected.values():

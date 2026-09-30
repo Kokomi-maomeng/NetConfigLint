@@ -87,15 +87,6 @@ def _required_qt_module(path: Path) -> bool:
     return name in _PYSIDE_MODULES
 
 
-def _core_inventory(distribution: Path) -> list[str]:
-    return sorted(
-        path.relative_to(distribution).as_posix()
-        for path in distribution.rglob("*")
-        if (path.is_file() or path.is_symlink())
-        and ("qtcore" in path.name.lower() or "qt6core" in path.name.lower())
-    )[:12]
-
-
 def prune(distribution: Path) -> dict[str, object]:
     if distribution.is_symlink():
         raise ValueError("Refusing a linked macOS bundle")
@@ -106,7 +97,6 @@ def prune(distribution: Path) -> dict[str, object]:
     for path in distribution.rglob("*"):
         if path.is_symlink() and not path.resolve().is_relative_to(distribution):
             raise ValueError("macOS bundle link escapes its directory")
-    print(f"Mac Qt Core inventory before pruning: {_core_inventory(distribution)}", flush=True)
     removed: list[str] = []
     for path in pyside.glob("Qt*.so"):
         if path.name.removesuffix(".so") not in _PYSIDE_MODULES:
@@ -176,13 +166,6 @@ def prune(distribution: Path) -> dict[str, object]:
     # Qt Python bindings load their frameworks dynamically; Mach-O links alone
     # cannot establish these roots even though the app needs them at runtime.
     required = (set(files) - candidates) | {path for path in candidates if _required_qt_module(path)}
-    print(
-        "Mac Qt Core dependency roots:",
-        sorted(
-            path.relative_to(distribution).as_posix() for path in required if "qtcore" in path.name.lower()
-        ),
-        flush=True,
-    )
     queue = deque(required)
     while queue:
         for name in metadata[queue.popleft()]:
@@ -207,5 +190,4 @@ def prune(distribution: Path) -> dict[str, object]:
         if path.exists() or path.is_symlink():
             path.unlink()
             removed.append(path.relative_to(distribution).as_posix())
-    print(f"Mac Qt Core inventory after pruning: {_core_inventory(distribution)}", flush=True)
     return {"removed_count": len(removed), "removed": sorted(removed)}

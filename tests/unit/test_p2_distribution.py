@@ -61,6 +61,46 @@ def test_f24_external_qt_library_is_required(payload: Path) -> None:
         licensing.assemble(payload)
 
 
+def test_macos_flattened_qt_core_requires_verified_upstream_bytes(
+    payload: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original = payload / "Qt6Core.dll"
+    upstream = payload.parent / "QtCore"
+    upstream.write_bytes(original.read_bytes())
+    deployed = payload / "Contents/MacOS/QtCore"
+    deployed.parent.mkdir(parents=True)
+    deployed.write_bytes(upstream.read_bytes())
+    original.unlink()
+    monkeypatch.setattr(
+        licensing,
+        "origins",
+        lambda: {"qtcore": [(upstream, "qtbase", "PySide6/Qt/lib/QtCore.framework/Versions/A/QtCore")]},
+    )
+    licensing.assemble(payload)
+    assert licensing.verify(payload)["passed"]
+    deployed.write_bytes(b"modified core library")
+    with pytest.raises(ValueError, match="Unregistered native"):
+        licensing.assemble(payload)
+
+
+def test_python_qt_core_binding_does_not_replace_external_qt_library(
+    payload: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (payload / "Qt6Core.dll").unlink()
+    upstream = payload.parent / "QtCore.abi3.so"
+    upstream.write_bytes(b"synthetic Python binding")
+    deployed = payload / "PySide6/QtCore.so"
+    deployed.parent.mkdir()
+    deployed.write_bytes(upstream.read_bytes())
+    monkeypatch.setattr(
+        licensing,
+        "origins",
+        lambda: {"qtcore.abi3.so": [(upstream, "pyside-setup", "PySide6/QtCore.abi3.so")]},
+    )
+    with pytest.raises(ValueError, match="External Qt Core"):
+        licensing.assemble(payload)
+
+
 def test_windows_flattened_lowercase_library_keeps_exact_provenance(payload: Path) -> None:
     original = payload / "Qt6Core.dll"
     renamed = payload / "qt6core.dll"

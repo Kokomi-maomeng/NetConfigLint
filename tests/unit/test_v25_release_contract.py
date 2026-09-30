@@ -153,7 +153,10 @@ def test_universal_macho_thinning_preserves_the_selected_architecture(tmp_path: 
     assert not deployment_match(source, deployed)
 
 
-def test_macos_pruning_removes_unused_qml_but_preserves_native_dependencies(tmp_path: Path) -> None:
+@pytest.mark.parametrize("core_layout", ["flat", "framework"])
+def test_macos_pruning_removes_unused_qml_but_preserves_native_dependencies(
+    tmp_path: Path, core_layout: str
+) -> None:
     bundle = tmp_path / "dist/NetConfigLint.app"
     pyside = bundle / "Contents/MacOS/PySide6"
     for name in ("QtQuick/Controls/Material", "Qt3D/Animation", "QtQuick3D"):
@@ -163,8 +166,12 @@ def test_macos_pruning_removes_unused_qml_but_preserves_native_dependencies(tmp_
     executable.parent.mkdir(parents=True, exist_ok=True)
     (bundle / "Contents/Info.plist").write_bytes(plistlib.dumps({"CFBundleExecutable": "NetConfigLintApp"}))
     executable.write_bytes(_macho("/usr/lib/libSystem.B.dylib", b"APPLICATION"))
-    core = bundle / "Contents/Frameworks/QtCore.framework/Versions/A/QtCore"
-    core.parent.mkdir(parents=True)
+    core = bundle / (
+        "Contents/MacOS/QtCore"
+        if core_layout == "flat"
+        else "Contents/Frameworks/QtCore.framework/Versions/A/QtCore"
+    )
+    core.parent.mkdir(parents=True, exist_ok=True)
     core.write_bytes(_macho("@rpath/QtSvg", b"CORE"))
     svg = bundle / "Contents/MacOS/QtSvg"
     svg.write_bytes(_macho("/usr/lib/libSystem.B.dylib", b"SVG"))
