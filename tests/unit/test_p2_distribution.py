@@ -61,6 +61,25 @@ def test_f24_external_qt_library_is_required(payload: Path) -> None:
         licensing.assemble(payload)
 
 
+@pytest.mark.parametrize("prefix", ["", "Contents/Resources/", "Contents/MacOS/"])
+def test_bundled_font_license_layout_and_rehashed_tampering_are_checked(payload: Path, prefix: str) -> None:
+    folder = payload / (prefix + "netconfiglint/resources/fonts")
+    folder.mkdir(parents=True)
+    font = licensing.ROOT / "netconfiglint/resources/fonts/Roboto-Regular.ttf"
+    (folder / font.name).write_bytes(font.read_bytes())
+    notice = folder / "Roboto-OFL.txt"
+    notice.write_bytes((font.parent / notice.name).read_bytes())
+    licensing.assemble(payload)
+    assert licensing.verify(payload)["passed"]
+    notice.unlink()
+    with pytest.raises(ValueError, match="Required license missing"):
+        licensing.assemble(payload)
+    notice.write_bytes(b"truncated license terms")
+    licensing.assemble(payload)
+    with pytest.raises(ValueError, match="Reviewed font license differs"):
+        licensing.verify(payload)
+
+
 def test_macos_flattened_qt_core_requires_verified_upstream_bytes(
     payload: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

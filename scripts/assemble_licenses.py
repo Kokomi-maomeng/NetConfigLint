@@ -71,6 +71,16 @@ def catalog() -> dict:
     return json.loads((ROOT / "licenses" / "components.json").read_text("utf-8"))
 
 
+def deployed_license_path(relative: str, available: set[str]) -> str:
+    """Resolve bundled font notices in the two supported macOS data layouts."""
+    if relative not in available and relative.startswith("netconfiglint/resources/fonts/"):
+        for prefix in ("Contents/Resources/", "Contents/MacOS/"):
+            candidate = prefix + relative
+            if candidate in available:
+                return candidate
+    return relative
+
+
 def qt_component(origin: str) -> str:
     lower = origin.lower()
     name = PurePosixPath(lower).name
@@ -508,7 +518,9 @@ def assemble(
     ):
         raise ValueError("External Qt Core library missing; onefile/static builds are not qualified")
     selected = {name: components[name] for name in sorted(used)}
+    available = {item["path"] for item in files}
     for component in selected.values():
+        component["licenses"] = [deployed_license_path(path, available) for path in component["licenses"]]
         for license_path in component["licenses"]:
             if not (distribution / license_path).is_file():
                 raise ValueError(f"Required license missing: {license_path}")
@@ -546,8 +558,18 @@ def verify_entries(entries: dict[str, bytes]) -> dict:
             raise ValueError("Missing component mapping")
     required = catalog()
     for name, component in manifest["components"].items():
-        if name not in required or not set(required[name]["licenses"]) <= set(component["licenses"]):
+        expected = (
+            {deployed_license_path(path, set(entries)) for path in required[name]["licenses"]}
+            if name in required
+            else set()
+        )
+        if name not in required or not expected <= set(component["licenses"]):
             raise ValueError("Incomplete component license list")
+        for original in required[name]["licenses"]:
+            if original.startswith("netconfiglint/resources/fonts/"):
+                deployed = deployed_license_path(original, set(entries))
+                if entries.get(deployed) != (ROOT / original).read_bytes():
+                    raise ValueError(f"Reviewed font license differs: {deployed}")
         for license_path in component["licenses"]:
             if license_path not in entries or not entries[license_path].strip():
                 raise ValueError("Missing or empty license text")
