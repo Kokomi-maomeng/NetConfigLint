@@ -216,3 +216,4 @@ jobs:
         run: |
           python -m pip_audit -r constraints/quality.txt --no-deps
           python -m pip_audit -r constraints/release.txt --no-deps
+          python -m pip_audit -r constraints/catalog.txt --no-deps

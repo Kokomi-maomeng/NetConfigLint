@@ -1,4 +1,4 @@
-# NetConfigLint v2.5
+# NetConfigLint v2.6
 
 Project versions, local release files, rollback records, and the consolidated task entry are mapped in [PROJECT_INDEX.md](PROJECT_INDEX.md).
 
@@ -14,7 +14,18 @@ vendor-supported validation and lab testing.
 See the [v2.4 command and language scope](docs/v2.4-command-catalog-and-i18n.md), [v2.3 GUI acceptance notes](docs/v2.3-gui-acceptance.md), [v2.2 GUI acceptance notes](docs/v2.2-gui-acceptance.md), [v2.1 change scope](docs/v2.1-change-scope.md), [H3C coverage contract](docs/h3c-command-support.md),
 and [v2.0 acceptance report](docs/v2.0-acceptance.md) for earlier release evidence.
 
-## Desktop v2.5
+## Desktop v2.6
+
+The Completion button beside Vendor selects automatic detection or multiple specific
+vendors independently of the analyzer. Press Tab in either editable configuration area:
+unique keywords complete directly; ambiguous keywords expand their common prefix and show
+a list. Use Tab/Shift+Tab or arrows, Enter to accept, and Escape to cancel. Parameters,
+optional groups, `undo`, interface types and declared VPN/policy names are supported.
+Shared syntax does not force a vendor; mixed or uncertain input retains multiple vendors.
+
+The independent offline catalogs contain 9,723 Comware and 28,479 VRP syntax forms from
+specified official references. They provide completion rather than universal device syntax
+validation. See the [v2.6 completion, sources and vendor independence report](docs/v2.6-command-completion.md).
 
 Huawei VRP and H3C Comware now own separate parsers, effective-view reducers,
 semantic rules and operational parsers. Comware does not translate its source into
@@ -32,7 +43,7 @@ UTF-16 BOM exports are accepted alongside UTF-8 and GB18030. History remains ena
 by default with full source and diagnostics; the aggregate 64 MiB quota retains the
 newest entries and concurrent instances merge writes under a file lock.
 
-The v2.5 public release contains only the Windows x64 portable ZIP. Windows 10
+The v2.6 public release contains only the Windows x64 portable ZIP. Windows 10
 version 1809/build 17763 or newer is required by the qualified Qt runtime. Linux
 supports XCB/Xwayland and includes client Wayland plugins. macOS editor shortcuts use
 Command where appropriate. Native platform evidence and untested boundaries are
