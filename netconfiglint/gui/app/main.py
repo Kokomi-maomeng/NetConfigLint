@@ -13,6 +13,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 
 from netconfiglint import __version__
 from netconfiglint.gui.bridge import SyntaxHighlighterBridge
+from netconfiglint.gui.completion import CommandCompletion
 from netconfiglint.gui.controllers import AnalysisController
 from netconfiglint.gui.fonts import FontPalette, load_fonts, make_font
 from netconfiglint.gui.i18n import TranslationController
@@ -52,12 +53,14 @@ def create_engine(controller: AnalysisController) -> QQmlApplicationEngine:
     QQuickWindow.setTextRenderType(QQuickWindow.TextRenderType.QtTextRendering)
     font_palette = FontPalette(engine)
     highlighter = SyntaxHighlighterBridge(engine)
+    completion = CommandCompletion(engine)
     engine.addImportPath(str(qml_root()))
     engine.rootContext().setContextProperty("analysisController", controller)
     engine.rootContext().setContextProperty("i18n", i18n)
     engine.rootContext().setContextProperty("preferences", preferences)
     engine.rootContext().setContextProperty("fontPalette", font_palette)
     engine.rootContext().setContextProperty("syntaxHighlighter", highlighter)
+    engine.rootContext().setContextProperty("commandCompletion", completion)
     engine.load(QUrl.fromLocalFile(str(qml_root() / "Main.qml")))
     return engine
 

@@ -1,0 +1,4 @@
+# Optional tooling only; the application reads the bundled JSON offline.
+beautifulsoup4==4.14.3
+soupsieve==2.10
+defusedxml==0.7.1

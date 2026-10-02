@@ -23,9 +23,19 @@ AppCard {
         for (var i = 0; i < choices.length; ++i) if (choices[i].value === controller.vendor) return choices[i].label
         return controller.vendor
     }
+    Flickable {
+        id: toolbarScroll
+        anchors.fill: parent
+        contentWidth: toolbarFlow.implicitWidth
+        contentHeight: height
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        flickableDirection: Flickable.HorizontalFlick
+        ScrollBar.horizontal: AppScrollBar {}
     RowLayout {
         id: toolbarFlow
-        anchors.fill: parent
+        width: Math.max(toolbarScroll.width, implicitWidth)
+        height: toolbarScroll.height
         spacing: 8
         AppButton { objectName: "openButton"; implicitHeight: 40; font: Typography.body; text: i18n.catalog["toolbar.open"]; onClicked: root.openRequested() }
         AppButton { objectName: "exportButton"; implicitHeight: 40; font: Typography.body; text: i18n.catalog["toolbar.export"]; enabled: root.controller.sourceText.trim().length > 0; onClicked: root.exportRequested() }
@@ -44,6 +54,13 @@ AppCard {
             label: i18n.catalog["toolbar.vendor"]
             valueText: root.vendorLabel()
             onClicked: vendorDialog.open()
+        }
+        AppButton {
+            objectName: "completionButton"
+            implicitHeight: 40
+            font: Typography.body
+            text: i18n.catalog["completion.title"]
+            onClicked: completionDialog.open()
         }
         AppButton {
             id: panelsButton
@@ -77,6 +94,7 @@ AppCard {
         }
         Item { Layout.fillWidth: true }
     }
+    }
     SelectionDialog {
         id: modeDialog
         objectName: "modeSelectionDialog"
@@ -99,5 +117,41 @@ AppCard {
         selectedValue: root.controller.vendor
         options: root.vendorOptions()
         onValueSelected: value => root.controller.vendor = value
+    }
+    AppDialog {
+        id: completionDialog
+        objectName: "completionDialog"
+        title: i18n.catalog["completion.title"]
+        contentItem: ColumnLayout {
+            spacing: 12
+            Label {
+                Layout.fillWidth: true
+                text: i18n.catalog["completion.help"]
+                wrapMode: Text.Wrap
+                color: Colors.textSecondary
+                font: Typography.body
+            }
+            RadioButton {
+                objectName: "completionOption-auto"
+                text: i18n.catalog["vendor.auto"]
+                checked: commandCompletion.automatic
+                onClicked: commandCompletion.toggleVendor("auto")
+            }
+            Repeater {
+                model: root.controller.vendorOptions.filter(option => option.value !== "auto")
+                delegate: CheckBox {
+                    required property var modelData
+                    objectName: "completionOption-" + modelData.value
+                    text: modelData.label
+                    checked: commandCompletion.selectedVendors.indexOf(modelData.value) >= 0
+                    onClicked: commandCompletion.toggleVendor(modelData.value)
+                }
+            }
+            AppButton {
+                Layout.alignment: Qt.AlignRight
+                text: i18n.catalog["common.close"]
+                onClicked: completionDialog.close()
+            }
+        }
     }
 }

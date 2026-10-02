@@ -184,5 +184,10 @@
   "analysis.unsupported_lines": "Unsupported",
   "analysis.coverage_scope": "Only supported rules are checked. Recognition does not mean full validation. Up to 80 line numbers are shown; exports contain the full list.",
   "settings.reduce_motion": "Reduce interface animations",
-  "editor.preview_hint": "Read-only pages for large text. Search covers this page; analysis and saving use the complete text."
+  "editor.preview_hint": "Read-only pages for large text. Search covers this page; analysis and saving use the complete text.",
+  "completion.title": "Completion",
+  "completion.help": "Press Tab in either editor. Automatic detection is exclusive; specific vendors can be selected together. Clearing them restores automatic detection.",
+  "completion.keys": "Tab/arrows select · Enter accept · Esc close",
+  "completion.argument": "Enter argument:",
+  "completion.no_match": "No matching command."
 }

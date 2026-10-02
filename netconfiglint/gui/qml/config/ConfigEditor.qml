@@ -24,6 +24,40 @@ AppCard {
     property int currentLine: 1
     property int editorFontSize: Typography.monospace.pixelSize
     property bool zoomModified: false
+    property var completionResult: ({ items: [], arguments: [] })
+    property bool applyingCompletion: false
+    property bool completionActive: false
+    function requestCompletion() {
+        if (editor.readOnly || editor.selectionStart !== editor.selectionEnd) return
+        if (root.completionActive && completionList.count > 0) {
+            completionList.currentIndex = (completionList.currentIndex + 1) % completionList.count
+            completionList.positionViewAtIndex(completionList.currentIndex, ListView.Contain)
+            return
+        }
+        completionResult = commandCompletion.request(editor.text, editor.cursorPosition)
+        if (completionResult.insert.length > 0) {
+            var unique = completionResult.items.length === 1
+            applyingCompletion = true
+            commandCompletion.replace(editor, completionResult.start, completionResult.end, completionResult.insert)
+            applyingCompletion = false
+            if (unique) { completionPopup.close(); return }
+            completionResult = commandCompletion.request(editor.text, editor.cursorPosition)
+            // Unique keyword completion advances to its argument; no popup is needed yet.
+            if (completionResult.start === editor.cursorPosition) return
+        }
+        completionList.currentIndex = completionResult.items.length > 0 ? 0 : -1
+        completionPopup.open()
+    }
+    function acceptCompletion(index) {
+        if (index < 0 || index >= completionResult.items.length) return
+        var end = completionResult.end
+        var suffix = end < editor.length && /\s/.test(editor.text[end]) ? "" : " "
+        applyingCompletion = true
+        commandCompletion.replace(editor, completionResult.start, end, completionResult.items[index].text + suffix)
+        applyingCompletion = false
+        completionPopup.close()
+        editor.forceActiveFocus()
+    }
     readonly property int selectionWindowStart: scrollView.contentItem
         ? editor.positionAt(editor.leftPadding,
             Math.max(0, scrollView.contentItem.contentY - 2 * monoMetrics.height)) : 0
@@ -218,6 +252,31 @@ AppCard {
                     selectByMouse: true
                     Keys.priority: Keys.BeforeItem
                     Keys.onPressed: event => {
+                        if ((event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)
+                            && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
+                            && !editor.readOnly) {
+                            if (event.key === Qt.Key_Backtab && root.completionActive && completionList.count > 0) {
+                                completionList.currentIndex = (completionList.currentIndex + completionList.count - 1) % completionList.count
+                                completionList.positionViewAtIndex(completionList.currentIndex, ListView.Contain)
+                            } else root.requestCompletion()
+                            event.accepted = true
+                            return
+                        }
+                        if (root.completionActive) {
+                            if (event.key === Qt.Key_Escape) {
+                                completionPopup.close(); event.accepted = true; return
+                            }
+                            if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && completionList.currentIndex >= 0) {
+                                root.acceptCompletion(completionList.currentIndex); event.accepted = true; return
+                            }
+                            if ((event.key === Qt.Key_Down || event.key === Qt.Key_Up) && completionList.count > 0) {
+                                var direction = event.key === Qt.Key_Down ? 1 : -1
+                                completionList.currentIndex = (completionList.currentIndex + direction + completionList.count) % completionList.count
+                                completionList.positionViewAtIndex(completionList.currentIndex, ListView.Contain)
+                                event.accepted = true; return
+                            }
+                            completionPopup.close()
+                        }
                         if (event.matches(StandardKey.SelectAll)) {
                             root.selectAllWithoutScroll()
                             event.accepted = true
@@ -265,8 +324,9 @@ AppCard {
                         z: 3
                     }
                     ContextMenu.menu: TextEditMenu { editor: root.editor; zoomTarget: root }
-                    onTextChanged: { if (!pagedPreview) root.textEdited(text); Qt.callLater(root.updateCurrentLine) }
-                    onCursorPositionChanged: Qt.callLater(root.updateCurrentLine)
+                    onTextChanged: { if (!root.applyingCompletion) completionPopup.close(); if (!pagedPreview) root.textEdited(text); Qt.callLater(root.updateCurrentLine) }
+                    onCursorPositionChanged: { if (!root.applyingCompletion) completionPopup.close(); Qt.callLater(root.updateCurrentLine) }
+                    onActiveFocusChanged: if (!activeFocus) completionPopup.close()
                 }
             }
             Rectangle {
@@ -301,6 +361,78 @@ AppCard {
             }
         }
     }
+    Popup {
+        id: completionPopup
+        objectName: root.editorObjectName + "CompletionPopup"
+        parent: Overlay.overlay
+        popupType: Popup.Item
+        modal: false
+        focus: false
+        onAboutToShow: root.completionActive = true
+        onAboutToHide: root.completionActive = false
+        padding: 12
+        width: parent ? Math.min(520, parent.width - 24) : 520
+        height: Math.min(360, contentColumn.implicitHeight + padding * 2, parent ? parent.height - 24 : 360)
+        property point caretPoint: editor.mapToItem(parent, editor.cursorRectangle.x, editor.cursorRectangle.y)
+        x: parent ? Math.max(12, Math.min(parent.width - width - 12, caretPoint.x)) : 0
+        y: parent ? Math.max(12, Math.min(parent.height - height - 12, caretPoint.y + editor.cursorRectangle.height + 4)) : 0
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        background: Rectangle { color: Colors.surfaceContainerHigh; radius: 12; border.color: Colors.outline }
+        contentItem: ColumnLayout {
+            id: contentColumn
+            spacing: 8
+            Label {
+                Layout.fillWidth: true
+                font: Typography.caption
+                color: Colors.textSecondary
+                text: (root.completionResult.vendors || []).join(" / ") + " · " + i18n.catalog["completion.keys"]
+                wrapMode: Text.Wrap
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: (root.completionResult.arguments || []).length > 0
+                text: i18n.catalog["completion.argument"] + " " + (root.completionResult.arguments || []).slice(0, 8).join(" / ")
+                textFormat: Text.PlainText
+                color: Colors.textSecondary
+                font: Typography.caption
+                wrapMode: Text.Wrap
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: completionList.count === 0 && (root.completionResult.arguments || []).length === 0
+                text: i18n.catalog["completion.no_match"]
+                color: Colors.textSecondary
+                font: Typography.body
+                wrapMode: Text.Wrap
+            }
+            ListView {
+                id: completionList
+                objectName: root.editorObjectName + "CompletionList"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                implicitHeight: Math.min(280, count * 64)
+                model: root.completionResult.items
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: AppScrollBar {}
+                delegate: ItemDelegate {
+                    required property var modelData
+                    required property int index
+                    width: ListView.view.width
+                    height: 64
+                    focusPolicy: Qt.NoFocus
+                    highlighted: ListView.isCurrentItem
+                    onClicked: root.acceptCompletion(index)
+                    contentItem: Column {
+                        spacing: 3
+                        Label { width: parent.width; text: modelData.text + "    " + modelData.vendors.join(" / "); textFormat: Text.PlainText; font: fontPalette.editorFont(14); color: Colors.textPrimary; elide: Text.ElideRight }
+                        Label { width: parent.width; text: modelData.syntax; textFormat: Text.PlainText; font: Typography.caption; color: Colors.textSecondary; elide: Text.ElideRight }
+                    }
+                }
+            }
+        }
+    }
+    Connections { target: commandCompletion; function onChanged() { completionPopup.close() } }
     Shortcut { sequence: Qt.platform.os === "osx" ? "Meta+G" : "Ctrl+G"; enabled: root.visible && editor.activeFocus; onActivated: jumpDialog.open() }
     Shortcut { sequences: [StandardKey.ZoomIn, Qt.platform.os === "osx" ? "Meta+=" : "Ctrl+="]; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(1) }
     Shortcut { sequences: [StandardKey.ZoomOut]; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(-1) }

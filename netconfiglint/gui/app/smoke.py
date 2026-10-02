@@ -14,6 +14,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
 
 from netconfiglint import __version__
+from netconfiglint.commands.completion import commands
 from netconfiglint.gui.controllers import AnalysisController
 
 
@@ -81,6 +82,31 @@ def run_smoke(
 
     def analyze_sample() -> None:
         try:
+            completion_cases = []
+            for card_name, editor_name in (
+                ("configurationEditor", "configurationTextArea"),
+                ("temporaryEditor", "temporaryTextArea"),
+            ):
+                card = window.findChild(QObject, card_name)
+                editor = window.findChild(QObject, editor_name)
+                if card is None or editor is None:
+                    raise RuntimeError("Completion editor unavailable")
+                for source, expected in (
+                    ("sysnam", "sysname "),
+                    ("peer 192.0.2.1 as-n", "peer 192.0.2.1 as-number "),
+                ):
+                    editor.setProperty("text", source)
+                    editor.setProperty("cursorPosition", len(source))
+                    if not QMetaObject.invokeMethod(card, "requestCompletion"):
+                        raise RuntimeError("Completion action unavailable")
+                    if editor.property("text") != expected:
+                        raise RuntimeError("Bundled completion failed")
+                    completion_cases.append({"editor": editor_name, "passed": True})
+                editor.setProperty("text", "")
+            report["completion"] = completion_cases
+            report["completion_catalogs"] = {
+                vendor: sum(entry.vendor == vendor for entry in commands()) for vendor in ("h3c", "huawei")
+            }
             if controller.property("mode") != "snippet":
                 raise RuntimeError("Default analysis mode is not snippet")
             report["default_mode"] = controller.property("mode")
