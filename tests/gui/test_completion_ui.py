@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QMetaObject, QObject, Qt
+from PySide6.QtCore import Q_ARG, QMetaObject, QObject, QPointF, Qt
 from PySide6.QtQuick import QQuickItem, QQuickWindow
 from PySide6.QtTest import QTest
 
@@ -157,3 +157,31 @@ def test_unicode_offset_and_popup_bounds(desktop: tuple) -> None:
     assert popup.property("x") >= 0 and popup.property("y") >= 0
     assert popup.property("x") + popup.property("width") <= window.width()
     assert popup.property("y") + popup.property("height") <= window.height()
+
+
+@pytest.mark.parametrize("name", ["configurationTextArea", "temporaryTextArea"])
+def test_mouse_accept_and_changed_document_rejects_stale_popup(desktop: tuple, name: str) -> None:
+    window, _, _ = desktop
+    editor = find(window, name)
+    editor.setProperty("text", "sys")
+    editor.setProperty("cursorPosition", 3)
+    editor.forceActiveFocus()
+    QTest.keyClick(window, Qt.Key.Key_Tab)
+    candidate_list = find(window, name + "CompletionList")
+    QTest.qWait(20)
+    candidate = next(
+        item
+        for item in descendants(candidate_list)
+        if item.property("index") == 0 and item.property("modelData") is not None
+    )
+    point = candidate.mapToScene(QPointF(candidate.width() / 2, candidate.height() / 2)).toPoint()
+    QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=point)
+    assert editor.property("text").endswith(" ")
+    editor.setProperty("text", "sys")
+    editor.setProperty("cursorPosition", 3)
+    editor.forceActiveFocus()
+    QTest.keyClick(window, Qt.Key.Key_Tab)
+    editor.setProperty("text", "new document")
+    card = find(window, "configurationEditor" if name == "configurationTextArea" else "temporaryEditor")
+    assert QMetaObject.invokeMethod(card, "acceptCompletion", Q_ARG("QVariant", 0))
+    assert editor.property("text") == "new document"
