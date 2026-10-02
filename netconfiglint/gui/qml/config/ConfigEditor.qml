@@ -27,6 +27,8 @@ AppCard {
     property var completionResult: ({ items: [], arguments: [] })
     property bool applyingCompletion: false
     property bool completionActive: false
+    property string completionSourceText: ""
+    property int completionCursor: -1
     function requestCompletion() {
         if (editor.readOnly || editor.selectionStart !== editor.selectionEnd) return
         if (root.completionActive && completionList.count > 0) {
@@ -46,9 +48,13 @@ AppCard {
             if (completionResult.start === editor.cursorPosition) return
         }
         completionList.currentIndex = completionResult.items.length > 0 ? 0 : -1
+        completionSourceText = editor.text
+        completionCursor = editor.cursorPosition
         completionPopup.open()
     }
     function acceptCompletion(index) {
+        if (!completionActive || editor.text !== completionSourceText
+            || editor.cursorPosition !== completionCursor) return
         if (index < 0 || index >= completionResult.items.length) return
         var end = completionResult.end
         var suffix = end < editor.length && /\s/.test(editor.text[end]) ? "" : " "
