@@ -195,3 +195,6 @@ def test_policy_names_cannot_cross_ssl_and_qos_namespaces(vendor: str) -> None:
     assert "synthetic" not in texts(source, vendor)
     source = declaration + " synthetic\n" + declaration + " syn"
     assert "synthetic" in texts(source, vendor)
+    assert "syn" not in texts(source, vendor)
+    source = declaration + " syn"
+    assert not texts(source, vendor)
