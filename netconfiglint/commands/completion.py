@@ -68,20 +68,29 @@ def _declared(source: str) -> dict[str, tuple[str, ...]]:
     }
 
 
-def _parameter_values(token: str, vendor: str, source: str) -> tuple[str, ...]:
+def _parameter_values(token: str, vendor: str, source: str, syntax: str) -> tuple[str, ...]:
     name = token.strip("<>").lower()
     if name in {"interface-type", "if-type"}:
         return _INTERFACE_TYPES[vendor]
-    for fragment, key in (
-        ("vpn-instance", "vpn"),
-        ("route-policy", "route-policy"),
-        ("classifier", "classifier"),
-        ("behavior", "behavior"),
-        ("policy-name", "policy"),
-        ("interface-name", "interface"),
+    object_parameters = {
+        "vpn-instance": "vpn",
+        "vpn-instance-name": "vpn",
+        "route-policy-name": "route-policy",
+        "classifier-name": "classifier",
+        "traffic-classifier-name": "classifier",
+        "behavior-name": "behavior",
+        "traffic-behavior-name": "behavior",
+        "qos-policy-name": "policy",
+        "traffic-policy-name": "policy",
+        "interface-name": "interface",
+    }
+    key = object_parameters.get(name)
+    if key:
+        return _declared(source)[key]
+    if name == "policy-name" and re.match(
+        r"^(?:undo |display )?(?:qos\b|traffic policy\b|traffic-policy\b)", syntax
     ):
-        if fragment in name:
-            return _declared(source)[key]
+        return _declared(source)["policy"]
     return ()
 
 
@@ -381,7 +390,7 @@ def complete(source: str, cursor: int, selected: tuple[str, ...] = ()) -> dict[s
         for token in next_tokens:
             if token.startswith("<"):
                 arguments.add(token)
-                values.update(_parameter_values(token, entry.vendor, source))
+                values.update(_parameter_values(token, entry.vendor, source, entry.syntax))
             else:
                 values.add(token)
         for token in values:

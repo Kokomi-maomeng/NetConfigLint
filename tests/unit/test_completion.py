@@ -185,3 +185,13 @@ def test_all_catalog_notation_is_balanced_and_operators_are_not_arguments() -> N
 )
 def test_reference_errata_preserve_keyword_choices(source: str, vendor: str, expected: str) -> None:
     assert expected in texts(source, vendor)
+
+
+@pytest.mark.parametrize("vendor", ["h3c", "huawei"])
+def test_policy_names_cannot_cross_ssl_and_qos_namespaces(vendor: str) -> None:
+    declaration = "qos policy" if vendor == "h3c" else "traffic policy"
+    ssl_command = "ssl server-policy" if vendor == "h3c" else "ssl policy"
+    source = declaration + " synthetic\n" + ssl_command + " syn"
+    assert "synthetic" not in texts(source, vendor)
+    source = declaration + " synthetic\n" + declaration + " syn"
+    assert "synthetic" in texts(source, vendor)
