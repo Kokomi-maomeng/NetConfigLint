@@ -190,6 +190,7 @@ def audit_archive(root: Path, archive: Path, *, upstream: dict[str, str] | None 
     expected = {
         path.relative_to(root).as_posix(): path
         for parent in (
+            root / "netconfiglint/commands/data",
             root / "netconfiglint/gui/qml",
             root / "netconfiglint/gui/i18n",
             root / "netconfiglint/resources",
@@ -230,6 +231,7 @@ def audit_archive(root: Path, archive: Path, *, upstream: dict[str, str] | None 
                 and any(
                     relative.startswith(prefix)
                     for prefix in (
+                        "netconfiglint/commands/data/",
                         "netconfiglint/gui/qml/",
                         "netconfiglint/gui/i18n/",
                         "netconfiglint/resources/",

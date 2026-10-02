@@ -378,7 +378,7 @@ AppCard {
         onAboutToHide: root.completionActive = false
         padding: 12
         width: parent ? Math.min(520, parent.width - 24) : 520
-        height: Math.min(360, contentColumn.implicitHeight + padding * 2, parent ? parent.height - 24 : 360)
+        height: Math.min(360, contentColumn.preferredHeight + padding * 2, parent ? parent.height - 24 : 360)
         property point caretPoint: editor.mapToItem(parent, editor.cursorRectangle.x, editor.cursorRectangle.y)
         x: parent ? Math.max(12, Math.min(parent.width - width - 12, caretPoint.x)) : 0
         y: parent ? Math.max(12, Math.min(parent.height - height - 12, caretPoint.y + editor.cursorRectangle.height + 4)) : 0
@@ -387,7 +387,14 @@ AppCard {
         contentItem: ColumnLayout {
             id: contentColumn
             spacing: 8
+            // Derive desired rows independently of the layout's allocated height.
+            // Native layouts can otherwise collapse a fill-height ListView to zero.
+            readonly property real preferredHeight: completionHeading.implicitHeight
+                + (completionArguments.visible ? completionArguments.implicitHeight + spacing : 0)
+                + (completionEmpty.visible ? completionEmpty.implicitHeight + spacing : 0)
+                + (completionList.count > 0 ? Math.min(280, completionList.count * 64) + spacing : 0)
             Label {
+                id: completionHeading
                 Layout.fillWidth: true
                 font: Typography.caption
                 color: Colors.textSecondary
@@ -395,6 +402,7 @@ AppCard {
                 wrapMode: Text.Wrap
             }
             Label {
+                id: completionArguments
                 Layout.fillWidth: true
                 visible: (root.completionResult.arguments || []).length > 0
                 text: i18n.catalog["completion.argument"] + " " + (root.completionResult.arguments || []).slice(0, 8).join(" / ")
@@ -404,6 +412,7 @@ AppCard {
                 wrapMode: Text.Wrap
             }
             Label {
+                id: completionEmpty
                 Layout.fillWidth: true
                 visible: completionList.count === 0 && (root.completionResult.arguments || []).length === 0
                 text: i18n.catalog["completion.no_match"]
@@ -416,7 +425,7 @@ AppCard {
                 objectName: root.editorObjectName + "CompletionList"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                implicitHeight: Math.min(280, count * 64)
+                Layout.preferredHeight: Math.min(280, count * 64)
                 model: root.completionResult.items
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds

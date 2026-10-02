@@ -168,13 +168,20 @@ def test_mouse_accept_and_changed_document_rejects_stale_popup(desktop: tuple, n
     editor.forceActiveFocus()
     QTest.keyClick(window, Qt.Key.Key_Tab)
     candidate_list = find(window, name + "CompletionList")
-    QTest.qWait(20)
+    popup = find(window, name + "CompletionPopup")
+    for _ in range(50):
+        if popup.property("opened"):
+            break
+        QTest.qWait(10)
+    assert popup.property("opened")
+    assert candidate_list.height() > 0
     candidate = next(
         item
         for item in descendants(candidate_list)
         if item.property("index") == 0 and item.property("modelData") is not None
     )
     point = candidate.mapToScene(QPointF(candidate.width() / 2, candidate.height() / 2)).toPoint()
+    assert 0 <= point.x() < window.width() and 0 <= point.y() < window.height()
     QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=point)
     assert editor.property("text").endswith(" ")
     editor.setProperty("text", "sys")

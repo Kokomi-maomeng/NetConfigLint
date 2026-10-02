@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import zipfile
 from pathlib import Path
 from time import perf_counter
 
 import pytest
 
 from netconfiglint.commands.completion import Command, _next_tokens, commands, complete, detect_vendors
+from scripts.audit_release import audit_archive
 
 
 def texts(source: str, vendor: str = "", cursor: int | None = None) -> set[str]:
@@ -146,3 +148,21 @@ def test_manual_override_and_two_vendor_deduplication() -> None:
     names = [row["text"] for row in result["items"]]
     assert len(names) == len(set(names))
     assert next(row for row in result["items"] if row["text"] == "sysname")["vendors"] == ["H3C", "Huawei"]
+
+
+def test_release_audit_checks_catalog_against_source(tmp_path: Path) -> None:
+    relative = "netconfiglint/commands/data/h3c.json"
+    source = tmp_path / relative
+    source.parent.mkdir(parents=True)
+    source.write_text('{"vendor": "h3c"}', encoding="utf-8")
+    archive = tmp_path / "portable.zip"
+    with zipfile.ZipFile(archive, "w") as package:
+        package.write(source, "runtime/" + relative)
+    assert audit_archive(tmp_path, archive)["passed"]
+    source.write_text('{"vendor": "huawei"}', encoding="utf-8")
+    result = audit_archive(tmp_path, archive)
+    assert not result["passed"] and result["resource_mismatches"] == [relative]
+    with zipfile.ZipFile(archive, "w"):
+        pass
+    result = audit_archive(tmp_path, archive)
+    assert not result["passed"] and result["missing_resources"] == [relative]
