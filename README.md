@@ -23,7 +23,7 @@ a list. Use Tab/Shift+Tab or arrows, Enter to accept, and Escape to cancel. Para
 optional groups, `undo`, interface types and declared VPN/policy names are supported.
 Shared syntax does not force a vendor; mixed or uncertain input retains multiple vendors.
 
-The independent offline catalogs contain 9,723 Comware and 28,479 VRP syntax forms from
+The independent offline catalogs contain 9,722 Comware and 28,464 VRP syntax forms from
 specified official references. They provide completion rather than universal device syntax
 validation. See the [v2.6 completion, sources and vendor independence report](docs/v2.6-command-completion.md).
 

@@ -62,7 +62,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "ac interface <interface-type> <interface-number> service-instance <instance-id> [ access-mode { ethernet | vlan } ] [ track <track-entry-number>  *  ]",
+      "syntax": "ac interface <interface-type> <interface-number> service-instance <instance-id> [ access-mode { ethernet | vlan } ] [ track <track-entry-number> * ]",
       "views": [
         "Cross-connect view"
       ],
@@ -613,7 +613,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "affinity location-set { slot <slot-number> } *  { attract <strength> | default | none | repulse <strength> }",
+      "syntax": "affinity location-set { slot <slot-number> } * { attract <strength> | default | none | repulse <strength> }",
       "views": [
         "Placement process view"
       ],
@@ -803,7 +803,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "apply as-path { <as-number>  *  [ delete | replace ] | clear }",
+      "syntax": "apply as-path { <as-number> * [ delete | replace ] | clear }",
       "views": [
         "Routing policy node view"
       ],
@@ -817,7 +817,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "apply community { none | additive | { <community-number>  *  | <aa:nn>  *  | internet | no-advertise | no-export | no-export-subconfed } * [ additive ] }",
+      "syntax": "apply community { none | additive | { <community-number> * | <aa:nn> * | internet | no-advertise | no-export | no-export-subconfed } * [ additive ] }",
       "views": [
         "Routing policy node view"
       ],
@@ -838,14 +838,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "apply default-next-hop [ vpn-instance <vpn-instance-name> ] { <ip-address> [ direct ] [ track <track-entry-number> ] } * ",
+      "syntax": "apply default-next-hop [ vpn-instance <vpn-instance-name> ] { <ip-address> [ direct ] [ track <track-entry-number> ] } *",
       "views": [
         "Policy node view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "apply default-next-hop [ vpn-instance <vpn-instance-name> ] { <ipv6-address> [ direct ] [ track <track-entry-number> ] } * ",
+      "syntax": "apply default-next-hop [ vpn-instance <vpn-instance-name> ] { <ipv6-address> [ direct ] [ track <track-entry-number> ] } *",
       "views": [
         "IPv6 policy node view"
       ],
@@ -859,14 +859,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "apply extcommunity soo <site-of-origin>  *  [ additive ]",
+      "syntax": "apply extcommunity soo <site-of-origin> * [ additive ]",
       "views": [
         "Routing policy node view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "apply extcommunity { rt <route-target> } *  [ additive ]",
+      "syntax": "apply extcommunity { rt <route-target> } * [ additive ]",
       "views": [
         "Routing policy node view"
       ],
@@ -974,14 +974,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "apply next-hop [ vpn-instance <vpn-instance-name> ] { <ip-address> [ direct ] [ track <track-entry-number> ] } * ",
+      "syntax": "apply next-hop [ vpn-instance <vpn-instance-name> ] { <ip-address> [ direct ] [ track <track-entry-number> ] } *",
       "views": [
         "Policy node view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "apply next-hop [ vpn-instance <vpn-instance-name> ] { <ipv6-address> [ direct ] [ track <track-entry-number> ] }  * ",
+      "syntax": "apply next-hop [ vpn-instance <vpn-instance-name> ] { <ipv6-address> [ direct ] [ track <track-entry-number> ] } *",
       "views": [
         "IPv6 policy node view"
       ],
@@ -1314,7 +1314,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "arp multiport <ip-address> <mac-address> { <vlan-id> <|> vsi-interface <vsi-interface-id> vsi <vsi-name> } [ vpn-instance <vpn-instance-name> ] [ description <text> ]",
+      "syntax": "arp multiport <ip-address> <mac-address> { <vlan-id> | vsi-interface <vsi-interface-id> vsi <vsi-name> } [ vpn-instance <vpn-instance-name> ] [ description <text> ]",
       "views": [
         "System view"
       ],
@@ -1419,7 +1419,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "arp scan auto send-rate { ppm <ppm> <|> pps <pps> }",
+      "syntax": "arp scan auto send-rate { ppm <ppm> | pps <pps> }",
       "views": [
         "System view"
       ],
@@ -1496,7 +1496,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "arp source-mac exclude-mac <mac-address>  * ",
+      "syntax": "arp source-mac exclude-mac <mac-address> *",
       "views": [
         "System view"
       ],
@@ -2393,7 +2393,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "bfd forwarding match remote-discriminator <discr-value-list> { <discr-value1> [ to <discr-value2> ] }  * ",
+      "syntax": "bfd forwarding match remote-discriminator <discr-value-list> { <discr-value1> [ to <discr-value2> ] } *",
       "views": [
         "System view"
       ],
@@ -2655,7 +2655,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "binding instance-type <instance-type> { all { physical | tunnel } | instance <instance-name>  *  }",
+      "syntax": "binding instance-type <instance-type> { all { physical | tunnel } | instance <instance-name> * }",
       "views": [
         "Statistics task view"
       ],
@@ -2732,14 +2732,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "boot-loader file <ipe-filename> [ patch <filename>  *  ] { all | slot <slot-number> } { backup | main }",
+      "syntax": "boot-loader file <ipe-filename> [ patch <filename> * ] { all | slot <slot-number> } { backup | main }",
       "views": [
         "User view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "boot-loader file boot <filename> system <filename> [ feature <filename>  *  ] [ patch <filename>  *  ] { all | slot <slot-number> } { backup | main }",
+      "syntax": "boot-loader file boot <filename> system <filename> [ feature <filename> * ] [ patch <filename> * ] { all | slot <slot-number> } { backup | main }",
       "views": [
         "User view"
       ],
@@ -4238,7 +4238,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "delay-measure alarm upper-limit { <upper-limit> <|> microsec <upper-limit-us> } lower-limit { <lower-limit> <|> microsec <lower-limit-us> }",
+      "syntax": "delay-measure alarm upper-limit { <upper-limit> | microsec <upper-limit-us> } lower-limit { <lower-limit> | microsec <lower-limit-us> }",
       "views": [
         "Analyzer instance view"
       ],
@@ -5191,7 +5191,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display <command> [ | { count | [ by-linenum ] { begin | exclude | include } <regular-expression> } ] * ",
+      "syntax": "display <command> [ | { count | [ by-linenum ] { begin | exclude | include } <regular-expression> } ] *",
       "views": [
         "Any view"
       ],
@@ -5450,7 +5450,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display attack-defense policy <policy-name> { ack-flood | dns-flood | fin-flood | flood | http-flood | icmpv6-flood | rst-flood | syn-ack-flood | syn-flood | udp-flood } ipv6 [ <ipv6-address> [ vpn <vpn-instance-name> ] ] [ slot <slot-number> ] ] [ count ]",
+      "syntax": "display attack-defense policy <policy-name> { ack-flood | dns-flood | fin-flood | flood | http-flood | icmpv6-flood | rst-flood | syn-ack-flood | syn-flood | udp-flood } ipv6 [ <ipv6-address> [ vpn <vpn-instance-name> ] ] [ slot <slot-number> ] [ count ]",
       "views": [
         "Any view"
       ],
@@ -5534,14 +5534,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bfd session [ [ static ] [ ip ] [ state { down | admin-down | init | up } ] [ discriminator remote <remote-value> ] [ peer-ip <ipv4-address> [ vpn-instance <vpn-instance-name> ] ] [ verbose ]",
+      "syntax": "display bfd session [ [ static ] [ ip ] [ state { down | admin-down | init | up } ] [ discriminator remote <remote-value> ] [ peer-ip <ipv4-address> [ vpn-instance <vpn-instance-name> ] ] [ verbose ] ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bfd session [ [ static ] [ ipv6 ] [ state { down | admin-down | init | up } ] [ discriminator remote <remote-value> ] [ peer-ipv6 <ipv6-address> [ vpn-instance <vpn-instance-name> ] ] [ verbose ]",
+      "syntax": "display bfd session [ [ static ] [ ipv6 ] [ state { down | admin-down | init | up } ] [ discriminator remote <remote-value> ] [ peer-ipv6 <ipv6-address> [ vpn-instance <vpn-instance-name> ] ] [ verbose ] ]",
       "views": [
         "Any view"
       ],
@@ -5618,7 +5618,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] group ipv4 [ mdt | multicast <|> rtfilter | [ unicast ] [ vpn-instance <vpn-instance-name> ] ] [ group-name <group-name> ]",
+      "syntax": "display bgp [ instance <instance-name> ] group ipv4 [ mdt | multicast | rtfilter | [ unicast ] [ vpn-instance <vpn-instance-name> ] ] [ group-name <group-name> ]",
       "views": [
         "Any view"
       ],
@@ -5681,21 +5681,21 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] l2vpn evpn [ route-distinguisher <route-distinguisher> ] [ statistics ] community - list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] l2vpn evpn [ route-distinguisher <route-distinguisher> ] [ statistics ] community [ <community-number> * | <aa:nn> * ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] l2vpn evpn [ route-distinguisher <route-distinguisher> ] [ statistics ] community [ <community-number>  *  | <aa:nn>  *  ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] l2vpn evpn [ route-distinguisher <route-distinguisher> ] [ statistics ] community-list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] l2vpn evpn [ route-distinguisher <route-distinguisher> ] [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] *  [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] l2vpn evpn [ route-distinguisher <route-distinguisher> ] [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] * [ whole-match ]",
       "views": [
         "Any view"
       ],
@@ -5905,21 +5905,21 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 [ unicast ] [ vpn-instance <vpn-instance-name> ] [ statistics ] community - list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 [ unicast ] [ vpn-instance <vpn-instance-name> ] [ statistics ] community [ <community-number> * | <aa:nn> * ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 [ unicast ] [ vpn-instance <vpn-instance-name> ] [ statistics ] community [ <community-number>  *  | <aa:nn>  *  ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 [ unicast ] [ vpn-instance <vpn-instance-name> ] [ statistics ] community-list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 [ unicast ] [ vpn-instance <vpn-instance-name> ] [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] *  [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 [ unicast ] [ vpn-instance <vpn-instance-name> ] [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] * [ whole-match ]",
       "views": [
         "Any view"
       ],
@@ -5961,21 +5961,21 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 multicast [ statistics ] community - list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 multicast [ statistics ] community [ <community-number> * | <aa:nn> * ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 multicast [ statistics ] community [ <community-number>  *  | <aa:nn>  *  ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 multicast [ statistics ] community-list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 multicast [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] *  [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 multicast [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] * [ whole-match ]",
       "views": [
         "Any view"
       ],
@@ -6010,7 +6010,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 mvpn [ route-distinguisher <route-distinguisher> ] [ statistics ] ext-community [ rt <route-target> ] *  [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv4 mvpn [ route-distinguisher <route-distinguisher> ] [ statistics ] ext-community [ rt <route-target> ] * [ whole-match ]",
       "views": [
         "Any view"
       ],
@@ -6045,21 +6045,21 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv6 [ unicast ] [ vpn-instance <vpn-instance-name> ] [ statistics ] community - list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv6 [ unicast ] [ vpn-instance <vpn-instance-name> ] [ statistics ] community [ <community-number> * | <aa:nn> * ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv6 [ unicast ] [ vpn-instance <vpn-instance-name> ] [ statistics ] community [ <community-number>  *  | <aa:nn>  *  ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv6 [ unicast ] [ vpn-instance <vpn-instance-name> ] [ statistics ] community-list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv6 [ unicast ] [ vpn-instance <vpn-instance-name> ] [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] *  [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv6 [ unicast ] [ vpn-instance <vpn-instance-name> ] [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] * [ whole-match ]",
       "views": [
         "Any view"
       ],
@@ -6101,21 +6101,21 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv6 multicast [ statistics ] community - list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv6 multicast [ statistics ] community [ <community-number> * | <aa:nn> * ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv6 multicast [ statistics ] community [ <community-number>  *  | <aa:nn>  *  ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv6 multicast [ statistics ] community-list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv6 multicast [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] *  [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table ipv6 multicast [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] * [ whole-match ]",
       "views": [
         "Any view"
       ],
@@ -6129,28 +6129,28 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv4 [ [ route-distinguisher <route-distinguisher> ] [ <ipv4-address> [ { <mask-length> | <mask> } [ longest-match ] ] | <ipv4-address> [ <mask-length> | <mask> ] advertise-info | <ipv4-address> [ <mask-length> | <mask> ] { as-path | cluster-list | community | ext-community } | [ vpn-instance <vpn-instance-name> ] peer <ipv4-address> { advertised-routes | received-routes } [ <ipv4-address> [ <mask-length> | <mask> ] | statistics ] | statistics ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv4 [ [ route-distinguisher <route-distinguisher> ] [ <ipv4-address> [ { <mask-length> | <mask> } [ longest-match ] ] | <ipv4-address> [ <mask-length> | <mask> ] advertise-info | <ipv4-address> [ <mask-length> | <mask> ] { as-path | cluster-list | community | ext-community } | [ vpn-instance <vpn-instance-name> ] peer <ipv4-address> { advertised-routes | received-routes } [ <ipv4-address> [ <mask-length> | <mask> ] | statistics ] | statistics ] ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv4 [ route-distinguisher <route-distinguisher> ] [ statistics ] community - list <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv4 [ route-distinguisher <route-distinguisher> ] [ statistics ] community [ <community-number> * | <aa:nn> * ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv4 [ route-distinguisher <route-distinguisher> ] [ statistics ] community [ <community-number>  *  | <aa:nn>  *  ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv4 [ route-distinguisher <route-distinguisher> ] [ statistics ] community-list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv4 [ route-distinguisher <route-distinguisher> ] [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] *  [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv4 [ route-distinguisher <route-distinguisher> ] [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] * [ whole-match ]",
       "views": [
         "Any view"
       ],
@@ -6178,28 +6178,28 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv6 [ [ route-distinguisher <route-distinguisher> ] [ <ipv6-address> <prefix-length> [ advertise-info ] | <ipv6-address> <prefix-length> { as-path | cluster-list | community | ext-community } | peer <ipv4-address> { advertised-routes | received-routes } [ <ipv6-address> <prefix-length> | statistics ] | statistics ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv6 [ [ route-distinguisher <route-distinguisher> ] [ <ipv6-address> <prefix-length> [ advertise-info ] | <ipv6-address> <prefix-length> { as-path | cluster-list | community | ext-community } | peer <ipv4-address> { advertised-routes | received-routes } [ <ipv6-address> <prefix-length> | statistics ] | statistics ] ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv6 [ route-distinguisher <route-distinguisher> ] [ statistics ] community - list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv6 [ route-distinguisher <route-distinguisher> ] [ statistics ] community [ <community-number> * | <aa:nn> * ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv6 [ route-distinguisher <route-distinguisher> ] [ statistics ] community [ <community-number>  *  | <aa:nn>  *  ] [ internet | no-advertise | no-export | no-export-subconfed ] [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv6 [ route-distinguisher <route-distinguisher> ] [ statistics ] community-list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv6 [ route-distinguisher <route-distinguisher> ] [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] *  [ whole-match ]",
+      "syntax": "display bgp [ instance <instance-name> ] routing-table vpnv6 [ route-distinguisher <route-distinguisher> ] [ statistics ] ext-community [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] * [ whole-match ]",
       "views": [
         "Any view"
       ],
@@ -8152,7 +8152,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display ip routing-table [ all-routes <|> all-vpn-instance <|> vpn-instance <vpn-instance-name> ] statistics",
+      "syntax": "display ip routing-table [ all-routes | all-vpn-instance | vpn-instance <vpn-instance-name> ] statistics",
       "views": [
         "Any view"
       ],
@@ -8831,7 +8831,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display ipv6 neighbors statistics { [ by-slot ] all | interface { <interface-name> <|> <interface-type> <interface-number> } | slot <slot-number> }",
+      "syntax": "display ipv6 neighbors statistics { [ by-slot ] all | interface { <interface-name> | <interface-type> <interface-number> } | slot <slot-number> }",
       "views": [
         "Any view"
       ],
@@ -11428,7 +11428,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display performance-management statistics <task-name> data <index> [ instance-type <instance-type> [ measure <measure-name> | instance <instance-name>  *  ] * ]",
+      "syntax": "display performance-management statistics <task-name> data <index> [ instance-type <instance-type> [ measure <measure-name> | instance <instance-name> * ] * ]",
       "views": [
         "Any view"
       ],
@@ -13353,14 +13353,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display version comp-matrix file ipe <ipe-filename> [ patch <filename>  *  ]",
+      "syntax": "display version comp-matrix file ipe <ipe-filename> [ patch <filename> * ]",
       "views": [
         "Any view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "display version comp-matrix file { boot <filename> | system <filename> | feature <filename>  *  | patch <filename>  *  } *",
+      "syntax": "display version comp-matrix file { boot <filename> | system <filename> | feature <filename> * | patch <filename> * } *",
       "views": [
         "Any view"
       ],
@@ -13773,7 +13773,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "dns-list <ip-address>  * ",
+      "syntax": "dns-list <ip-address> *",
       "views": [
         "DHCP address pool view"
       ],
@@ -14397,7 +14397,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "elephant-flow rate <rate> [ gbps | kbps | mbps ] [ size <size> [ bytes | kbytes <|> mbytes ] ]",
+      "syntax": "elephant-flow rate <rate> [ gbps | kbps | mbps ] [ size <size> [ bytes | kbytes | mbytes ] ]",
       "views": [
         "Elephant/mice flow view"
       ],
@@ -14822,7 +14822,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "evpn m-lag group { <virtual-vtep-ipv4> <|> <virtual-vtep-ipv6> }",
+      "syntax": "evpn m-lag group { <virtual-vtep-ipv4> | <virtual-vtep-ipv6> }",
       "views": [
         "System view"
       ],
@@ -14878,7 +14878,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "evpn route arp-mobility suppression [ detect-cycle <detect-time> | detect-threshold <move-times> | suppression-time [ <suppression-time> <|> permanent ] ] *",
+      "syntax": "evpn route arp-mobility suppression [ detect-cycle <detect-time> | detect-threshold <move-times> | suppression-time [ <suppression-time> | permanent ] ] *",
       "views": [
         "System view"
       ],
@@ -14892,14 +14892,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "evpn route mac-mobility suppression [ detect-cycle <detect-time> | detect-threshold <move-times> | suppression-time [ <suppression-time> <|> permanent ] ] *",
+      "syntax": "evpn route mac-mobility suppression [ detect-cycle <detect-time> | detect-threshold <move-times> | suppression-time [ <suppression-time> | permanent ] ] *",
       "views": [
         "System view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "evpn route nd-mobility suppression [ detect-cycle <detect-time> | detect-threshold <move-times> | suppression-time [ <suppression-time> <|> permanent ] ] *",
+      "syntax": "evpn route nd-mobility suppression [ detect-cycle <detect-time> | detect-threshold <move-times> | suppression-time [ <suppression-time> | permanent ] ] *",
       "views": [
         "System view"
       ],
@@ -15743,7 +15743,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "forbidden-ip <ip-address>  * ",
+      "syntax": "forbidden-ip <ip-address> *",
       "views": [
         "DHCP address pool view"
       ],
@@ -16031,14 +16031,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "gateway-list <ip-address>  * ",
+      "syntax": "gateway-list <ip-address> *",
       "views": [
         "DHCP address pool view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "gateway-list <ipv6-address>  * ",
+      "syntax": "gateway-list <ipv6-address> *",
       "views": [
         "DHCPv6 address pool view"
       ],
@@ -16861,7 +16861,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "if-match as-path { <as-path-number>  *  | <as-path-name> }",
+      "syntax": "if-match as-path { <as-path-number> * | <as-path-name> }",
       "views": [
         "Routing policy node view"
       ],
@@ -16882,7 +16882,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "if-match community { { <basic-community-list-number> | name <comm-list-name> } [ whole-match ] | <adv-community-list-number> } * ",
+      "syntax": "if-match community { { <basic-community-list-number> | name <comm-list-name> } [ whole-match ] | <adv-community-list-number> } *",
       "views": [
         "Routing policy node view",
         "Tunnel selector view"
@@ -16897,7 +16897,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "if-match extcommunity <ext-comm-list-number>  * ",
+      "syntax": "if-match extcommunity <ext-comm-list-number> *",
       "views": [
         "Routing policy node view"
       ],
@@ -16911,7 +16911,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "if-match interface { <interface-type> <interface-number> } * ",
+      "syntax": "if-match interface { <interface-type> <interface-number> } *",
       "views": [
         "Routing policy node view"
       ],
@@ -17060,7 +17060,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "if-match service-chain { path-id <service-path-id> [ path-index <service-path-index> ] } * ",
+      "syntax": "if-match service-chain { path-id <service-path-id> [ path-index <service-path-index> ] } *",
       "views": [
         "Policy node view"
       ],
@@ -18266,7 +18266,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "install activate { boot <filename> | system <filename> | feature <filename>  *  } * slot <slot-number> [ test ]",
+      "syntax": "install activate { boot <filename> | system <filename> | feature <filename> * } * slot <slot-number> [ test ]",
       "views": [
         "User view"
       ],
@@ -18287,7 +18287,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "install deactivate feature <filename>  *  slot <slot-number>",
+      "syntax": "install deactivate feature <filename> * slot <slot-number>",
       "views": [
         "User view"
       ],
@@ -18534,7 +18534,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "interface-peer <interface-type> <interface-number> as-path-acl { <as-path-acl-number> <|> <as-path-acl-name> } { export | import }",
+      "syntax": "interface-peer <interface-type> <interface-number> as-path-acl { <as-path-acl-number> | <as-path-acl-name> } { export | import }",
       "views": [
         "BGP IPv4 unicast\r\naddress family view"
       ],
@@ -18871,7 +18871,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "ip community-list { <basic-comm-list-num> | basic <basic-comm-list-name> } { deny | permit } [ <community-number>  *  | <aa:nn>  *  ] [ internet | no-advertise | no-export | no-export-subconfed ] *",
+      "syntax": "ip community-list { <basic-comm-list-num> | basic <basic-comm-list-name> } { deny | permit } [ <community-number> * | <aa:nn> * ] [ internet | no-advertise | no-export | no-export-subconfed ] *",
       "views": [
         "System view"
       ],
@@ -18885,7 +18885,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "ip extcommunity-list <ext-comm-list-number> [ index <index-number> ] { deny | permit } { bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> } * ",
+      "syntax": "ip extcommunity-list <ext-comm-list-number> [ index <index-number> ] { deny | permit } { bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> } *",
       "views": [
         "System view"
       ],
@@ -19214,7 +19214,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "ip rd-list <rd-list-number> [ index <index-number> ] { deny | permit } <route-distinguisher>  * ",
+      "syntax": "ip rd-list <rd-list-number> [ index <index-number> ] { deny | permit } <route-distinguisher> *",
       "views": [
         "System view"
       ],
@@ -20925,7 +20925,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "ipv6 nd source-mac exclude-mac <mac-address>  * ",
+      "syntax": "ipv6 nd source-mac exclude-mac <mac-address> *",
       "views": [
         "System view"
       ],
@@ -21464,7 +21464,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "ipv6 route-static vpn-instance <s-vpn-instance-name> <ipv6-address> <prefix-length> <interface-type> <interface-number> [ <next-hop-address> ] [ bfd { control-packet | echo-packet } [ bfd-source <ipv6-address> ] | permanent | track <track-entry-number> ] } [ preference <preference> ] [ tag <tag-value> ] [ recursive-lookup ] [ primary <threshold-level> | secondary ] [ description <text> ]",
+      "syntax": "ipv6 route-static vpn-instance <s-vpn-instance-name> <ipv6-address> <prefix-length> <interface-type> <interface-number> [ <next-hop-address> ] [ bfd { control-packet | echo-packet } [ bfd-source <ipv6-address> ] | permanent | track <track-entry-number> ] [ preference <preference> ] [ tag <tag-value> ] [ recursive-lookup ] [ primary <threshold-level> | secondary ] [ description <text> ]",
       "views": [
         "System view"
       ],
@@ -21478,7 +21478,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "ipv6 route-static vpn-instance <s-vpn-instance-name> <ipv6-address> <prefix-length> { public <|> vpn-instance <d-vpn-instance-name> } [ track <track-entry-number> ] [ preference <preference> ] [ tag <tag-value> ] [ description <text> ]",
+      "syntax": "ipv6 route-static vpn-instance <s-vpn-instance-name> <ipv6-address> <prefix-length> { public | vpn-instance <d-vpn-instance-name> } [ track <track-entry-number> ] [ preference <preference> ] [ tag <tag-value> ] [ description <text> ]",
       "views": [
         "System view"
       ],
@@ -21972,28 +21972,28 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "issu load file ipe <ipe-filename> [ patch <filename>  *  ] slot <slot-number>  *  [ reboot ]",
+      "syntax": "issu load file ipe <ipe-filename> [ patch <filename> * ] slot <slot-number> * [ reboot ]",
       "views": [
         "User view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "issu load file { boot <filename> | system <filename> | feature <filename>  *  | patch <filename>  *  } * slot <slot-number>  *  [ reboot ]",
+      "syntax": "issu load file { boot <filename> | system <filename> | feature <filename> * | patch <filename> * } * slot <slot-number> * [ reboot ]",
       "views": [
         "User view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "issu one-step file ipe <ipe-filename> [ patch <filename>  *  ] slot <slot-number>  *  [ reboot ]",
+      "syntax": "issu one-step file ipe <ipe-filename> [ patch <filename> * ] slot <slot-number> * [ reboot ]",
       "views": [
         "User view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "issu one-step file { boot <filename> | system <filename> | feature <filename>  *  | patch <filename>  *  } * [ slot <slot-number>  *  ] [ reboot ]",
+      "syntax": "issu one-step file { boot <filename> | system <filename> | feature <filename> * | patch <filename> * } * [ slot <slot-number> * ] [ reboot ]",
       "views": [
         "User view"
       ],
@@ -22693,7 +22693,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "lldp [ agent { nearest-customer | nearest-nontpmr } ] global tlv-enable basic-tlv management-address-tlv [ ipv6 ] { <ip-address> | interface loopback <interface-number> | interface m-gigabitethernet <interface-number> | interface vlan-interface <interface-number> <|> <interface> <interface-type> <interface-number> }",
+      "syntax": "lldp [ agent { nearest-customer | nearest-nontpmr } ] global tlv-enable basic-tlv management-address-tlv [ ipv6 ] { <ip-address> | interface loopback <interface-number> | interface m-gigabitethernet <interface-number> | interface vlan-interface <interface-number> | <interface> <interface-type> <interface-number> }",
       "views": [
         "System view"
       ],
@@ -22994,21 +22994,21 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "lldp tlv-enable { basic-tlv { all | port-description | system-capability | system-description | system-name | management-address-tlv [ ipv6 ] [ <ip-address> ] } | dot1-tlv { all | link-aggregation } | dot3-tlv { all | link-aggregation | mac-physic | max-frame-size | power } | med-tlv { all | capability | inventory | power-over-ethernet | location-id { civic-address <device-type> <country-code> { <ca-type> <ca-value> } *  | elin-address <tel-number> } } }",
+      "syntax": "lldp tlv-enable { basic-tlv { all | port-description | system-capability | system-description | system-name | management-address-tlv [ ipv6 ] [ <ip-address> ] } | dot1-tlv { all | link-aggregation } | dot3-tlv { all | link-aggregation | mac-physic | max-frame-size | power } | med-tlv { all | capability | inventory | power-over-ethernet | location-id { civic-address <device-type> <country-code> { <ca-type> <ca-value> } * | elin-address <tel-number> } } }",
       "views": [
         "Layer 2 Ethernet interface view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "lldp tlv-enable { basic-tlv { all | port-description | system-capability | system-description | system-name | management-address-tlv [ ipv6 ] [ <ip-address> | interface loopback <interface-number> ] } | dot1-tlv { all | link-aggregation } | dot3-tlv { all | link-aggregation | mac-physic | max-frame-size | power } | med-tlv { all | capability | inventory | power-over-ethernet | location-id { civic-address <device-type> <country-code> { <ca-type> <ca-value> } *  | elin-address <tel-number> } } }",
+      "syntax": "lldp tlv-enable { basic-tlv { all | port-description | system-capability | system-description | system-name | management-address-tlv [ ipv6 ] [ <ip-address> | interface loopback <interface-number> ] } | dot1-tlv { all | link-aggregation } | dot3-tlv { all | link-aggregation | mac-physic | max-frame-size | power } | med-tlv { all | capability | inventory | power-over-ethernet | location-id { civic-address <device-type> <country-code> { <ca-type> <ca-value> } * | elin-address <tel-number> } } }",
       "views": [
         "Layer 2 Ethernet interface view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "lldp tlv-enable { basic-tlv { all | port-description | system-capability | system-description | system-name | management-address-tlv [ ipv6 ] [ <ip-address> | interface loopback <interface-number> ] } | dot1-tlv { all | port-vlan-id | link-aggregation | dcbx | protocol-vlan-id [ <vlan-id> ] | vlan-name [ <vlan-id-list> ] | management-vid [ <mvlan-id> ] } | dot3-tlv { all | link-aggregation | mac-physic | max-frame-size | power } | med-tlv { all | capability | inventory | network-policy [ <vlan-id> ] | power-over-ethernet | location-id { civic-address <device-type> <country-code> { <ca-type> <ca-value> } *  | elin-address <tel-number> } } }",
+      "syntax": "lldp tlv-enable { basic-tlv { all | port-description | system-capability | system-description | system-name | management-address-tlv [ ipv6 ] [ <ip-address> | interface loopback <interface-number> ] } | dot1-tlv { all | port-vlan-id | link-aggregation | dcbx | protocol-vlan-id [ <vlan-id> ] | vlan-name [ <vlan-id-list> ] | management-vid [ <mvlan-id> ] } | dot3-tlv { all | link-aggregation | mac-physic | max-frame-size | power } | med-tlv { all | capability | inventory | network-policy [ <vlan-id> ] | power-over-ethernet | location-id { civic-address <device-type> <country-code> { <ca-type> <ca-value> } * | elin-address <tel-number> } } }",
       "views": [
         "Layer 2 Ethernet interface view"
       ],
@@ -23387,7 +23387,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "lsr-path <ip-address>  * ",
+      "syntax": "lsr-path <ip-address> *",
       "views": [
         "Path jitter operation view"
       ],
@@ -23688,7 +23688,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "mac-address multicast <mac-address> interface { peer-link | { <interface-type> <interface-number> service-instance <instance-id> } *  } * vsi <vsi-name>",
+      "syntax": "mac-address multicast <mac-address> interface { peer-link | { <interface-type> <interface-number> service-instance <instance-id> } * } * vsi <vsi-name>",
       "views": [
         "System view"
       ],
@@ -23702,7 +23702,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "mac-address multicast <mac-address> { interface { tunnel <tunnel-number1> [ to tunnel <tunnel-number2> ] } *  } vsi <vsi-name>",
+      "syntax": "mac-address multicast <mac-address> { interface { tunnel <tunnel-number1> [ to tunnel <tunnel-number2> ] } * } vsi <vsi-name>",
       "views": [
         "System view"
       ],
@@ -24052,7 +24052,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "mac-forced-forwarding server <server-ip>  * ",
+      "syntax": "mac-forced-forwarding server <server-ip> *",
       "views": [
         "VLAN view"
       ],
@@ -24460,7 +24460,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "mirror-to interface <interface-type> <interface-number> [ sampler <sampler-name> ] [ truncation ] [ loopback | [ { destination-ip <destination-ip-address> source-ip <source-ip-address> <|> destination-ipv6 <destination-ipv6-address> source-ipv6 <source-ipv6-address> } [ erspanv3 | vxlan <vxlan-id> [ destination-port <destination-port-value> <|> source-port <source-port-value> ] <*> ] [ dscp <dscp-value> | vlan <vlan-id> | vrf-instance <vrf-name> ] * ]",
+      "syntax": "mirror-to interface <interface-type> <interface-number> [ sampler <sampler-name> ] [ truncation ] [ loopback | [ { destination-ip <destination-ip-address> source-ip <source-ip-address> | destination-ipv6 <destination-ipv6-address> source-ipv6 <source-ipv6-address> } [ erspanv3 | vxlan <vxlan-id> [ destination-port <destination-port-value> | source-port <source-port-value> ] * ] [ dscp <dscp-value> | vlan <vlan-id> | vrf-instance <vrf-name> ] * ] ]",
       "views": [
         "Traffic behavior view"
       ],
@@ -24474,7 +24474,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "mirror-to interface { destination-ip <destination-ip-address> source-ip <source-ip-address> | destination-ipv6 <destination-ipv6-address> source-ipv6 <source-ipv6-address> } [ erspanv3 | vxlan <vxlan-id> [ destination-port <destination-port-value> <|> source-port <source-port-value> ] <*> ] [ sampler <sampler-name> ] [ truncation ] [ dscp <dscp-value> | vlan <vlan-id> | vrf-instance <vrf-name> ] *",
+      "syntax": "mirror-to interface { destination-ip <destination-ip-address> source-ip <source-ip-address> | destination-ipv6 <destination-ipv6-address> source-ipv6 <source-ipv6-address> } [ erspanv3 | vxlan <vxlan-id> [ destination-port <destination-port-value> | source-port <source-port-value> ] * ] [ sampler <sampler-name> ] [ truncation ] [ dscp <dscp-value> | vlan <vlan-id> | vrf-instance <vrf-name> ] *",
       "views": [
         "Traffic behavior view"
       ],
@@ -25070,7 +25070,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "monitor kernel deadloop enable [ slot <slot-number> [ cpu <cpu-number> [ core <core-number>  *  ] ] ]",
+      "syntax": "monitor kernel deadloop enable [ slot <slot-number> [ cpu <cpu-number> [ core <core-number> * ] ] ]",
       "views": [
         "System view"
       ],
@@ -25399,7 +25399,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "mpls te backup-path preference <value> { dynamic [ pce [ <ip-address> ] *  ] | explicit-path <path-name> } [ no-cspf ]",
+      "syntax": "mpls te backup-path preference <value> { dynamic [ pce [ <ip-address> ] * ] | explicit-path <path-name> } [ no-cspf ]",
       "views": [
         "Tunnel interface view"
       ],
@@ -25526,7 +25526,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "mpls te path preference <value> { dynamic [ pce [ <ip-address> ] *  ] | explicit-path <path-name> } [ no-cspf ]",
+      "syntax": "mpls te path preference <value> { dynamic [ pce [ <ip-address> ] * ] | explicit-path <path-name> } [ no-cspf ]",
       "views": [
         "Tunnel interface view"
       ],
@@ -25966,7 +25966,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "nbns-list <ip-address>  * ",
+      "syntax": "nbns-list <ip-address> *",
       "views": [
         "DHCP address pool view"
       ],
@@ -26944,7 +26944,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "openflow normal-forward vlan { <vlan-id> [ to <vlan-id> ] }  * ",
+      "syntax": "openflow normal-forward vlan { <vlan-id> [ to <vlan-id> ] } *",
       "views": [
         "System view"
       ],
@@ -26986,7 +26986,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "option <code> { ascii <ascii-string> | hex <hex-string> | ip-address <ip-address>  *  }",
+      "syntax": "option <code> { ascii <ascii-string> | hex <hex-string> | ip-address <ip-address> * }",
       "views": [
         "DHCP address pool view"
       ],
@@ -27471,7 +27471,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "packet-capture local interface <interface-type> <interface-number> [ bidirection [ match-info { ip <ipv4-address> | ipv6 <ipv6-address> | { inbound-acl [ ipv6 ] { <acl-number> | name <acl-name> } | outbound-acl [ ipv6 ] { <acl-number> | name <acl-name> } } * | mac <mac-address> } ] | [ outbound ] [ match-info { acl [ ipv6 ] { <acl-number> | name <acl-name> } | ip <ipv4-address> | ipv6 <ipv6-address> <|> mac <mac-address> } ] ] [ capture-filter <capt-expression> | limit-frame-size <bytes> | autostop filesize <kilobytes> | autostop duration <seconds> ] * write { <filepath> | url <url> [ username <username> [ password { cipher | simple } <string> ] ] }",
+      "syntax": "packet-capture local interface <interface-type> <interface-number> [ bidirection [ match-info { ip <ipv4-address> | ipv6 <ipv6-address> | { inbound-acl [ ipv6 ] { <acl-number> | name <acl-name> } | outbound-acl [ ipv6 ] { <acl-number> | name <acl-name> } } * | mac <mac-address> } ] | [ outbound ] [ match-info { acl [ ipv6 ] { <acl-number> | name <acl-name> } | ip <ipv4-address> | ipv6 <ipv6-address> | mac <mac-address> } ] ] [ capture-filter <capt-expression> | limit-frame-size <bytes> | autostop filesize <kilobytes> | autostop duration <seconds> ] * write { <filepath> | url <url> [ username <username> [ password { cipher | simple } <string> ] ] }",
       "views": [
         "User view"
       ],
@@ -28181,7 +28181,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] | <link-local-address> interface <interface-type> <interface-number> } as-path-acl { <as-path-acl-number> <|> <as-path-acl-name> } { export | import }",
+      "syntax": "peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] | <link-local-address> interface <interface-type> <interface-number> } as-path-acl { <as-path-acl-number> | <as-path-acl-name> } { export | import }",
       "views": [
         "BGP IPv4 unicast\r\naddress family view"
       ],
@@ -28482,7 +28482,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] } as-path-acl { <as-path-acl-number> <|> <as-path-acl-name> } { export | import }",
+      "syntax": "peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] } as-path-acl { <as-path-acl-number> | <as-path-acl-name> } { export | import }",
       "views": [
         "BGP IPv4 unicast\r\naddress family view"
       ],
@@ -28636,6 +28636,13 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
+      "syntax": "peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] } prefix-list <ipv4-prefix-list-name> { export | import }",
+      "views": [
+        "BGP IPv4 unicast\r\naddress family view"
+      ],
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
+    },
+    {
       "syntax": "peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] } public-as-only [ { force | limited } [ replace ] [ include-peer-as ] ]",
       "views": [
         "BGP IPv4 unicast\r\naddress family view"
@@ -28727,13 +28734,6 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> } prefix-list <ipv4-prefix-list-name> { export | import }",
-      "views": [
-        "BGP IPv4 unicast\r\naddress family view"
-      ],
-      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
-    },
-    {
       "syntax": "peer { <group-name> | <ipv4-address> [ <mask-length> ] } additional-paths { receive | send } *",
       "views": [
         "BGP IPv4 unicast address family view"
@@ -28797,7 +28797,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "peer { <group-name> | <ipv4-address> [ <mask-length> ] } as-path-acl { <as-path-acl-number> <|> <as-path-acl-name> } { export | import }",
+      "syntax": "peer { <group-name> | <ipv4-address> [ <mask-length> ] } as-path-acl { <as-path-acl-number> | <as-path-acl-name> } { export | import }",
       "views": [
         "BGP IPv4 unicast\r\naddress family view"
       ],
@@ -29022,7 +29022,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "peer { <group-name> | <ipv6-address> [ <prefix-length> ] } as-path-acl { <as-path-acl-number> <|> <as-path-acl-name> } { export | import }",
+      "syntax": "peer { <group-name> | <ipv6-address> [ <prefix-length> ] } as-path-acl { <as-path-acl-number> | <as-path-acl-name> } { export | import }",
       "views": [
         "BGP IPv4 unicast\r\naddress family view"
       ],
@@ -29197,7 +29197,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "permit vpn-instance <vpn-instance-name>  * ",
+      "syntax": "permit vpn-instance <vpn-instance-name> *",
       "views": [
         "User role VPN instance policy view"
       ],
@@ -29485,7 +29485,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "ping mpls [ -a <source-ip> | -c <count> | -exp <exp-value> | -h <ttl-value> | -m <wait-time> | -r <reply-mode> | -rtos <tos-value> | -s <packet-size> | -t <time-out> | -v ] * out-labels <out-label-value>  *  interface <interface-type> <interface-number> [ nexthop <nexthop-address> ]",
+      "syntax": "ping mpls [ -a <source-ip> | -c <count> | -exp <exp-value> | -h <ttl-value> | -m <wait-time> | -r <reply-mode> | -rtos <tos-value> | -s <packet-size> | -t <time-out> | -v ] * out-labels <out-label-value> * interface <interface-type> <interface-number> [ nexthop <nexthop-address> ]",
       "views": [
         "Any view"
       ],
@@ -31028,7 +31028,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "priority-flow-control dscp-mapping { original-dscp <original-dscp-value> to priority <priority> [ dscp <dscp-value> ] } * ",
+      "syntax": "priority-flow-control dscp-mapping { original-dscp <original-dscp-value> to priority <priority> [ dscp <dscp-value> ] } *",
       "views": [
         "Ethernet interface view"
       ],
@@ -31108,7 +31108,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "private-vsi secondary <vsi-name>  * ",
+      "syntax": "private-vsi secondary <vsi-name> *",
       "views": [
         "VSI view"
       ],
@@ -31178,7 +31178,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "proposal <proposal-number>  * ",
+      "syntax": "proposal <proposal-number> *",
       "views": [
         "IKE profile view"
       ],
@@ -31880,7 +31880,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "qos control-plane logging protocol { <protocol-list>  *  | all } enable",
+      "syntax": "qos control-plane logging protocol { <protocol-list> * | all } enable",
       "views": [
         "System view"
       ],
@@ -32704,7 +32704,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "remote-server <ip-address>  *  [ public | vpn-instance <vpn-instance-name> ]",
+      "syntax": "remote-server <ip-address> * [ public | vpn-instance <vpn-instance-name> ]",
       "views": [
         "DHCP address pool view"
       ],
@@ -32950,7 +32950,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "reset bgp [ instance <instance-name> ] flap-info vpnv4 [ <ipv4-address> [ <mask> | <mask-length> ] | as-path-acl { <as-path-acl-number> | <as-path-acl-name> } | peer [ <ipv4-address> [ <mask-length> ] ]",
+      "syntax": "reset bgp [ instance <instance-name> ] flap-info vpnv4 [ <ipv4-address> [ <mask> | <mask-length> ] | as-path-acl { <as-path-acl-number> | <as-path-acl-name> } | peer [ <ipv4-address> [ <mask-length> ] ] ]",
       "views": [
         "User view"
       ],
@@ -34133,7 +34133,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "reset ospf [ <process-id> ] event-log [ lsa-flush | peer [ slot <slot-number> | spf ]",
+      "syntax": "reset ospf [ <process-id> ] event-log [ lsa-flush | peer [ slot <slot-number> ] | spf ]",
       "views": [
         "User view"
       ],
@@ -35278,15 +35278,9 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "routing-table limit <number> { <warn-threshold> <|> simply-alert }",
-      "views": [
-        "RIB IPv4 address family view"
-      ],
-      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
-    },
-    {
       "syntax": "routing-table limit <number> { <warn-threshold> | simply-alert }",
       "views": [
+        "RIB IPv4 address family view",
         "VPN instance view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
@@ -35603,14 +35597,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "rule [ <rule-id> ] { deny | permit } [ ipv6-protocol ] <protocol> [ { { ack <ack-value> | fin <fin-value> | psh <psh-value> | rst <rst-value> | syn <syn-value> | urg <urg-value> } * | established } | destination { <dest-address> <dest-wildcard> | any | microsegment <microsegment-id> } | destination-port { <operator> <port1> [ <port2> ] } | { { precedence <precedence> | tos <tos> } * | { precedence <precedence> | ecn <ecn> } * | { dscp <dscp> | ecn <ecn> } * } | source { <source-address> <source-wildcard> | any | microsegment <microsegment-id> } | source-port { <operator> <port1> [ <port2> ] } | <udf-format> | vpn-instance <vpn-instance-name> ] * [ { { ipv4 | l2 | l4 | l5 } <rule-string> <rule-mask> <offset> } *  ] [ counting | time-range <time-range-name> ] *",
+      "syntax": "rule [ <rule-id> ] { deny | permit } [ ipv6-protocol ] <protocol> [ { { ack <ack-value> | fin <fin-value> | psh <psh-value> | rst <rst-value> | syn <syn-value> | urg <urg-value> } * | established } | destination { <dest-address> <dest-wildcard> | any | microsegment <microsegment-id> } | destination-port { <operator> <port1> [ <port2> ] } | { { precedence <precedence> | tos <tos> } * | { precedence <precedence> | ecn <ecn> } * | { dscp <dscp> | ecn <ecn> } * } | source { <source-address> <source-wildcard> | any | microsegment <microsegment-id> } | source-port { <operator> <port1> [ <port2> ] } | <udf-format> | vpn-instance <vpn-instance-name> ] * [ { { ipv4 | l2 | l4 | l5 } <rule-string> <rule-mask> <offset> } * ] [ counting | time-range <time-range-name> ] *",
       "views": [
         "User-defined ACL view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "rule [ <rule-id> ] { deny | permit } [ { { ipv4 | l2 | l4 } <rule-string> <rule-mask> <offset> } *  ] [ counting | time-range <time-range-name> ] *",
+      "syntax": "rule [ <rule-id> ] { deny | permit } [ { { ipv4 | l2 | l4 } <rule-string> <rule-mask> <offset> } * ] [ counting | time-range <time-range-name> ] *",
       "views": [
         "User-defined ACL view"
       ],
@@ -37773,14 +37767,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "ssh user <username> service-type { all | netconf | scp | sftp | stelnet } authentication-type { keyboard-interactive | password | password-publickey [ assign { pki-domain <domain-name> | publickey <keyname>  *  } ] }",
+      "syntax": "ssh user <username> service-type { all | netconf | scp | sftp | stelnet } authentication-type { keyboard-interactive | password | password-publickey [ assign { pki-domain <domain-name> | publickey <keyname> * } ] }",
       "views": [
         "System view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "ssh user <username> service-type { all | netconf | scp | sftp | stelnet } authentication-type { keyboard-interactive | password | { any | password-publickey | publickey } [ assign { pki-domain <domain-name> | publickey <keyname>  *  } ] }",
+      "syntax": "ssh user <username> service-type { all | netconf | scp | sftp | stelnet } authentication-type { keyboard-interactive | password | { any | password-publickey | publickey } [ assign { pki-domain <domain-name> | publickey <keyname> * } ] }",
       "views": [
         "System view"
       ],
@@ -38151,7 +38145,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "static-sr-mpls lsp <lsp-name> out-label <out-label-value>  * ",
+      "syntax": "static-sr-mpls lsp <lsp-name> out-label <out-label-value> *",
       "views": [
         "System view"
       ],
@@ -38704,7 +38698,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "suboption <suboption-code> { address <ipv6-address>  *  | ascii <ascii-string> | hex <hex-string> }",
+      "syntax": "suboption <suboption-code> { address <ipv6-address> * | ascii <ascii-string> | hex <hex-string> }",
       "views": [
         "Vendor-specific option view"
       ],
@@ -38908,7 +38902,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "tar create [ gz ] archive-file <dest-file> [ verbose ] source { <source-file> | <source-directory> } * ",
+      "syntax": "tar create [ gz ] archive-file <dest-file> [ verbose ] source { <source-file> | <source-directory> } *",
       "views": [
         "User view"
       ],
@@ -39496,7 +39490,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "third-part-process stop pid <pid>  * ",
+      "syntax": "third-part-process stop pid <pid> *",
       "views": [
         "System view"
       ],
@@ -39524,7 +39518,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "time once at <time> [ month-date <month-day> | week-day <week-day>  *  ]",
+      "syntax": "time once at <time> [ month-date <month-day> | week-day <week-day> * ]",
       "views": [
         "Schedule view"
       ],
@@ -39545,7 +39539,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "time repeating at <time> [ month-date [ <month-day> | last ] | week-day <week-day>  *  ]",
+      "syntax": "time repeating at <time> [ month-date [ <month-day> | last ] | week-day <week-day> * ]",
       "views": [
         "Schedule view"
       ],
@@ -39789,7 +39783,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "tracert mpls [ -a <source-ip> | -exp <exp-value> | -h <ttl-value> | -r <reply-mode> | -rtos <tos-value> | -t <time-out> | -v | fec-check ]* out-labels <out-label-value>  *  interface <interface-type> <interface-number> [ nexthop <nexthop-address> ]",
+      "syntax": "tracert mpls [ -a <source-ip> | -exp <exp-value> | -h <ttl-value> | -r <reply-mode> | -rtos <tos-value> | -t <time-out> | -v | fec-check ]* out-labels <out-label-value> * interface <interface-type> <interface-number> [ nexthop <nexthop-address> ]",
       "views": [
         "Any view"
       ],
@@ -39957,7 +39951,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "transform-set <transform-set-name>  * ",
+      "syntax": "transform-set <transform-set-name> *",
       "views": [
         "IPsec policy view"
       ],
@@ -40733,7 +40727,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo affinity location-set { slot <slot-number> } * ",
+      "syntax": "undo affinity location-set { slot <slot-number> } *",
       "views": [
         "Placement process view"
       ],
@@ -40895,7 +40889,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo apply community [ none | additive | { <community-number>  *  | <aa:nn>  *  | internet | no-advertise | no-export | no-export-subconfed } * [ additive ] ]",
+      "syntax": "undo apply community [ none | additive | { <community-number> * | <aa:nn> * | internet | no-advertise | no-export | no-export-subconfed } * [ additive ] ]",
       "views": [
         "Routing policy node view"
       ],
@@ -40916,14 +40910,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo apply default-next-hop [ [ vpn-instance <vpn-instance-name> ] <ip-address>  *  ]",
+      "syntax": "undo apply default-next-hop [ [ vpn-instance <vpn-instance-name> ] <ip-address> * ]",
       "views": [
         "Policy node view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo apply default-next-hop [ [ vpn-instance <vpn-instance-name> ] <ipv6-address>  *  ]",
+      "syntax": "undo apply default-next-hop [ [ vpn-instance <vpn-instance-name> ] <ipv6-address> * ]",
       "views": [
         "IPv6 policy node view"
       ],
@@ -40944,7 +40938,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo apply extcommunity [ { rt <route-target> } *  ]",
+      "syntax": "undo apply extcommunity [ { rt <route-target> } * ]",
       "views": [
         "Routing policy node view"
       ],
@@ -41052,14 +41046,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo apply next-hop [ [ vpn-instance <vpn-instance-name> ] <ip-address>  *  ]",
+      "syntax": "undo apply next-hop [ [ vpn-instance <vpn-instance-name> ] <ip-address> * ]",
       "views": [
         "Policy node view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo apply next-hop [ [ vpn-instance <vpn-instance-name> ] <ipv6-address>  *  ]",
+      "syntax": "undo apply next-hop [ [ vpn-instance <vpn-instance-name> ] <ipv6-address> * ]",
       "views": [
         "IPv6 policy node view"
       ],
@@ -41553,7 +41547,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo arp source-mac exclude-mac [ <mac-address>  *  ]",
+      "syntax": "undo arp source-mac exclude-mac [ <mac-address> * ]",
       "views": [
         "System view"
       ],
@@ -42502,7 +42496,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo binding instance-type <instance-type> { all { physical | tunnel } | instance <instance-name>  *  }",
+      "syntax": "undo binding instance-type <instance-type> { all { physical | tunnel } | instance <instance-name> * }",
       "views": [
         "Statistics task view"
       ],
@@ -44758,7 +44752,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo dns-list [ <ip-address>  *  ]",
+      "syntax": "undo dns-list [ <ip-address> * ]",
       "views": [
         "DHCP address pool view"
       ],
@@ -46415,7 +46409,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo forbidden-ip [ <ip-address>  *  ]",
+      "syntax": "undo forbidden-ip [ <ip-address> * ]",
       "views": [
         "DHCP address pool view"
       ],
@@ -46640,14 +46634,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo gateway-list [ <ip-address>  *  ]",
+      "syntax": "undo gateway-list [ <ip-address> * ]",
       "views": [
         "DHCP address pool view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo gateway-list [ <ipv6-address>  *  ]",
+      "syntax": "undo gateway-list [ <ipv6-address> * ]",
       "views": [
         "DHCPv6 address pool view"
       ],
@@ -47365,7 +47359,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo if-match as-path [ <as-path-number>  *  | <as-path-name> ]",
+      "syntax": "undo if-match as-path [ <as-path-number> * | <as-path-name> ]",
       "views": [
         "Routing policy node view"
       ],
@@ -47386,7 +47380,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo if-match community [ { <basic-community-list-number> | name <comm-list-name> } [ whole-match ] | <adv-community-list-number> ] * ",
+      "syntax": "undo if-match community [ { <basic-community-list-number> | name <comm-list-name> } [ whole-match ] | <adv-community-list-number> ] *",
       "views": [
         "Routing policy node view",
         "Tunnel selector view"
@@ -47401,7 +47395,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo if-match extcommunity [ <ext-comm-list-number>  *  ]",
+      "syntax": "undo if-match extcommunity [ <ext-comm-list-number> * ]",
       "views": [
         "Routing policy node view"
       ],
@@ -47415,7 +47409,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo if-match interface [ <interface-type> <interface-number> ] * ",
+      "syntax": "undo if-match interface [ <interface-type> <interface-number> ] *",
       "views": [
         "Routing policy node view"
       ],
@@ -47551,7 +47545,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo if-match service-chain [ [ path-id <service-path-id> ] *  ]",
+      "syntax": "undo if-match service-chain [ [ path-id <service-path-id> ] * ]",
       "views": [
         "Policy node view"
       ],
@@ -47768,7 +47762,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo igmp static-group { all | <group-address> [ source <source-address> ]",
+      "syntax": "undo igmp static-group { all | <group-address> [ source <source-address> ] }",
       "views": [
         "Interface view"
       ],
@@ -49118,7 +49112,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo ip community-list { <basic-comm-list-num> | basic <basic-comm-list-name> } [ deny | permit ] [ <community-number>  *  | <aa:nn>  *  ] [ internet | no-advertise | no-export | no-export-subconfed ] *",
+      "syntax": "undo ip community-list { <basic-comm-list-num> | basic <basic-comm-list-name> } [ deny | permit ] [ <community-number> * | <aa:nn> * ] [ internet | no-advertise | no-export | no-export-subconfed ] *",
       "views": [
         "System view"
       ],
@@ -49132,7 +49126,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo ip extcommunity-list <ext-comm-list-number> [ index <index-number> ] [ { deny | permit } [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] *  ]",
+      "syntax": "undo ip extcommunity-list <ext-comm-list-number> [ index <index-number> ] [ { deny | permit } [ bandwidth <link-bandwidth-value> | rt <route-target> | soo <site-of-origin> ] * ]",
       "views": [
         "System view"
       ],
@@ -49447,7 +49441,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo ip rd-list <rd-list-number> [ index <index-number> ] [ { deny | permit } <route-distinguisher>  *  ]",
+      "syntax": "undo ip rd-list <rd-list-number> [ index <index-number> ] [ { deny | permit } <route-distinguisher> * ]",
       "views": [
         "System view"
       ],
@@ -51013,7 +51007,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo ipv6 nd source-mac exclude-mac [ <mac-address>  *  ]",
+      "syntax": "undo ipv6 nd source-mac exclude-mac [ <mac-address> * ]",
       "views": [
         "System view"
       ],
@@ -53553,14 +53547,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo mac-address multicast [ <mac-address> [ interface [ peer-link | { <interface-type> <interface-number> service-instance <instance-id> } *  ] * ] ] vsi <vsi-name>",
+      "syntax": "undo mac-address multicast [ <mac-address> [ interface [ peer-link | { <interface-type> <interface-number> service-instance <instance-id> } * ] * ] ] vsi <vsi-name>",
       "views": [
         "System view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo mac-address multicast [ <mac-address> [ interface { tunnel <tunnel-number1> [ to tunnel <tunnel-number2> ] } *  ] ] vsi <vsi-name>",
+      "syntax": "undo mac-address multicast [ <mac-address> [ interface { tunnel <tunnel-number1> [ to tunnel <tunnel-number2> ] } * ] ] vsi <vsi-name>",
       "views": [
         "System view"
       ],
@@ -53896,7 +53890,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo mac-forced-forwarding server <server-ip>  * ",
+      "syntax": "undo mac-forced-forwarding server <server-ip> *",
       "views": [
         "VLAN view"
       ],
@@ -54285,7 +54279,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo mirror-to interface { destination-ip <destination-ip-address> source-ip <source-ip-address|> destination-ipv6 <destination-ipv6-address> source-ipv6 <source-ipv6-address> }",
+      "syntax": "undo mirror-to interface { destination-ip <destination-ip-address> source-ip <source-ip-address> | destination-ipv6 <destination-ipv6-address> source-ipv6 <source-ipv6-address> }",
       "views": [
         "Traffic behavior view"
       ],
@@ -55679,7 +55673,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo nbns-list [ <ip-address>  *  ]",
+      "syntax": "undo nbns-list [ <ip-address> * ]",
       "views": [
         "DHCP address pool view"
       ],
@@ -57670,13 +57664,6 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] | <link-local-address> interface <interface-type> <interface-number> ] } bmp server",
-      "views": [
-        "BGP instance view"
-      ],
-      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
-    },
-    {
       "syntax": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] | <link-local-address> interface <interface-type> <interface-number> } additional-paths { receive | send } *",
       "views": [
         "BGP IPv4 unicast address family view"
@@ -57736,6 +57723,13 @@
       "syntax": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] | <link-local-address> interface <interface-type> <interface-number> } as-path-acl [ <as-path-acl-number> | <as-path-acl-name> ] { export | import }",
       "views": [
         "BGP IPv4 unicast\r\naddress family view"
+      ],
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
+    },
+    {
+      "syntax": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] | <link-local-address> interface <interface-type> <interface-number> } bmp server",
+      "views": [
+        "BGP instance view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
@@ -58027,7 +58021,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] } as-path-acl [ <as-path-acl-number> <|> <as-path-acl-name> ] { export | import }",
+      "syntax": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] } as-path-acl [ <as-path-acl-number> | <as-path-acl-name> ] { export | import }",
       "views": [
         "BGP IPv4 unicast\r\naddress family view"
       ],
@@ -58181,6 +58175,13 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
+      "syntax": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] } prefix-list [ <ipv4-prefix-list-name> ] { export | import }",
+      "views": [
+        "BGP IPv4 unicast\r\naddress family view"
+      ],
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
+    },
+    {
       "syntax": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] } public-as-only [ { force | limited } [ replace ] [ include-peer-as ] ]",
       "views": [
         "BGP IPv4 unicast\r\naddress family view"
@@ -58279,13 +58280,6 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> } prefix-list [ <ipv4-prefix-list-name> ] { export | import }",
-      "views": [
-        "BGP IPv4 unicast\r\naddress family view"
-      ],
-      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
-    },
-    {
       "syntax": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] } additional-paths { receive | send } *",
       "views": [
         "BGP IPv4 unicast address family view"
@@ -58342,7 +58336,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] } as-path-acl [ <as-path-acl-number|> <as-path-acl-name> ] { export | import }",
+      "syntax": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] } as-path-acl [ <as-path-acl-number> | <as-path-acl-name> ] { export | import }",
       "views": [
         "BGP IPv4 unicast\r\naddress family view"
       ],
@@ -58735,7 +58729,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo permit vpn-instance [ <vpn-instance-name>  *  ]",
+      "syntax": "undo permit vpn-instance [ <vpn-instance-name> * ]",
       "views": [
         "User role VPN instance policy view"
       ],
@@ -60347,7 +60341,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo private-vsi secondary <vsi-name>  * ",
+      "syntax": "undo private-vsi secondary <vsi-name> *",
       "views": [
         "VSI view"
       ],
@@ -60929,7 +60923,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo qos control-plane logging protocol { <protocol-list>  *  | all } enable",
+      "syntax": "undo qos control-plane logging protocol { <protocol-list> * | all } enable",
       "views": [
         "System view"
       ],
@@ -61518,7 +61512,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo remote-server [ <ip-address>  *  ]",
+      "syntax": "undo remote-server [ <ip-address> * ]",
       "views": [
         "DHCP address pool view"
       ],
@@ -62585,14 +62579,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo rule { deny | permit } [ ipv6-protocol ] <protocol> [ { { ack <ack-value> | fin <fin-value> | psh <psh-value> | rst <rst-value> | syn <syn-value> | urg <urg-value> } * | established } | destination { <dest-address> <dest-wildcard> | any | microsegment <microsegment-id> } | destination-port { <operator> <port1> [ <port2> ] } } | { { precedence <precedence> | tos <tos> } * | { precedence <precedence> | ecn <ecn> } * | { dscp <dscp> | ecn <ecn> } * } | source { <source-address> <source-wildcard> | any | microsegment <microsegment-id> } | source-port { <operator> <port1> [ <port2> ] } | <udf-format> | vpn-instance <vpn-instance-name> ] * [ { { ipv4 | l2 | l4 | l5 } <rule-string> <rule-mask> <offset> } *  ] [ counting | time-range <time-range-name> ] *",
+      "syntax": "undo rule { deny | permit } [ ipv6-protocol ] <protocol> [ { { ack <ack-value> | fin <fin-value> | psh <psh-value> | rst <rst-value> | syn <syn-value> | urg <urg-value> } * | established } | destination { <dest-address> <dest-wildcard> | any | microsegment <microsegment-id> } | destination-port { <operator> <port1> [ <port2> ] } | { { precedence <precedence> | tos <tos> } * | { precedence <precedence> | ecn <ecn> } * | { dscp <dscp> | ecn <ecn> } * } | source { <source-address> <source-wildcard> | any | microsegment <microsegment-id> } | source-port { <operator> <port1> [ <port2> ] } | <udf-format> | vpn-instance <vpn-instance-name> ] * [ { { ipv4 | l2 | l4 | l5 } <rule-string> <rule-mask> <offset> } * ] [ counting | time-range <time-range-name> ] *",
       "views": [
         "User-defined ACL view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo rule { deny | permit } [ { { ipv4 | l2 | l4 } <rule-string> <rule-mask> <offset> } *  ] [ counting | time-range <time-range-name> ] *",
+      "syntax": "undo rule { deny | permit } [ { { ipv4 | l2 | l4 } <rule-string> <rule-mask> <offset> } * ] [ counting | time-range <time-range-name> ] *",
       "views": [
         "User-defined ACL view"
       ],
@@ -64051,7 +64045,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo snmp-agent trap enable tunnel [ max-threshold-reached | vxlan-config-failure | vxlan-decap-failure | vxlan-tunnel-status | vxlan-ipv6-tunnel-status *",
+      "syntax": "undo snmp-agent trap enable tunnel [ max-threshold-reached | vxlan-config-failure | vxlan-decap-failure | vxlan-tunnel-status | vxlan-ipv6-tunnel-status ] *",
       "views": [
         "System view"
       ],
@@ -66529,7 +66523,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo valid class <class-name>  * ",
+      "syntax": "undo valid class <class-name> *",
       "views": [
         "DHCP address pool view"
       ],
@@ -66716,7 +66710,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo vlink-peer <router-id> [ dead | hello | { authentication-none <|> { hmac-md5 | md5 | hmac-sha-256 } [ <key-id> ] | keychain } | retransmit | simple | trans-delay ] *",
+      "syntax": "undo vlink-peer <router-id> [ dead | hello | { authentication-none | { hmac-md5 | md5 | hmac-sha-256 } [ <key-id> ] | keychain } | retransmit | simple | trans-delay ] *",
       "views": [
         "OSPF area view"
       ],
@@ -66863,7 +66857,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo vpn-target { <vpn-target>  *  | all } [ both | export-extcommunity | import-extcommunity ]",
+      "syntax": "undo vpn-target { <vpn-target> * | all } [ both | export-extcommunity | import-extcommunity ]",
       "views": [
         "Auto-discovery VSI view",
         "Auto-discovery cross-connect group view"
@@ -66871,14 +66865,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo vpn-target { <vpn-target>  *  | auto | all } [ both | export-extcommunity | import-extcommunity ]",
+      "syntax": "undo vpn-target { <vpn-target> * | auto | all } [ both | export-extcommunity | import-extcommunity ]",
       "views": [
         "EVPN instance view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo vpn-target { all | <vpn-target>  *  [ both | export-extcommunity | import-extcommunity ] }",
+      "syntax": "undo vpn-target { all | <vpn-target> * [ both | export-extcommunity | import-extcommunity ] }",
       "views": [
         "EVPN instance view",
         "VPN instance view"
@@ -66984,7 +66978,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "undo vrrp ipv6 vrid <virtual-router-id> track [ <track-entry-number> ] [ forwarder-switchover | priority reduced | switchover | weight reduced ] ]",
+      "syntax": "undo vrrp ipv6 vrid <virtual-router-id> track [ <track-entry-number> ] [ forwarder-switchover | priority reduced | switchover | weight reduced ]",
       "views": [
         "Interface view"
       ],
@@ -67732,7 +67726,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "valid class <class-name>  * ",
+      "syntax": "valid class <class-name> *",
       "views": [
         "DHCP address pool view"
       ],
@@ -67965,7 +67959,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "vlink-peer <router-id> [ dead <seconds> | hello <seconds> | { authentication-none <|> { hmac-md5 | md5 | hmac-sha-256 } [ <key-id> { cipher | plain } <string> ] | keychain <keychain-name> | simple [ { cipher | plain } <string> ] } | retransmit <seconds> | trans-delay <seconds> ] *",
+      "syntax": "vlink-peer <router-id> [ dead <seconds> | hello <seconds> | { authentication-none | { hmac-md5 | md5 | hmac-sha-256 } [ <key-id> { cipher | plain } <string> ] | keychain <keychain-name> | simple [ { cipher | plain } <string> ] } | retransmit <seconds> | trans-delay <seconds> ] *",
       "views": [
         "OSPF area view"
       ],
@@ -68106,7 +68100,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "vpn-target <vpn-target>  *  [ both | export-extcommunity | import-extcommunity ]",
+      "syntax": "vpn-target <vpn-target> * [ both | export-extcommunity | import-extcommunity ]",
       "views": [
         "Auto-discovery VSI view",
         "Auto-discovery cross-connect group view",
@@ -68116,7 +68110,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "vpn-target { <vpn-target>  *  | auto } [ both | export-extcommunity | import-extcommunity ]",
+      "syntax": "vpn-target { <vpn-target> * | auto } [ both | export-extcommunity | import-extcommunity ]",
       "views": [
         "EVPN instance view"
       ],
@@ -68410,7 +68404,7 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "vtep group <group-ip> member remote <member-ip>  * ",
+      "syntax": "vtep group <group-ip> member remote <member-ip> *",
       "views": [
         "System view"
       ],
@@ -68664,14 +68658,14 @@
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "xconnect vsi <vsi-name> [ access-mode { ethernet | vlan } ] [ track <track-entry-number>  *  ]",
+      "syntax": "xconnect vsi <vsi-name> [ access-mode { ethernet | vlan } ] [ track <track-entry-number> * ]",
       "views": [
         "Ethernet service instance view"
       ],
       "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/"
     },
     {
-      "syntax": "xconnect vsi <vsi-name> [ access-mode { ethernet | vlan } | on-demand ] [ track <track-entry-number>  *  ]",
+      "syntax": "xconnect vsi <vsi-name> [ access-mode { ethernet | vlan } | on-demand ] [ track <track-entry-number> * ]",
       "views": [
         "Ethernet service instance view"
       ],

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from bs4 import BeautifulSoup, NavigableString, Tag
+from completion_syntax import normalize_syntax
 from defusedxml.ElementTree import fromstring
 
 HUAWEI_MANUALS = {
@@ -59,7 +60,8 @@ def _read(endpoint: str, nid: str, part: str = "") -> bytes:
 
 def _syntax(paragraph: Tag) -> str:
     for variable in paragraph.select("i, em, .commandparameter, .commandarguments, .commandvariables"):
-        names = variable.get_text(" ", strip=True).split()
+        variable_text = re.sub(r"(&<\d+-\d+>)", r" \1 ", variable.get_text(" ", strip=True))
+        names = re.findall(r"&<\d+-\d+>|[\[\]{}|*]|[^\s\[\]{}|*]+", variable_text)
         following = variable.next_sibling
         # 'port-id' in italics followed by a plain '1' is one metavariable.
         if len(names) == 1 and isinstance(following, NavigableString):
@@ -67,7 +69,14 @@ def _syntax(paragraph: Tag) -> str:
             if suffix:
                 names[0] += suffix[0]
                 following.replace_with(str(following)[len(suffix[0]) :])
-        variable.replace_with(" " + " ".join(f"<{name}>" for name in names) + " ")
+        variable.replace_with(
+            " "
+            + " ".join(
+                name if name in {"[", "]", "{", "}", "|", "*"} or name.startswith("&<") else f"<{name}>"
+                for name in names
+            )
+            + " "
+        )
     syntax = re.sub(r"\s+", " ", paragraph.get_text(" ", strip=True)).strip()
     syntax = re.sub(r"&\s*<\d+-\d+>", " * ", syntax)
     syntax = syntax.replace("^{*}", "*").replace("^ *", "*")
@@ -174,7 +183,8 @@ def main() -> None:
     for path, source in jobs:
         rows = huawei_rows(path, source) if args.vendor == "huawei" else h3c_rows(path)
         for row in rows:
-            syntax = row["syntax"]
+            syntax = normalize_syntax(args.vendor, row["syntax"])
+            row["syntax"] = syntax
             if syntax in entries:
                 entries[syntax]["views"] = sorted(set(entries[syntax]["views"] + row["views"]))
             else:

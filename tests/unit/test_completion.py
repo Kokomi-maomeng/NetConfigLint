@@ -11,6 +11,7 @@ import pytest
 
 from netconfiglint.commands.completion import Command, _next_tokens, commands, complete, detect_vendors
 from scripts.audit_release import audit_archive
+from scripts.completion_syntax import validate_notation
 
 
 def texts(source: str, vendor: str = "", cursor: int | None = None) -> set[str]:
@@ -166,3 +167,21 @@ def test_release_audit_checks_catalog_against_source(tmp_path: Path) -> None:
         pass
     result = audit_archive(tmp_path, archive)
     assert not result["passed"] and result["missing_resources"] == [relative]
+
+
+def test_all_catalog_notation_is_balanced_and_operators_are_not_arguments() -> None:
+    for entry in commands():
+        validate_notation(entry.syntax)
+        assert not any(token in entry.syntax for token in ("<|>", "<*>", "<[>", "<]>", "<{>", "<}>"))
+
+
+@pytest.mark.parametrize(
+    "source,vendor,expected",
+    [
+        ("reset ospf event-log sp", "h3c", "spf"),
+        ("reset ipv6 nd raguard-policy statistics global in", "huawei", "inbound"),
+        ("senderid-tlv-type de", "huawei", "defer"),
+    ],
+)
+def test_reference_errata_preserve_keyword_choices(source: str, vendor: str, expected: str) -> None:
+    assert expected in texts(source, vendor)
