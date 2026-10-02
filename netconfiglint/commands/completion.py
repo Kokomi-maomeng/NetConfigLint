@@ -363,8 +363,8 @@ def complete(source: str, cursor: int, selected: tuple[str, ...] = ()) -> dict[s
     while end < line_end and not source[end].isspace():
         end += 1
     vendors = tuple(v for v in selected if v in VENDORS)
+    context = source[:line_start] + "\n" + source[line_end:]
     if not vendors:
-        context = source[:line_start] + "\n" + source[line_end:]
         vendors = detect_vendors(context)
     view = _view(source, line_start)
     matches: dict[str, dict[str, object]] = {}
@@ -390,7 +390,7 @@ def complete(source: str, cursor: int, selected: tuple[str, ...] = ()) -> dict[s
         for token in next_tokens:
             if token.startswith("<"):
                 arguments.add(token)
-                values.update(_parameter_values(token, entry.vendor, source, entry.syntax))
+                values.update(_parameter_values(token, entry.vendor, context, entry.syntax))
             else:
                 values.add(token)
         for token in values:
