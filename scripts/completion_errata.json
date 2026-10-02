@@ -1,0 +1,210 @@
+[
+  {
+    "vendor": "h3c",
+    "original": "mirror-to interface <interface-type> <interface-number> [ sampler <sampler-name> ] [ truncation ] [ loopback | [ { destination-ip <destination-ip-address> source-ip <source-ip-address> | destination-ipv6 <destination-ipv6-address> source-ipv6 <source-ipv6-address> } [ erspanv3 | vxlan <vxlan-id> [ destination-port <destination-port-value> | source-port <source-port-value> ] * ] [ dscp <dscp-value> | vlan <vlan-id> | vrf-instance <vrf-name> ] * ]",
+    "corrected": "mirror-to interface <interface-type> <interface-number> [ sampler <sampler-name> ] [ truncation ] [ loopback | [ { destination-ip <destination-ip-address> source-ip <source-ip-address> | destination-ipv6 <destination-ipv6-address> source-ipv6 <source-ipv6-address> } [ erspanv3 | vxlan <vxlan-id> [ destination-port <destination-port-value> | source-port <source-port-value> ] * ] [ dscp <dscp-value> | vlan <vlan-id> | vrf-instance <vrf-name> ] * ] ]",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "-1284270054_-1132940181_-1874187894.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "display bfd session [ [ static ] [ ip ] [ state { down | admin-down | init | up } ] [ discriminator remote <remote-value> ] [ peer-ip <ipv4-address> [ vpn-instance <vpn-instance-name> ] ] [ verbose ]",
+    "corrected": "display bfd session [ [ static ] [ ip ] [ state { down | admin-down | init | up } ] [ discriminator remote <remote-value> ] [ peer-ip <ipv4-address> [ vpn-instance <vpn-instance-name> ] ] [ verbose ] ]",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "-1226968586_480997524_782559966_-1612114448.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "display bfd session [ [ static ] [ ipv6 ] [ state { down | admin-down | init | up } ] [ discriminator remote <remote-value> ] [ peer-ipv6 <ipv6-address> [ vpn-instance <vpn-instance-name> ] ] [ verbose ]",
+    "corrected": "display bfd session [ [ static ] [ ipv6 ] [ state { down | admin-down | init | up } ] [ discriminator remote <remote-value> ] [ peer-ipv6 <ipv6-address> [ vpn-instance <vpn-instance-name> ] ] [ verbose ] ]",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "-1226968586_480997524_782559966_-1612114448.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "undo vrrp ipv6 vrid <virtual-router-id> track [ <track-entry-number> ] [ forwarder-switchover | priority reduced | switchover | weight reduced ] ]",
+    "corrected": "undo vrrp ipv6 vrid <virtual-router-id> track [ <track-entry-number> ] [ forwarder-switchover | priority reduced | switchover | weight reduced ]",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "-489089713_-322717446_1762447467_1468873721.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "display attack-defense policy <policy-name> { ack-flood | dns-flood | fin-flood | flood | http-flood | icmpv6-flood | rst-flood | syn-ack-flood | syn-flood | udp-flood } ipv6 [ <ipv6-address> [ vpn <vpn-instance-name> ] ] [ slot <slot-number> ] ] [ count ]",
+    "corrected": "display attack-defense policy <policy-name> { ack-flood | dns-flood | fin-flood | flood | http-flood | icmpv6-flood | rst-flood | syn-ack-flood | syn-flood | udp-flood } ipv6 [ <ipv6-address> [ vpn <vpn-instance-name> ] ] [ slot <slot-number> ] [ count ]",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "1252001200_1999753765_2096592654.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "undo rule { deny | permit } [ ipv6-protocol ] <protocol> [ { { ack <ack-value> | fin <fin-value> | psh <psh-value> | rst <rst-value> | syn <syn-value> | urg <urg-value> } * | established } | destination { <dest-address> <dest-wildcard> | any | microsegment <microsegment-id> } | destination-port { <operator> <port1> [ <port2> ] } } | { { precedence <precedence> | tos <tos> } * | { precedence <precedence> | ecn <ecn> } * | { dscp <dscp> | ecn <ecn> } * } | source { <source-address> <source-wildcard> | any | microsegment <microsegment-id> } | source-port { <operator> <port1> [ <port2> ] } | <udf-format> | vpn-instance <vpn-instance-name> ] * [ { { ipv4 | l2 | l4 | l5 } <rule-string> <rule-mask> <offset> } * ] [ counting | time-range <time-range-name> ] *",
+    "corrected": "undo rule { deny | permit } [ ipv6-protocol ] <protocol> [ { { ack <ack-value> | fin <fin-value> | psh <psh-value> | rst <rst-value> | syn <syn-value> | urg <urg-value> } * | established } | destination { <dest-address> <dest-wildcard> | any | microsegment <microsegment-id> } | destination-port { <operator> <port1> [ <port2> ] } | { { precedence <precedence> | tos <tos> } * | { precedence <precedence> | ecn <ecn> } * | { dscp <dscp> | ecn <ecn> } * } | source { <source-address> <source-wildcard> | any | microsegment <microsegment-id> } | source-port { <operator> <port1> [ <port2> ] } | <udf-format> | vpn-instance <vpn-instance-name> ] * [ { { ipv4 | l2 | l4 | l5 } <rule-string> <rule-mask> <offset> } * ] [ counting | time-range <time-range-name> ] *",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "377683934_15071072_-1771161215.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "display bgp [ instance <instance-name> ] routing-table vpnv6 [ [ route-distinguisher <route-distinguisher> ] [ <ipv6-address> <prefix-length> [ advertise-info ] | <ipv6-address> <prefix-length> { as-path | cluster-list | community | ext-community } | peer <ipv4-address> { advertised-routes | received-routes } [ <ipv6-address> <prefix-length> | statistics ] | statistics ]",
+    "corrected": "display bgp [ instance <instance-name> ] routing-table vpnv6 [ [ route-distinguisher <route-distinguisher> ] [ <ipv6-address> <prefix-length> [ advertise-info ] | <ipv6-address> <prefix-length> { as-path | cluster-list | community | ext-community } | peer <ipv4-address> { advertised-routes | received-routes } [ <ipv6-address> <prefix-length> | statistics ] | statistics ] ]",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "313527081_101012892_-1507872850.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "display bgp [ instance <instance-name> ] routing-table vpnv4 [ [ route-distinguisher <route-distinguisher> ] [ <ipv4-address> [ { <mask-length> | <mask> } [ longest-match ] ] | <ipv4-address> [ <mask-length> | <mask> ] advertise-info | <ipv4-address> [ <mask-length> | <mask> ] { as-path | cluster-list | community | ext-community } | [ vpn-instance <vpn-instance-name> ] peer <ipv4-address> { advertised-routes | received-routes } [ <ipv4-address> [ <mask-length> | <mask> ] | statistics ] | statistics ]",
+    "corrected": "display bgp [ instance <instance-name> ] routing-table vpnv4 [ [ route-distinguisher <route-distinguisher> ] [ <ipv4-address> [ { <mask-length> | <mask> } [ longest-match ] ] | <ipv4-address> [ <mask-length> | <mask> ] advertise-info | <ipv4-address> [ <mask-length> | <mask> ] { as-path | cluster-list | community | ext-community } | [ vpn-instance <vpn-instance-name> ] peer <ipv4-address> { advertised-routes | received-routes } [ <ipv4-address> [ <mask-length> | <mask> ] | statistics ] | statistics ] ]",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "313527081_1694417941_-1507872848.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "display bgp [ instance <instance-name> ] routing-table vpnv4 [ route-distinguisher <route-distinguisher> ] [ statistics ] community-list <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
+    "corrected": "display bgp [ instance <instance-name> ] routing-table vpnv4 [ route-distinguisher <route-distinguisher> ] [ statistics ] community-list { <basic-community-list-number> | <adv-community-list-number> | <comm-list-name> } [ whole-match ]",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "313527081_1694417941_-1507872848.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "undo igmp static-group { all | <group-address> [ source <source-address> ]",
+    "corrected": "undo igmp static-group { all | <group-address> [ source <source-address> ] }",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "161041563_-918889381_-426991415.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "reset ospf [ <process-id> ] event-log [ lsa-flush | peer [ slot <slot-number> | spf ]",
+    "corrected": "reset ospf [ <process-id> ] event-log [ lsa-flush | peer [ slot <slot-number> ] | spf ]",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "-1787668869_1456461804_-1668000288.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> } prefix-list <ipv4-prefix-list-name> { export | import }",
+    "corrected": "peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] } prefix-list <ipv4-prefix-list-name> { export | import }",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "-814723950_-2135100947_-1167318974.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> } prefix-list [ <ipv4-prefix-list-name> ] { export | import }",
+    "corrected": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] } prefix-list [ <ipv4-prefix-list-name> ] { export | import }",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "-814723950_-2135100947_-1167318974.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "reset bgp [ instance <instance-name> ] flap-info vpnv4 [ <ipv4-address> [ <mask> | <mask-length> ] | as-path-acl { <as-path-acl-number> | <as-path-acl-name> } | peer [ <ipv4-address> [ <mask-length> ] ]",
+    "corrected": "reset bgp [ instance <instance-name> ] flap-info vpnv4 [ <ipv4-address> [ <mask> | <mask-length> ] | as-path-acl { <as-path-acl-number> | <as-path-acl-name> } | peer [ <ipv4-address> [ <mask-length> ] ] ]",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "-814723950_-2135100947_1943806398.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] | <link-local-address> interface <interface-type> <interface-number> ] } bmp server",
+    "corrected": "undo peer { <group-name> | <ipv4-address> [ <mask-length> ] | <ipv6-address> [ <prefix-length> ] | <link-local-address> interface <interface-type> <interface-number> } bmp server",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "-814723950_-2135100947_801761885.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "ipv6 route-static vpn-instance <s-vpn-instance-name> <ipv6-address> <prefix-length> <interface-type> <interface-number> [ <next-hop-address> ] [ bfd { control-packet | echo-packet } [ bfd-source <ipv6-address> ] | permanent | track <track-entry-number> ] } [ preference <preference> ] [ tag <tag-value> ] [ recursive-lookup ] [ primary <threshold-level> | secondary ] [ description <text> ]",
+    "corrected": "ipv6 route-static vpn-instance <s-vpn-instance-name> <ipv6-address> <prefix-length> <interface-type> <interface-number> [ <next-hop-address> ] [ bfd { control-packet | echo-packet } [ bfd-source <ipv6-address> ] | permanent | track <track-entry-number> ] [ preference <preference> ] [ tag <tag-value> ] [ recursive-lookup ] [ primary <threshold-level> | secondary ] [ description <text> ]",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "1637707902_-974497227_412835665.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "h3c",
+    "original": "undo snmp-agent trap enable tunnel [ max-threshold-reached | vxlan-config-failure | vxlan-decap-failure | vxlan-tunnel-status | vxlan-ipv6-tunnel-status *",
+    "corrected": "undo snmp-agent trap enable tunnel [ max-threshold-reached | vxlan-config-failure | vxlan-decap-failure | vxlan-tunnel-status | vxlan-ipv6-tunnel-status ] *",
+    "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+    "chapter": "-475935434_-2121999186_-167187523.htm",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "huawei",
+    "original": "display ipv6 nd raguard-policy statistics { global | vlan { all | <vlan-id> } | bridge-domain { all | <bd-id> } inbound",
+    "corrected": "display ipv6 nd raguard-policy statistics { global | vlan { all | <vlan-id> } | bridge-domain { all | <bd-id> } } inbound",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100420140/e6ca48ed",
+    "chapter": "EDOC1100420140-j022.html",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "huawei",
+    "original": "match [ ipv6 ] vxlan [ tag-format { none | single } ] { ipv4 { inner-source-ip | inner-destination-ip | inner-source-mac | inner-ethertype | inner-protocol | inner-tcp-flag | inner-source-port | inner-destination-port } * | ipv6 { { inner-source-ipv6 | inner-destination-ipv6 } * { loose | strict } | inner-source-mac | inner-ethertype | inner-protocol | inner-tcp-flag | inner-source-port | inner-destination-port } *",
+    "corrected": "match [ ipv6 ] vxlan [ tag-format { none | single } ] { ipv4 { inner-source-ip | inner-destination-ip | inner-source-mac | inner-ethertype | inner-protocol | inner-tcp-flag | inner-source-port | inner-destination-port } * | ipv6 { { inner-source-ipv6 | inner-destination-ipv6 } * { loose | strict } | inner-source-mac | inner-ethertype | inner-protocol | inner-tcp-flag | inner-source-port | inner-destination-port } * }",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100420140/ce7731fa",
+    "chapter": "EDOC1100420140-j06x.html",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "huawei",
+    "original": "reset ipv6 nd raguard-policy statistics { global | vlan { all | <vlan-id> } | bridge-domain { all | <bd-id> } inbound",
+    "corrected": "reset ipv6 nd raguard-policy statistics { global | vlan { all | <vlan-id> } | bridge-domain { all | <bd-id> } } inbound",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100420140/e6ca48ed",
+    "chapter": "EDOC1100420140-j022.html",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "huawei",
+    "original": "senderid-tlv-type { chassis | chassis-manage } [ chassis-subtype { mac-address | locally-assigned } ] | defer | manage | none }",
+    "corrected": "senderid-tlv-type { { chassis | chassis-manage } [ chassis-subtype { mac-address | locally-assigned } ] | defer | manage | none }",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100420140/50944470",
+    "chapter": "EDOC1100420140-j06q.html",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "huawei",
+    "original": "snmp-agent target-host [ host-name <host-name> ] trap ipv6 address udp-domain <ipv6-address> [ [ [ udp-port <port-number> | [ alarm-udp-port <alarm-port-number> | event-udp-port <event-port-number> ] * ] | [ vpn-instance <vpn-instance-name> | public-net ] ] * params securityname { <security-name> [ [ v1 | v2c | v3 [ authentication | privacy ] ] | ext-vb | notify-filter-profile <profile-name> | private-netmanager ] * | cipher <cipher-name> [ [ v1 | v2c ] | ext-vb | notify-filter-profile <profile-name> | private-netmanager ] * }",
+    "corrected": "snmp-agent target-host [ host-name <host-name> ] trap ipv6 address udp-domain <ipv6-address> [ [ udp-port <port-number> | [ alarm-udp-port <alarm-port-number> | event-udp-port <event-port-number> ] * ] | [ vpn-instance <vpn-instance-name> | public-net ] ] * params securityname { <security-name> [ [ v1 | v2c | v3 [ authentication | privacy ] ] | ext-vb | notify-filter-profile <profile-name> | private-netmanager ] * | cipher <cipher-name> [ [ v1 | v2c ] | ext-vb | notify-filter-profile <profile-name> | private-netmanager ] * }",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100420140/dab469bd",
+    "chapter": "EDOC1100420140-j07y.html",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "huawei",
+    "original": "snmp-agent target-host host-name <host-name> trap ipv6 address udp-domain <ipv6-address> [ [ [ udp-port <port-number> | [ alarm-udp-port <alarm-port-number> | event-udp-port <event-port-number> ] * ] | [ vpn-instance <vpn-instance-name> | public-net ] | [ source { <interface-name> | <interface-type> <interface-number> } ] ] * params securityname { <security-name> [ [ v1 | v2c | v3 [ authentication | privacy ] ] | ext-vb | notify-filter-profile <profile-name> | private-netmanager ] * | cipher <cipher-name> [ [ v1 | v2c ] | ext-vb | notify-filter-profile <profile-name> | private-netmanager ] * }",
+    "corrected": "snmp-agent target-host host-name <host-name> trap ipv6 address udp-domain <ipv6-address> [ [ udp-port <port-number> | [ alarm-udp-port <alarm-port-number> | event-udp-port <event-port-number> ] * ] | [ vpn-instance <vpn-instance-name> | public-net ] | [ source { <interface-name> | <interface-type> <interface-number> } ] ] * params securityname { <security-name> [ [ v1 | v2c | v3 [ authentication | privacy ] ] | ext-vb | notify-filter-profile <profile-name> | private-netmanager ] * | cipher <cipher-name> [ [ v1 | v2c ] | ext-vb | notify-filter-profile <profile-name> | private-netmanager ] * }",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100420140/dab469bd",
+    "chapter": "EDOC1100420140-j07y.html",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "huawei",
+    "original": "undo match [ ipv6 ] vxlan [ tag-format { none | single } ] { ipv4 { inner-source-ip | inner-destination-ip | inner-source-mac | inner-ethertype | inner-protocol | inner-tcp-flag | inner-source-port | inner-destination-port } * | ipv6 { { inner-source-ipv6 | inner-destination-ipv6 } * { loose | strict } | inner-source-mac | inner-ethertype | inner-protocol | inner-tcp-flag | inner-source-port | inner-destination-port } *",
+    "corrected": "undo match [ ipv6 ] vxlan [ tag-format { none | single } ] { ipv4 { inner-source-ip | inner-destination-ip | inner-source-mac | inner-ethertype | inner-protocol | inner-tcp-flag | inner-source-port | inner-destination-port } * | ipv6 { { inner-source-ipv6 | inner-destination-ipv6 } * { loose | strict } | inner-source-mac | inner-ethertype | inner-protocol | inner-tcp-flag | inner-source-port | inner-destination-port } * }",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100420140/ce7731fa",
+    "chapter": "EDOC1100420140-j06x.html",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "huawei",
+    "original": "undo remote-unit { <ruid1> [ to <ruid2> ] } * ] port uplink { tagged | untagged } { vlan { <vlan-id1> [ to <vlan-id2> ] } * | all }",
+    "corrected": "undo remote-unit { <ruid1> [ to <ruid2> ] } * port uplink { tagged | untagged } { vlan { <vlan-id1> [ to <vlan-id2> ] } * | all }",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/43779064",
+    "chapter": "EDOC1100410645-j01s.html",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "huawei",
+    "original": "undo set cipher-suite { tls12_ck_dss_aes_128_gcm_sha256 | tls12_ck_dss_aes_256_gcm_sha384 | tls12_ck_rsa_aes_128_gcm_sha256 | tls12_ck_rsa_aes_256_gcm_sha384 | tls12_ck_ecdhe_rsa_with_aes_128_gcm_sha256 | tls12_ck_ecdhe_rsa_with_aes_128_gcm_sha384 | tls13_aes_128_ccm_sha256 | tls13_aes_128_gcm_sha256 | tls13_aes_256_gcm_sha384 | tls13_chacha20_poly1305_sha256 } }",
+    "corrected": "undo set cipher-suite { tls12_ck_dss_aes_128_gcm_sha256 | tls12_ck_dss_aes_256_gcm_sha384 | tls12_ck_rsa_aes_128_gcm_sha256 | tls12_ck_rsa_aes_256_gcm_sha384 | tls12_ck_ecdhe_rsa_with_aes_128_gcm_sha256 | tls12_ck_ecdhe_rsa_with_aes_128_gcm_sha384 | tls13_aes_128_ccm_sha256 | tls13_aes_128_gcm_sha256 | tls13_aes_256_gcm_sha384 | tls13_chacha20_poly1305_sha256 }",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/5906a2c",
+    "chapter": "EDOC1100410645-j00a.html",
+    "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  }
+]
