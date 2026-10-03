@@ -13,85 +13,30 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from netconfiglint.commands.objects import (
+    INTERFACE_TYPES,
+    declared,
+    parameter_kind,
+    parameter_status,
+    parameter_values,
+)
+from netconfiglint.core.lexer import normalize_cli_line
+
 VENDORS = ("h3c", "huawei")
 LABELS = {"h3c": "H3C", "huawei": "Huawei"}
-_INTERFACE_TYPES = {
-    "h3c": (
-        "GigabitEthernet",
-        "Ten-GigabitEthernet",
-        "FortyGigE",
-        "HundredGigE",
-        "FourHundredGigE",
-        "M-GigabitEthernet",
-        "Bridge-Aggregation",
-        "Route-Aggregation",
-        "LoopBack",
-        "Vlan-interface",
-        "Tunnel",
-        "NULL",
-    ),
-    "huawei": (
-        "GigabitEthernet",
-        "XGigabitEthernet",
-        "GE",
-        "10GE",
-        "25GE",
-        "40GE",
-        "100GE",
-        "400GE",
-        "MEth",
-        "Eth-Trunk",
-        "Vlanif",
-        "LoopBack",
-        "Tunnel",
-        "Nve",
-        "Vbdif",
-        "NULL",
-    ),
-}
+_INTERFACE_TYPES = INTERFACE_TYPES
 
 
 @lru_cache(maxsize=8)
 def _declared(source: str) -> dict[str, tuple[str, ...]]:
     """Reuse only named CLI objects, never passwords, users, addresses, or secrets."""
-    declarations = {
-        "vpn": r"^[ \t]*ip vpn-instance (\S+)",
-        "route-policy": r"^[ \t]*route-policy (\S+)",
-        "classifier": r"^[ \t]*traffic classifier (\S+)",
-        "behavior": r"^[ \t]*traffic behavior (\S+)",
-        "policy": r"^[ \t]*(?:traffic|qos) policy (\S+)",
-        "interface": r"^[ \t]*interface (\S+)",
-    }
-    return {
-        key: tuple(sorted(set(re.findall(pattern, source, re.I | re.M))))
-        for key, pattern in declarations.items()
-    }
+    return declared(source, "h3c")
 
 
-def _parameter_values(token: str, vendor: str, source: str, syntax: str) -> tuple[str, ...]:
-    name = token.strip("<>").lower()
-    if name in {"interface-type", "if-type"}:
-        return _INTERFACE_TYPES[vendor]
-    object_parameters = {
-        "vpn-instance": "vpn",
-        "vpn-instance-name": "vpn",
-        "route-policy-name": "route-policy",
-        "classifier-name": "classifier",
-        "traffic-classifier-name": "classifier",
-        "behavior-name": "behavior",
-        "traffic-behavior-name": "behavior",
-        "qos-policy-name": "policy",
-        "traffic-policy-name": "policy",
-        "interface-name": "interface",
-    }
-    key = object_parameters.get(name)
-    if key:
-        return _declared(source)[key]
-    if name == "policy-name" and re.match(
-        r"^(?:undo |display )?(?:qos\b|traffic policy\b|traffic-policy\b)", syntax
-    ):
-        return _declared(source)["policy"]
-    return ()
+def _parameter_values(
+    token: str, vendor: str, source: str, syntax: str, words: list[str] | None = None
+) -> tuple[str, ...]:
+    return parameter_values(token, vendor, source, syntax, words or [])
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +46,11 @@ class Command:
     tokens: tuple[str, ...]
     source: str
     views: tuple[str, ...]
+    sources: tuple[str, ...] = ()
+    scopes: tuple[str, ...] = ()
+    annotations: tuple[str, ...] = ()
+    provenance: tuple[dict[str, object], ...] = ()
+    legacy: bool = False
 
 
 @lru_cache(maxsize=1)
@@ -109,7 +59,7 @@ def commands() -> tuple[Command, ...]:
     for vendor in VENDORS:
         path = Path(__file__).with_name("data") / f"{vendor}.json"
         data = json.loads(path.read_text("utf-8"))
-        if data["vendor"] != vendor or data["schema"] != 1:
+        if data["vendor"] != vendor or data["schema"] not in {1, 2}:
             raise ValueError("Invalid completion catalog")
         for row in data["commands"]:
             syntax = row["syntax"]
@@ -120,6 +70,11 @@ def commands() -> tuple[Command, ...]:
                     tuple(syntax.split()),
                     row["source"],
                     tuple(_view_label(value) for value in row["views"]),
+                    tuple(dict.fromkeys(p["url"] for p in row.get("sources", []))) or (row["source"],),
+                    tuple(dict.fromkeys(p.get("manual", "") for p in row.get("sources", []))),
+                    tuple(dict.fromkeys(a for p in row.get("sources", []) for a in p.get("annotations", []))),
+                    tuple(row.get("sources", [])),
+                    bool(row.get("legacy", False)),
                 )
             )
     return tuple(result)
@@ -129,8 +84,28 @@ def commands() -> tuple[Command, ...]:
 def _index() -> dict[str, tuple[Command, ...]]:
     grouped: dict[str, list[Command]] = {}
     for entry in commands():
-        grouped.setdefault(entry.tokens[0].lower(), []).append(entry)
+        for root in _initial_roots(entry.syntax):
+            if not root.startswith("<"):
+                grouped.setdefault(root.lower(), []).append(entry)
     return {root: tuple(entries) for root, entries in grouped.items()}
+
+
+def _initial_roots(syntax: str) -> set[str]:
+    """Catalog imports start with literals; only true top-level alternatives add roots."""
+    roots: set[str] = set()
+    depth = 0
+    take = True
+    for token in re.findall(r"<[^>]+>|[\[\]{}|*]|[^\s\[\]{}|*]+", syntax):
+        if take and token not in {"[", "{"}:
+            roots.add(token)
+            take = False
+        if token in {"[", "{"}:
+            depth += 1
+        elif token in {"]", "}"}:
+            depth -= 1
+        elif token == "|" and depth == 0:
+            take = True
+    return roots
 
 
 @lru_cache(maxsize=256)
@@ -173,7 +148,7 @@ class _Node:
     edges: list[tuple[str, int]]
 
 
-@lru_cache(maxsize=32768)
+@lru_cache(maxsize=65536)
 def _grammar(syntax: str) -> tuple[_Node, ...]:
     """Compile bracket/choice/repetition notation into a bounded epsilon NFA."""
     tokens = re.findall(r"<[^>]+>|[\[\]{}|*]|[^\s\[\]{}|*]+", syntax)
@@ -222,32 +197,62 @@ def _grammar(syntax: str) -> tuple[_Node, ...]:
     return tuple(nodes)
 
 
-def _next_tokens(entry: Command, words: list[str]) -> set[str]:
+def _match_tokens(entry: Command, words: list[str]) -> tuple[set[str], tuple[int, ...]]:
     nodes = _grammar(entry.syntax)
 
-    def closure(states: set[int]) -> set[int]:
+    def closure(states: dict[int, tuple[int, ...]]) -> dict[int, tuple[int, ...]]:
         pending = list(states)
         while pending:
-            for token, target in nodes[pending.pop()].edges:
-                if not token and target not in states:
-                    states.add(target)
+            state = pending.pop()
+            for token, target in nodes[state].edges:
+                if not token and (target not in states or states[target] < states[state]):
+                    states[target] = states[state]
                     pending.append(target)
         return states
 
-    states = closure({0})
+    states = closure({0: ()})
     for word in words:
-        edges = [edge for state in states for edge in nodes[state].edges if edge[0]]
-        # An exact keyword wins over wildcard parameters at the same grammar point.
-        exact = [(token, target) for token, target in edges if token.lower() == word.lower()]
-        matches = exact or [
-            (token, target)
-            for token, target in edges
-            if token.startswith("<") or token.lower().startswith(word.lower())
-        ]
-        states = closure({target for _, target in matches})
+        matched: dict[int, tuple[int, ...]] = {}
+        for state, previous in states.items():
+            for token, target in nodes[state].edges:
+                if not token:
+                    continue
+                argument = token.startswith("<")
+                if argument:
+                    kind = parameter_kind(token, entry.syntax)
+                    if kind == "interface-type" and not any(
+                        value.lower().startswith(word.lower()) for value in _INTERFACE_TYPES[entry.vendor]
+                    ):
+                        continue
+                    # A documented numeric slot cannot swallow a keyword from another branch.
+                    if re.search(
+                        r"(?:number|(?:^|-)id|(?:^|-)value|length|count|interval)$", token[1:-1], re.I
+                    ) and not re.fullmatch(r"\d+(?:[/.:,-]\d+)*", word):
+                        continue
+                    quality = 0
+                elif token.lower() == word.lower():
+                    quality = 2
+                elif token.lower().startswith(word.lower()):
+                    # An abbreviation and a valid argument remain ambiguous.
+                    # Treating every prefix as stronger would misread ACL "ip"
+                    # as an abbreviation of "ipv4" and swallow time-range.
+                    quality = 0
+                else:
+                    continue
+                score = (*previous, quality)
+                if target not in matched or matched[target] < score:
+                    matched[target] = score
+        states = closure(matched)
         if not states:
-            return set()
-    return {token for state in states for token, _ in nodes[state].edges if token}
+            return set(), ()
+    score = max(states.values())
+    return {
+        token for state, value in states.items() if value == score for token, _ in nodes[state].edges if token
+    }, score
+
+
+def _next_tokens(entry: Command, words: list[str]) -> set[str]:
+    return _match_tokens(entry, words)[0]
 
 
 # Distinctive syntax, not generic 'system', 'vlan', 'sysname', or interface names.
@@ -316,7 +321,7 @@ def _utf16_length(text: str) -> int:
 def _view(source: str, line_start: int) -> str:
     lines = source[max(0, line_start - 20_000) : line_start].splitlines()
     for raw in reversed(lines):
-        body = raw.strip().lower()
+        body = normalize_cli_line(raw)[0].strip().lower()
         if body in {"#", "return", "system-view"}:
             return "system"
         if body in {"quit", "exit"}:
@@ -345,14 +350,39 @@ def _view(source: str, line_start: int) -> str:
     return "system"
 
 
-def complete(source: str, cursor: int, selected: tuple[str, ...] = ()) -> dict[str, object]:
+def _legacy_requested(entry: Command, words: list[str], prefix: str) -> bool:
+    """A shared modern root alone does not opt into a historical feature chapter."""
+    requested = [*words, *([prefix] if prefix else [])]
+    generic = {"undo", "display", "reset", "interface", "ip", "ipv6"}
+    for index, token in enumerate(entry.tokens):
+        if token.startswith(("<", "[", "{")) or token in {"|", "*"}:
+            break
+        if index >= len(requested):
+            break
+        if token.lower() not in generic and len(requested[index]) >= min(3, len(token)):
+            return token.lower().startswith(requested[index].lower())
+    return False
+
+
+def complete(
+    source: str, cursor: int, selected: tuple[str, ...] = (), manuals: tuple[str, ...] = ()
+) -> dict[str, object]:
     """Return replacements in QML coordinates, with common-prefix shell behavior."""
     position = _python_offset(source, cursor)
     line_start = source.rfind("\n", 0, position) + 1
     line_end = source.find("\n", position)
     line_end = len(source) if line_end < 0 else line_end
-    before = source[line_start:position]
-    empty = {"items": [], "arguments": [], "start": cursor, "end": cursor, "insert": "", "vendors": []}
+    before, _ = normalize_cli_line(source[line_start:position])
+    empty = {
+        "items": [],
+        "arguments": [],
+        "argumentDetails": [],
+        "start": cursor,
+        "end": cursor,
+        "insert": "",
+        "vendors": [],
+        "scopeNote": "",
+    }
     if before.lstrip().startswith(("#", "!", "//", ";")) or '"' in before or "'" in before:
         return empty
     words = before.split()
@@ -367,52 +397,147 @@ def complete(source: str, cursor: int, selected: tuple[str, ...] = ()) -> dict[s
     if not vendors:
         vendors = detect_vendors(context)
     view = _view(source, line_start)
-    matches: dict[str, dict[str, object]] = {}
+    matches: dict[tuple[str, str], dict[str, object]] = {}
     arguments: set[str] = set()
+    argument_details: dict[tuple[str, str], dict[str, object]] = {}
+    paths: list[tuple[Command, set[str], tuple[int, ...]]] = []
     for entry in _entries((words[0] if words else prefix).lower()):
         if entry.vendor not in vendors:
             continue
-        head = []
-        for value in entry.tokens:
-            if value.startswith(("<", "[", "{")) or value in {"|", "*"}:
-                break
-            head.append(value)
-        if any(
-            not expected.lower().startswith(actual.lower())
-            for actual, expected in zip(words, head, strict=False)
-        ):
+        if manuals and not any(scope in manuals for scope in entry.scopes):
+            continue
+        # Historical chapters require either a selected reference or an explicit
+        # feature prefix. They do not inflate modern empty/undo/display menus.
+        if entry.legacy and not manuals and not _legacy_requested(entry, words, prefix):
+            continue
+        next_tokens, score = _match_tokens(entry, words) if words else (_initial_roots(entry.syntax), ())
+        if next_tokens:
+            paths.append((entry, next_tokens, score))
+    # Resolve consumed exact keywords across the complete catalog, not only
+    # within a single syntax. Abbreviations retain equal-quality alternatives.
+    best_scores = {
+        vendor: max((score for entry, _, score in paths if entry.vendor == vendor), default=())
+        for vendor in vendors
+    }
+    for entry, next_tokens, score in paths:
+        if score != best_scores[entry.vendor]:
             continue
         relevance = 0 if view in entry.views else 1 if "any" in entry.views or view == "any" else 2
         if entry.tokens[0] in {"system-view", "quit", "return", "undo", "display"}:
             relevance = min(relevance, 1)
-        next_tokens = _next_tokens(entry, words) if words else {entry.tokens[0]}
-        values: set[str] = set()
+        values: set[tuple[str, str]] = set()
         for token in next_tokens:
             if token.startswith("<"):
                 arguments.add(token)
-                values.update(_parameter_values(token, entry.vendor, context, entry.syntax))
+                kind = parameter_kind(token, entry.syntax)
+                status = parameter_status(token, entry.syntax)
+                description = (
+                    "Documented interface type; verify hardware support in the linked reference."
+                    if kind == "interface-type"
+                    else "Complete effective declarations in this document; device existence is unverified."
+                    if kind
+                    else "Object meaning is unmapped; enter manually and check the official namespace."
+                    if status == "unconfirmed"
+                    else "Enter manually; consult the official definition for format and range."
+                )
+                detail = argument_details.setdefault(
+                    (kind or token, status),
+                    {
+                        "token": token,
+                        "aliases": [],
+                        "kind": kind or "free-parameter",
+                        "status": status,
+                        "description": description,
+                        "sources": [],
+                        "syntaxes": [],
+                    },
+                )
+                for field, incoming in (
+                    ("aliases", [token]),
+                    ("sources", list(entry.sources or (entry.source,))),
+                    ("syntaxes", [entry.syntax]),
+                ):
+                    existing = detail[field]
+                    assert isinstance(existing, list)
+                    existing.extend(value for value in incoming if value not in existing)
+                values.update(
+                    (value, "interface-type" if kind == "interface-type" else "object:" + kind)
+                    for value in _parameter_values(token, entry.vendor, context, entry.syntax, words)
+                )
             else:
-                values.add(token)
-        for token in values:
+                # Fixed interface keywords and the domain provider share identity.
+                canonical = next(
+                    (value for value in _INTERFACE_TYPES[entry.vendor] if value.lower() == token.lower()),
+                    None,
+                )
+                values.add((canonical or token, "interface-type" if canonical else "keyword"))
+        for token, kind in values:
             if not token.lower().startswith(prefix.lower()):
                 continue
+            identity = (kind, token) if kind.startswith("object:") else ("cli", token.casefold())
             item = matches.setdefault(
-                token,
+                identity,
                 {
                     "text": token,
+                    "kind": "object" if kind.startswith("object:") else kind,
+                    "objectType": kind.removeprefix("object:") if kind.startswith("object:") else "",
                     "vendors": [],
                     "syntax": entry.syntax,
                     "source": entry.source,
                     "rank": relevance,
+                    "views": [],
+                    "sources": [],
+                    "scopes": [],
+                    "annotations": [],
+                    "syntaxes": [],
+                    "sourceDetails": [],
+                    "syntaxDetails": [],
                 },
             )
             item_vendors = item["vendors"]
             assert isinstance(item_vendors, list)
             if LABELS[entry.vendor] not in item_vendors:
                 item_vendors.append(LABELS[entry.vendor])
+            for field, metadata_values in (
+                ("views", list(entry.views)),
+                ("sources", list(entry.sources or (entry.source,))),
+                ("scopes", list(entry.scopes)),
+                ("annotations", list(entry.annotations)),
+                ("syntaxes", [entry.syntax]),
+                ("sourceDetails", list(entry.provenance)),
+            ):
+                existing = item[field]
+                assert isinstance(existing, list)
+                existing.extend(value for value in metadata_values if value not in existing)
+            syntax_details = item["syntaxDetails"]
+            assert isinstance(syntax_details, list)
+            details = [
+                {
+                    "syntax": entry.syntax,
+                    "sources": [origin["url"]],
+                    "views": origin.get("views", []),
+                    "scopes": [origin.get("manual", "")],
+                    "annotations": origin.get("annotations", []),
+                }
+                for origin in entry.provenance
+            ] or [
+                {
+                    "syntax": entry.syntax,
+                    "sources": [entry.source],
+                    "views": list(entry.views),
+                    "scopes": list(entry.scopes),
+                    "annotations": list(entry.annotations),
+                }
+            ]
+            syntax_details.extend(value for value in details if value not in syntax_details)
             if relevance < int(str(item["rank"])):
                 item.update(syntax=entry.syntax, source=entry.source, rank=relevance)
     items = sorted(matches.values(), key=lambda item: (int(str(item["rank"])), str(item["text"]).lower()))
+    for detail in argument_details.values():
+        aliases = detail["aliases"]
+        assert isinstance(aliases, list)
+        aliases.sort()
+        detail["token"] = aliases[0]
     texts = [str(item["text"]) for item in items]
     shared = os.path.commonprefix(texts) if texts else ""
     insertion = (
@@ -423,8 +548,13 @@ def complete(source: str, cursor: int, selected: tuple[str, ...] = ()) -> dict[s
     return {
         "items": items,
         "arguments": sorted(arguments),
+        "argumentDetails": sorted(argument_details.values(), key=lambda row: str(row["token"])),
         "start": _utf16_length(source[:start]),
         "end": _utf16_length(source[:end]),
         "insert": insertion,
         "vendors": [LABELS[v] for v in vendors],
+        "scopeNote": (
+            "Completion covers the listed references. Recognition does not prove semantic checks "
+            "or compatibility with every product/version. Historical forms retain their reference scope."
+        ),
     }

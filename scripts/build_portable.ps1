@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '2.6.0',
+    [string]$Version = '3.0.0',
     [string]$CertificateThumbprint = '',
     [string]$PfxPath = '',
     [switch]$SkipAppBuild
@@ -42,7 +42,7 @@ $temporary = Join-Path $stagingRoot 'temporary'
 New-Item -ItemType Directory -Path $temporary | Out-Null
 Set-Content -LiteralPath (Join-Path $stagingRoot 'portable.flag') -Encoding ASCII -Value 'portable'
 Set-Content -LiteralPath (Join-Path $history 'README.txt') -Encoding UTF8 -Value @(
-    'NetConfigLint stores analysis history here by default, including source configuration and diagnostics.'
+    'New installations store summary-only history by default. Full configuration and diagnostics require explicit opt-in in Settings.'
     'Disable history in Settings to delete saved entries. Treat this folder as sensitive.'
 )
 Set-Content -LiteralPath (Join-Path $temporary 'README.txt') -Encoding UTF8 -Value @(

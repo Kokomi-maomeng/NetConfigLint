@@ -16,12 +16,8 @@ from netconfiglint.core.diagnostics import SourceRange
 from netconfiglint.core.lexer import SourceLine
 from netconfiglint.core.model import ConfigBlock, ConfigCommand
 from netconfiglint.vendors.huawei.parser.acl_identity import parse_acl_identity
+from netconfiglint.vendors.huawei.parser.interfaces import interface_name as interface_name
 from netconfiglint.vendors.huawei.parser.semantics import bgp_network, route_arguments
-
-
-def interface_name(value: str) -> str:
-    """Join a separated type/number without guessing abbreviations or hardware."""
-    return re.sub(r"^([A-Za-z][A-Za-z0-9-]*)\s+(?=\d)", r"\1", value.strip())
 
 
 def _block_key(header: str) -> str | None:
@@ -69,7 +65,18 @@ def index_blocks(lines: tuple[SourceLine, ...], initial_view: str | None = None)
         checkpoint()
         text, lower = line.text, line.text.lower()
         indent = len(line.raw.expandtabs()) - len(line.raw.expandtabs().lstrip())
+        if line.prompt:
+            prompt = line.prompt.strip("[]<>~*").lower()
+            if active is not None and active.header.lower().startswith("interface "):
+                name = interface_name(active.header[10:]).lower()
+                indent = 1 if prompt.endswith("-" + name) else 0
+            elif active is not None and re.fullmatch(r"(?:bgp|ospf) \d+", active.header, re.I):
+                indent = 1 if prompt.endswith("-" + active.header.split()[0].lower()) else 0
+            else:
+                indent = 0
         if not text:
+            continue
+        if text.startswith("#") and text != "#":
             continue
         if lower in {"return", "system-view"}:
             active, previous = None, None
@@ -118,6 +125,12 @@ def _key(header: str, text: str, views: tuple[str, ...]) -> tuple[str, ...] | No
     if not t:
         return None
     if root.startswith("interface ") and not views:
+        if re.fullmatch(r"interface eth-trunk\s*\d+", root) and text.lower() in {
+            "mode lacp-static",
+            "mode manual load-balance",
+            "undo mode",
+        }:
+            return ("aggregation-mode",)
         if w[:2] == ["ip", "address"] and len(t) in {3, 4} and "sub" not in w:
             return ("ip", "address", "primary")
         for prefix in (

@@ -20,6 +20,7 @@ ListView {
         required property int index
         required property int sourceRow
         required property string severity
+        required property string confidence
         required property string ruleId
         required property int line
         required property string targetObject
@@ -32,6 +33,7 @@ ListView {
             id: issueCard
             anchors.fill: parent
             anchors.bottomMargin: Spacing.sm
+            confidenceValue: issueRow.confidence
             severityValue: issueRow.severity
             ruleIdentifier: issueRow.ruleId
             sourceLine: issueRow.line

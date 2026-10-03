@@ -11,6 +11,7 @@ from pathlib import Path
 def normalize_notation(syntax: str) -> str:
     # Some manuals put notation operators in the same italic spans as parameters.
     while True:
+        syntax = re.sub(r"<\s*<([^<>]+)>\s*>", r"<\1>", syntax)
         normalized = re.sub(r"<\s*([\[\]{}|*])\s*>", r"\1", syntax)
         if normalized == syntax:
             break

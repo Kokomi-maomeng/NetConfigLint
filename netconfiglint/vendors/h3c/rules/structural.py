@@ -45,25 +45,34 @@ class MissingBridgeAggregationRule:
             for name in context.config.interfaces
             if (match := re.fullmatch(r"bridge-aggregation\s*(\d+)", name, re.IGNORECASE))
         }
+        route_groups = {
+            match.group(1)
+            for name in context.config.interfaces
+            if (match := re.fullmatch(r"route-aggregation\s*(\d+)", name, re.IGNORECASE))
+        }
         result = []
         for interface in context.config.interfaces.values():
             checkpoint()
-            if interface.eth_trunk is None or interface.eth_trunk in groups:
+            if interface.eth_trunk is None:
                 continue
+            expected = route_groups if interface.link_mode == "route" else groups
+            # With no explicit L2/L3 member mode, the group type is unverified;
+            # the presence of either type cannot prove a missing reference.
+            if interface.eth_trunk in expected or (
+                interface.link_mode is None and interface.eth_trunk in route_groups
+            ):
+                continue
+            group_type = "Route-Aggregation" if interface.link_mode == "route" else "Bridge-Aggregation"
             result.append(
                 missing_reference_diagnostic(
                     context,
                     rule_id=self.metadata.rule_id,
                     source=interface.command_sources.get("eth_trunk", interface.source),
                     object_name=interface.name,
-                    full_message=(f"Interface references undefined Bridge-Aggregation{interface.eth_trunk}."),
-                    snippet_message=(
-                        f"Bridge-Aggregation{interface.eth_trunk} was not found in the snippet."
-                    ),
+                    full_message=(f"Interface references undefined {group_type}{interface.eth_trunk}."),
+                    snippet_message=(f"{group_type}{interface.eth_trunk} was not found in the snippet."),
                     explanation="The member port has no matching aggregate interface definition.",
-                    suggested_fix=(
-                        f"Define Bridge-Aggregation{interface.eth_trunk} or correct the group number."
-                    ),
+                    suggested_fix=(f"Define {group_type}{interface.eth_trunk} or correct the group number."),
                 )
             )
         return tuple(result)

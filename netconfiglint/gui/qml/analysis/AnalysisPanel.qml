@@ -16,6 +16,7 @@ AppCard {
     property bool busy: false
     property var coverage: ({})
     property bool coverageExpanded: false
+    signal pendingLineActivated(int line)
     signal cancelRequested()
     signal issueActivated(int row)
     signal dragStarted(real sceneX)
@@ -24,6 +25,7 @@ AppCard {
     signal stepRequested(int direction)
     padding: 0
     onResultCurrentChanged: severityFilter = "ALL"
+    function pendingCount() { return (coverage.catalogued || 0) + (coverage.unparsed || 0) + (coverage.unsupported || 0) }
     function totalCount() { return (summary.ERROR || 0) + (summary.WARNING || 0) + (summary.INFO || 0) + (summary.UNKNOWN || 0) }
     function filteredCount() { return severityFilter === "ALL" ? totalCount() : (summary[severityFilter] || 0) }
     function catalogFamilies() {
@@ -70,15 +72,30 @@ AppCard {
                 text: i18n.catalog["analysis.cancel"]
                 onClicked: root.cancelRequested()
             }
-            ToolButton {
+            Label {
+                objectName: "coverageSummary"
+                Layout.fillWidth: true
+                visible: root.resultCurrent
+                wrapMode: Text.Wrap
+                font: Typography.caption
+                color: root.pendingCount() ? Colors.warning : Colors.primary
+                text: i18n.catalog["analysis.semantic_checked"] + ": " + (root.coverage.recognized || 0)
+                      + " · " + i18n.catalog["analysis.catalogued"] + ": " + (root.coverage.catalogued || 0)
+                      + " · " + i18n.catalog["analysis.pending"] + ": " + root.pendingCount()
+            }
+            AppButton {
                 objectName: "coverageToggle"
                 Layout.fillWidth: true
                 visible: root.resultCurrent
-                text: i18n.catalog["analysis.coverage"] + ": " + ((root.coverage.recognized || 0) + (root.coverage.catalogued || 0))
-                      + " / " + ((root.coverage.recognized || 0) + (root.coverage.catalogued || 0) + (root.coverage.unparsed || 0) + (root.coverage.unsupported || 0))
-                      + "  " + (root.coverage.complete === false ? i18n.catalog["analysis.incomplete"]
-                          : (root.coverage.semantic_complete === false ? i18n.catalog["analysis.semantic_partial"] : ""))
+                text: i18n.catalog["analysis.coverage"] + (root.coverageExpanded ? " ▴" : " ▾")
                 onClicked: root.coverageExpanded = !root.coverageExpanded
+            }
+            AppButton {
+                objectName: "pendingLinesButton"
+                Layout.fillWidth: true
+                visible: root.resultCurrent && root.pendingCount() > 0
+                text: i18n.catalog["analysis.pending_list"] + " (" + root.pendingCount() + ")"
+                onClicked: pendingDialog.open()
             }
             SelectableText {
                 objectName: "coverageDetails"
@@ -158,7 +175,24 @@ AppCard {
                 objectName: "analysisEmptyState"
                 anchors.fill: parent
                 visible: root.filteredCount() === 0
-                title: root.totalCount() > 0 ? i18n.catalog["analysis.filter_empty"] : (root.resultCurrent ? i18n.catalog["analysis.no_issues"] : "")
+                title: root.totalCount() > 0 ? i18n.catalog["analysis.filter_empty"] : (root.resultCurrent ? (root.pendingCount() ? i18n.catalog["analysis.no_issues_pending"].replace("{count}", root.pendingCount()) : i18n.catalog["analysis.no_issues"]) : "")
+            }
+        }
+    }
+    AppDialog {
+        id: pendingDialog
+        objectName: "pendingLinesDialog"
+        title: i18n.catalog["analysis.pending_list"]
+        height: Math.min(550, root.Window.height - 60)
+        contentItem: ListView {
+            clip: true
+            model: root.coverage.pending_line_details || []
+            ScrollBar.vertical: AppScrollBar {}
+            delegate: ItemDelegate {
+                required property var modelData
+                width: ListView.view.width
+                text: i18n.catalog["issue.line"] + " " + modelData.line + " · " + (i18n.catalog["pending." + modelData.status] || modelData.status || "")
+                onClicked: { root.pendingLineActivated(modelData.line); pendingDialog.close() }
             }
         }
     }

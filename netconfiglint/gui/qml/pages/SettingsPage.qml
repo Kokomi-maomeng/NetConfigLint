@@ -221,7 +221,7 @@ AppDialog {
                 objectName: "privacySettingsSection"
                 Layout.fillWidth: true
                 title: i18n.catalog["settings.privacy"]
-                detail: i18n.catalog["settings.history"]
+                detail: i18n.catalog["history.notice." + root.controller.historyRetention]
                 RowLayout {
                     Layout.fillWidth: true
                     SelectableText { text: i18n.catalog["settings.history"]; Layout.fillWidth: true }
@@ -234,6 +234,16 @@ AppDialog {
                             if (root.controller.historyEnabled) disableHistoryDialog.open()
                             else root.controller.historyEnabled = true
                         }
+                    }
+                }
+                ComboBox {
+                    objectName: "historyRetentionSelection"
+                    Layout.fillWidth: true
+                    model: [i18n.catalog["history.summary"], i18n.catalog["history.full"]]
+                    currentIndex: root.controller.historyRetention === "full" ? 1 : 0
+                    onActivated: index => {
+                        if (index === 1) fullHistoryDialog.open()
+                        else root.controller.setHistoryRetention("summary")
                     }
                 }
                 AppButton { objectName: "clearHistoryButton"; text: i18n.catalog["history.clear"]; onClicked: clearHistoryDialog.open() }
@@ -251,6 +261,14 @@ AppDialog {
         selectedValue: i18n.language
         options: [{label:"English",value:"en"},{label:"简体中文",value:"zh_CN"}]
         onValueSelected: value => i18n.language = value
+    }
+    AppDialog {
+        id: fullHistoryDialog
+        objectName: "fullHistoryDialog"
+        title: i18n.catalog["history.full"]
+        contentItem: Label { text: i18n.catalog["history.notice.full"]; wrapMode: Text.Wrap; color: Colors.textPrimary; font: Typography.body }
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: root.controller.setHistoryRetention("full")
     }
     AppDialog {
         id: disableHistoryDialog

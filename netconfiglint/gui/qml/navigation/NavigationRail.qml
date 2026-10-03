@@ -106,6 +106,13 @@ Rectangle {
             font: Typography.caption
             wrapMode: Text.WordWrap
         }
+        TextField {
+            objectName: "historySearchField"
+            Layout.fillWidth: true
+            visible: root.expanded && root.historyExpanded
+            placeholderText: i18n.catalog["history.search"]
+            onTextChanged: root.controller.filterHistory(text)
+        }
         ListView {
             id: historyList
             objectName: "sidebarHistoryList"
@@ -121,11 +128,13 @@ Rectangle {
                 objectName: "historyEntry-" + entryId
                 required property int index
                 required property string entryId
+                required property string entryTitle
+                required property bool restorable
                 required property string timestamp
                 required property string mode
                 required property string vendor
                 width: historyList.width
-                height: 56
+                height: 76
                 radius: 16
                 color: root.selectedHistory.indexOf(entryId) >= 0 ? Colors.primaryContainer : (rowHover.hovered ? Colors.surfaceContainerHigh : "transparent")
                 HoverHandler { id: rowHover }
@@ -139,6 +148,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.leftMargin: 12
                     spacing: 2
+                    Text { width: parent.width; elide: Text.ElideRight; text: historyRow.entryTitle + (historyRow.restorable ? "" : " · " + i18n.catalog["history.summary"]); color: Colors.textPrimary; font: Typography.caption; renderType: Text.QtRendering }
                     Text { width: parent.width; elide: Text.ElideRight; text: historyRow.timestamp; color: Colors.textPrimary; font: Typography.caption; renderType: Text.QtRendering }
                     Text { width: parent.width; elide: Text.ElideRight; text: historyRow.vendor + " · " + (i18n.catalog["mode." + historyRow.mode] || historyRow.mode); color: Colors.textSecondary; font: Typography.caption; renderType: Text.QtRendering }
                 }

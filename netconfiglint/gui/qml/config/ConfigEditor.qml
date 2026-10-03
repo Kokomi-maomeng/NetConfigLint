@@ -15,6 +15,18 @@ AppCard {
     property bool showSave: false
     property bool analysisBusy: false
     property bool searchActive: false
+    property var diagnosticMarkers: []
+    readonly property var diagnosticsByLine: {
+        var result = ({})
+        var markers = diagnosticMarkers || []
+        for (var i = 0; i < markers.length; ++i) {
+            var marker = markers[i]
+            if (!result[marker.line] || marker.severity === "ERROR") result[marker.line] = marker
+        }
+        return result
+    }
+    readonly property int totalLineCount: editor.pagedPreview ? editor.previewTotalLines : Math.max(1, editor.lineCount)
+    onDiagnosticMarkersChanged: refreshDiagnosticMarkers()
     property int searchCaretPosition: -1
     property real savedSelectionViewX: 0
     property real savedSelectionViewY: 0
@@ -29,21 +41,86 @@ AppCard {
     property bool completionActive: false
     property string completionSourceText: ""
     property int completionCursor: -1
-    function requestCompletion() {
-        if (editor.readOnly || editor.selectionStart !== editor.selectionEnd) return
+    property var completionDetail: ({})
+    property string completionDetailScopeNote: ""
+    property var queryResult: ({ items: [], arguments: [] })
+    function openCommandQuery() {
+        commandQuery.open()
+        queryField.forceActiveFocus()
+        queryTimer.restart()
+    }
+    function refreshCommandQuery() {
+        queryResult = commandCompletion.request(queryField.text, queryField.text.length)
+    }
+    function showQueryDetail(index) {
+        if (index < 0 || index >= queryResult.items.length) return
+        completionDetail = queryResult.items[index]
+        completionDetailScopeNote = queryResult.scopeNote || ""
+        completionDetails.open()
+    }
+    function refreshDiagnosticMarkers() {
+        syntaxHighlighter.setDiagnosticMarkersFor(editor.textDocument, diagnosticMarkers || [], editor.previewStartLine)
+        if (root.showAnalyze) syntaxHighlighter.setUnsupportedLinesFor(editor.textDocument,
+            analysisController.resultCurrent ? (analysisController.coverage.unsupported_lines || []) : [], editor.previewStartLine)
+    }
+    function diagnosticAt(line) {
+        return diagnosticsByLine[line] || null
+    }
+    function argumentRows() {
+        var details = completionResult.argumentDetails || []
+        if (details.length) return details
+        return (completionResult.arguments || []).map(function(token) {
+            return { token: token, aliases: [token], description: "", sources: [], syntaxes: [] }
+        })
+    }
+    function argumentDescription(detail) {
+        return i18n.catalog["completion.parameter_description." + detail.status] || detail.description || ""
+    }
+    function filteredArguments() {
+        var query = argumentFilter.text.toLowerCase()
+        return argumentRows().filter(function(row) {
+            return !query || (row.token + " " + (row.aliases || []).join(" ") + " " + root.argumentDescription(row)).toLowerCase().indexOf(query) >= 0
+        })
+    }
+    function showArgumentDetail(detail) {
+        completionDetail = { text: (detail.aliases || [detail.token]).join(" / "),
+            syntaxes: detail.syntaxes || [], sources: detail.sources || [], views: [], scopes: [],
+            annotations: [argumentDescription(detail)] }
+        completionDetailScopeNote = completionResult.scopeNote || ""
+        completionDetails.open()
+    }
+    function showCompletionDetail() {
+        if (completionList.currentIndex < 0) return
+        completionDetail = completionResult.items[completionList.currentIndex]
+        completionDetailScopeNote = completionResult.scopeNote || ""
+        completionDetails.open()
+    }
+    function requestCompletion() { requestCompletionInternal(false) }
+    function requestCompletionInternal(viewOnly) {
+        if ((editor.readOnly && !viewOnly) || editor.selectionStart !== editor.selectionEnd) return
         if (root.completionActive && completionList.count > 0) {
             completionList.currentIndex = (completionList.currentIndex + 1) % completionList.count
             completionList.positionViewAtIndex(completionList.currentIndex, ListView.Contain)
             return
         }
-        completionResult = commandCompletion.request(editor.text, editor.cursorPosition)
-        if (completionResult.insert.length > 0) {
+        completionResult = commandCompletion.request(syntaxHighlighter.fullText(editor), syntaxHighlighter.globalPosition(editor, editor.cursorPosition))
+        if (editor.pagedPreview) {
+            var pageOffset = syntaxHighlighter.globalPosition(editor, 0)
+            completionResult.start -= pageOffset
+            completionResult.end -= pageOffset
+        }
+        if (completionResult.insert.length > 0 && !editor.readOnly) {
             var unique = completionResult.items.length === 1
             applyingCompletion = true
             commandCompletion.replace(editor, completionResult.start, completionResult.end, completionResult.insert)
             applyingCompletion = false
             if (unique) { completionPopup.close(); return }
-            completionResult = commandCompletion.request(editor.text, editor.cursorPosition)
+            completionResult = commandCompletion.request(syntaxHighlighter.fullText(editor), syntaxHighlighter.globalPosition(editor, editor.cursorPosition))
+            if (editor.pagedPreview) {
+                var offset = syntaxHighlighter.globalPosition(editor, 0)
+                completionResult.start -= offset
+                completionResult.end -= offset
+            }
             // Unique keyword completion advances to its argument; no popup is needed yet.
             if (completionResult.start === editor.cursorPosition) return
         }
@@ -131,6 +208,15 @@ AppCard {
             scrollView.contentItem.contentY = Math.max(0, Math.min(scrollView.contentItem.contentHeight - scrollView.height, editor.cursorRectangle.y - scrollView.height / 3))
         })
     }
+    function selectGlobalRange(start, end) {
+        var localStart = syntaxHighlighter.positionInPreview(editor, start)
+        editor.select(localStart, Math.min(editor.length, localStart + end - start))
+        Qt.callLater(function() {
+            scrollView.contentItem.contentY = Math.max(0, Math.min(scrollView.contentItem.contentHeight - scrollView.height,
+                editor.positionToRectangle(localStart).y - scrollView.height / 3))
+        })
+        return localStart
+    }
     function selectAllWithoutScroll() {
         var flickable = scrollView.contentItem
         savedSelectionViewX = flickable.contentX
@@ -171,7 +257,7 @@ AppCard {
             Layout.preferredHeight: implicitHeight
             title: root.title
             titleObjectName: root.titleObjectName
-            actionText: root.showAnalyze ? (root.analysisBusy ? i18n.catalog["toolbar.analyzing"] : i18n.catalog["toolbar.analyze"]) : (root.showSave ? i18n.catalog["common.save"] : "")
+            actionText: root.showAnalyze ? (root.analysisBusy ? i18n.catalog["toolbar.analyzing"] : i18n.catalog["toolbar.analyze"]) : (root.showSave ? i18n.catalog["temporary.save_draft"] : "")
             actionObjectName: root.showSave ? "temporarySaveButton" : "analyzeButton"
             actionEnabled: root.showSave || (!root.analysisBusy && root.text.trim().length > 0)
             onActionClicked: { if (root.showSave) root.saveRequested(syntaxHighlighter.fullText(editor)); else root.analyzeRequested() }
@@ -183,13 +269,17 @@ AppCard {
             onStepRequested: direction => root.stepRequested(direction)
         }
         RowLayout {
-            visible: editor.pagedPreview
             Layout.fillWidth: true
             Layout.leftMargin: 12
             Layout.rightMargin: 12
+            ToolButton {
+                objectName: root.editorObjectName + "CommandQueryButton"
+                text: i18n.catalog["completion.query"]
+                onClicked: root.openCommandQuery()
+            }
             Label {
                 Layout.fillWidth: true
-                text: i18n.catalog["editor.preview_hint"]
+                text: editor.pagedPreview ? i18n.catalog["editor.preview_hint"] : i18n.catalog["completion.query_shortcut"]
                 color: Colors.textSecondary
                 font: Typography.caption
                 wrapMode: Text.Wrap
@@ -197,13 +287,15 @@ AppCard {
             ToolButton {
                 objectName: root.editorObjectName + "PagePrevious"
                 text: "‹"
+                visible: editor.pagedPreview
                 enabled: editor.previewPage > 1
                 onClicked: syntaxHighlighter.stepPreviewPage(editor, -1)
             }
-            Label { text: editor.previewPage + " / " + editor.previewPageCount; color: Colors.textSecondary }
+            Label { visible: editor.pagedPreview; text: editor.previewPage + " / " + editor.previewPageCount; color: Colors.textSecondary }
             ToolButton {
                 objectName: root.editorObjectName + "PageNext"
                 text: "›"
+                visible: editor.pagedPreview
                 enabled: editor.previewPage < editor.previewPageCount
                 onClicked: syntaxHighlighter.stepPreviewPage(editor, 1)
             }
@@ -235,11 +327,13 @@ AppCard {
                 TextArea {
                     id: editor
                     property bool pagedPreview: false
+                    property bool previewLoading: false
                     property int previewPage: 1
                     property int previewPageCount: 1
                     property int previewStartLine: 1
                     property int previewTotalLines: 1
-                    readOnly: root.readOnly || pagedPreview
+                    readOnly: root.readOnly
+                    onPreviewStartLineChanged: root.refreshDiagnosticMarkers()
             WheelHandler {
                 target: null
                 acceptedModifiers: Qt.ControlModifier
@@ -258,13 +352,40 @@ AppCard {
                     selectByMouse: true
                     Keys.priority: Keys.BeforeItem
                     Keys.onPressed: event => {
+                        if (event.key === Qt.Key_Shift || event.key === Qt.Key_Control
+                            || event.key === Qt.Key_Alt || event.key === Qt.Key_Meta) return
+                        if (event.key === Qt.Key_Space && (event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier)) {
+                            root.openCommandQuery(); event.accepted = true; return
+                        }
+                        if (event.key === Qt.Key_Space && (event.modifiers & Qt.ControlModifier)) {
+                            root.requestCompletionInternal(true); event.accepted = true; return
+                        }
+                        if ((event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)
+                            && (event.modifiers & Qt.ControlModifier)) {
+                            completionPopup.close()
+                            var previous = event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)
+                            var target = editor.nextItemInFocusChain(!previous)
+                            if (target) target.forceActiveFocus(Qt.TabFocusReason)
+                            event.accepted = true
+                            return
+                        }
+                        if (root.completionActive && event.key === Qt.Key_F1) {
+                            root.showCompletionDetail(); event.accepted = true; return
+                        }
+                        if (root.completionActive && event.key === Qt.Key_F2 && root.argumentRows().length) {
+                            argumentDialog.open(); event.accepted = true; return
+                        }
                         if ((event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)
                             && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
                             && !editor.readOnly) {
-                            if (event.key === Qt.Key_Backtab && root.completionActive && completionList.count > 0) {
+                            if ((event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier))
+                                && root.completionActive && completionList.count > 0) {
                                 completionList.currentIndex = (completionList.currentIndex + completionList.count - 1) % completionList.count
                                 completionList.positionViewAtIndex(completionList.currentIndex, ListView.Contain)
-                            } else root.requestCompletion()
+                            } else if (event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)) {
+                                var previousTarget = editor.nextItemInFocusChain(false)
+                                if (previousTarget) previousTarget.forceActiveFocus(Qt.BacktabFocusReason)
+                            } else if (editor.selectionStart === editor.selectionEnd) root.requestCompletion()
                             event.accepted = true
                             return
                         }
@@ -330,7 +451,11 @@ AppCard {
                         z: 3
                     }
                     ContextMenu.menu: TextEditMenu { editor: root.editor; zoomTarget: root }
-                    onTextChanged: { if (!root.applyingCompletion) completionPopup.close(); if (!pagedPreview) root.textEdited(text); Qt.callLater(root.updateCurrentLine) }
+                    onTextChanged: {
+                        if (!root.applyingCompletion) completionPopup.close()
+                        if (!previewLoading && !root.readOnly) root.textEdited(syntaxHighlighter.commitPreviewText(editor, text))
+                        Qt.callLater(root.updateCurrentLine)
+                    }
                     onCursorPositionChanged: { if (!root.applyingCompletion) completionPopup.close(); Qt.callLater(root.updateCurrentLine) }
                     onActiveFocusChanged: if (!activeFocus) completionPopup.close()
                 }
@@ -341,7 +466,7 @@ AppCard {
                 anchors.left: parent.left
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                width: Math.ceil(monoMetrics.advanceWidth(String(Math.max(1, editor.lineCount)))) + 12
+                width: Math.ceil(monoMetrics.advanceWidth(String(root.totalLineCount))) + 28
                 color: Colors.surfaceContainerLow
                 clip: true
                 z: 2
@@ -352,16 +477,33 @@ AppCard {
                         Math.ceil(lineNumberGutter.height / lineNumberGutter.lineHeight) + 3))
                     Text {
                         required property int index
-                        x: 6
+                        readonly property int globalLine: lineNumberGutter.firstLine + index + editor.previewStartLine
+                        readonly property var marker: root.diagnosticAt(globalLine)
+                        objectName: root.editorObjectName + "Line" + globalLine
+                        x: 22
                         y: editor.topPadding + (lineNumberGutter.firstLine + index) * lineNumberGutter.lineHeight
                             - scrollView.contentItem.contentY
-                        width: lineNumberGutter.width - 12
+                        width: lineNumberGutter.width - 28
                         height: lineNumberGutter.lineHeight
-                        text: lineNumberGutter.firstLine + index + 1
+                        text: globalLine
                         color: Colors.textSecondary
                         font: editor.font
                         renderType: Text.QtRendering
                         horizontalAlignment: Text.AlignRight
+                        Text {
+                            objectName: root.editorObjectName + "Diagnostic" + parent.globalLine
+                            x: -18
+                            width: 16
+                            height: parent.height
+                            visible: parent.marker !== null
+                            text: parent.marker && parent.marker.severity === "ERROR" ? "!" : "•"
+                            color: parent.marker ? Colors.severity(parent.marker.severity) : Colors.textSecondary
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            HoverHandler { id: diagnosticHover }
+                            AppToolTip { visible: diagnosticHover.hovered; text: parent.parent.marker
+                                ? parent.parent.marker.rule_id + " · " + parent.parent.marker.message : "" }
+                        }
                     }
                 }
             }
@@ -390,7 +532,7 @@ AppCard {
             // Derive desired rows independently of the layout's allocated height.
             // Native layouts can otherwise collapse a fill-height ListView to zero.
             readonly property real preferredHeight: completionHeading.implicitHeight
-                + (completionArguments.visible ? completionArguments.implicitHeight + spacing : 0)
+                + completionActions.implicitHeight + spacing
                 + (completionEmpty.visible ? completionEmpty.implicitHeight + spacing : 0)
                 + (completionList.count > 0 ? Math.min(280, completionList.count * 64) + spacing : 0)
             Label {
@@ -401,15 +543,22 @@ AppCard {
                 text: (root.completionResult.vendors || []).join(" / ") + " · " + i18n.catalog["completion.keys"]
                 wrapMode: Text.Wrap
             }
-            Label {
-                id: completionArguments
+            RowLayout {
+                id: completionActions
                 Layout.fillWidth: true
-                visible: (root.completionResult.arguments || []).length > 0
-                text: i18n.catalog["completion.argument"] + " " + (root.completionResult.arguments || []).slice(0, 8).join(" / ")
-                textFormat: Text.PlainText
-                color: Colors.textSecondary
-                font: Typography.caption
-                wrapMode: Text.Wrap
+                AppButton {
+                    objectName: root.editorObjectName + "CompletionDetailsButton"
+                    text: i18n.catalog["completion.details"] + " · F1"
+                    enabled: completionList.currentIndex >= 0
+                    onClicked: root.showCompletionDetail()
+                }
+                AppButton {
+                    objectName: root.editorObjectName + "AllArgumentsButton"
+                    text: i18n.catalog["completion.all_arguments"] + " (" + (root.completionResult.arguments || []).length + ") · F2"
+                    visible: root.argumentRows().length > 0
+                    onClicked: argumentDialog.open()
+                }
+                Item { Layout.fillWidth: true }
             }
             Label {
                 id: completionEmpty
@@ -447,27 +596,203 @@ AppCard {
             }
         }
     }
+    AppDialog {
+        id: completionDetails
+        objectName: root.editorObjectName + "CompletionDetails"
+        title: i18n.catalog["completion.details"]
+        height: Math.min(620, Overlay.overlay ? Overlay.overlay.height - 32 : 620)
+        standardButtons: Dialog.Close
+        contentItem: ScrollView {
+            id: detailScroll
+            clip: true
+            contentWidth: availableWidth
+            Column {
+                id: detailContent
+                width: detailScroll.availableWidth
+                spacing: 12
+                SelectableText { width: parent.width; text: root.completionDetail.text || ""; font: fontPalette.editorFont(16); color: Colors.textPrimary; wrapMode: TextEdit.Wrap }
+                SelectableText { objectName: root.editorObjectName + "CompletionSyntaxes"; width: parent.width; text: (root.completionDetail.syntaxes || [root.completionDetail.syntax || ""]).join("\n\n"); font: fontPalette.editorFont(13); color: Colors.textPrimary; wrapMode: TextEdit.Wrap }
+                SelectableText { objectName: root.editorObjectName + "CompletionViews"; width: parent.width; text: i18n.catalog["completion.views"] + " " + (root.completionDetail.views || []).join(" / "); color: Colors.textSecondary; wrapMode: TextEdit.Wrap }
+                SelectableText { width: parent.width; text: i18n.catalog["completion.scope"] + "\n" + (root.completionDetail.scopes || []).join("\n") + "\n" + (i18n.catalog["completion.scope_note"] || root.completionDetailScopeNote); color: Colors.textSecondary; wrapMode: TextEdit.Wrap }
+                SelectableText { width: parent.width; text: (root.completionDetail.annotations || []).join("\n"); color: Colors.textSecondary; wrapMode: TextEdit.Wrap }
+                Repeater {
+                    model: (root.completionDetail.syntaxDetails || []).length ? []
+                        : root.completionDetail.sources || (root.completionDetail.source ? [root.completionDetail.source] : [])
+                    AppButton {
+                        required property string modelData
+                        required property int index
+                        width: parent.width
+                        text: i18n.catalog["completion.open_source"] + " " + (index + 1)
+                        ToolTip.visible: hovered
+                        ToolTip.text: modelData
+                        onClicked: Qt.openUrlExternally(modelData)
+                    }
+                }
+                Repeater {
+                    model: root.completionDetail.syntaxDetails || []
+                    Column {
+                        required property var modelData
+                        width: parent.width
+                        spacing: 6
+                        SelectableText { width: parent.width; text: modelData.syntax; font: fontPalette.editorFont(13); color: Colors.textPrimary; wrapMode: TextEdit.Wrap }
+                        SelectableText { width: parent.width; text: (modelData.views || []).join(" / ") + "\n" + (modelData.scopes || []).join("\n") + "\n" + (modelData.annotations || []).join("\n"); color: Colors.textSecondary; wrapMode: TextEdit.Wrap }
+                        Repeater {
+                            model: modelData.sources || []
+                            AppButton { required property string modelData; required property int index; width: parent.width; text: i18n.catalog["completion.open_source"] + " " + (index + 1); ToolTip.visible: hovered; ToolTip.text: modelData; onClicked: Qt.openUrlExternally(modelData) }
+                        }
+                    }
+                }
+            }
+        }
+        onClosed: {
+            if (argumentDialog.visible) argumentFilter.forceActiveFocus()
+            else if (commandQuery.visible) queryField.forceActiveFocus()
+            else editor.forceActiveFocus()
+        }
+    }
+    Timer { id: queryTimer; interval: 160; onTriggered: root.refreshCommandQuery() }
+    AppDialog {
+        id: commandQuery
+        objectName: root.editorObjectName + "CommandQuery"
+        title: i18n.catalog["completion.query"]
+        height: Math.min(640, Overlay.overlay ? Overlay.overlay.height - 32 : 640)
+        standardButtons: Dialog.Close
+        contentItem: ColumnLayout {
+            AppTextField {
+                id: queryField
+                objectName: root.editorObjectName + "CommandQueryField"
+                Layout.fillWidth: true
+                implicitHeight: 44
+                placeholderText: ""
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: queryField.leftPadding
+                    anchors.right: parent.right
+                    anchors.rightMargin: queryField.rightPadding
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: queryField.text.length === 0
+                    text: i18n.catalog["completion.query_placeholder"]
+                    color: Colors.textSecondary
+                    font: queryField.font
+                    elide: Text.ElideRight
+                }
+                onTextChanged: queryTimer.restart()
+                onAccepted: { root.refreshCommandQuery(); if (queryList.count) root.showQueryDetail(Math.max(0, queryList.currentIndex)) }
+                Keys.onDownPressed: { queryList.forceActiveFocus(); if (queryList.count) queryList.currentIndex = 0 }
+            }
+            Label { Layout.fillWidth: true; text: i18n.catalog["completion.query_scope_note"]; color: Colors.textSecondary; font: Typography.caption; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: queryList.count + " · " + i18n.catalog["completion.query_narrow_hint"]; color: Colors.textSecondary; font: Typography.caption; wrapMode: Text.Wrap }
+            ListView {
+                id: queryList
+                objectName: root.editorObjectName + "CommandQueryList"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                model: root.queryResult.items || []
+                activeFocusOnTab: true
+                keyNavigationEnabled: true
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: AppScrollBar {}
+                Keys.onReturnPressed: root.showQueryDetail(currentIndex)
+                Keys.onEnterPressed: root.showQueryDetail(currentIndex)
+                Keys.onEscapePressed: queryField.forceActiveFocus()
+                delegate: ItemDelegate {
+                    required property var modelData
+                    required property int index
+                    width: ListView.view.width
+                    height: 64
+                    highlighted: ListView.isCurrentItem
+                    onClicked: root.showQueryDetail(index)
+                    contentItem: Column {
+                        spacing: 3
+                        Label { width: parent.width; text: modelData.text + " · " + modelData.vendors.join(" / "); font: fontPalette.editorFont(14); color: Colors.textPrimary; elide: Text.ElideRight }
+                        Label { width: parent.width; text: (modelData.views || []).join(" / ") + " · " + modelData.syntax; font: Typography.caption; color: Colors.textSecondary; elide: Text.ElideRight }
+                    }
+                }
+            }
+        }
+    }
+    AppDialog {
+        id: argumentDialog
+        objectName: root.editorObjectName + "ArgumentDialog"
+        title: i18n.catalog["completion.all_arguments"] + " (" + (root.completionResult.arguments || []).length + ")"
+        height: Math.min(640, Overlay.overlay ? Overlay.overlay.height - 32 : 640)
+        standardButtons: Dialog.Close
+        onOpened: argumentFilter.forceActiveFocus()
+        onClosed: editor.forceActiveFocus()
+        contentItem: ColumnLayout {
+            AppTextField {
+                id: argumentFilter
+                objectName: root.editorObjectName + "ArgumentFilter"
+                Layout.fillWidth: true
+                implicitHeight: 44
+                placeholderText: ""
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: argumentFilter.leftPadding
+                    anchors.right: parent.right
+                    anchors.rightMargin: argumentFilter.rightPadding
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: argumentFilter.text.length === 0
+                    text: i18n.catalog["completion.filter_arguments"]
+                    color: Colors.textSecondary
+                    font: argumentFilter.font
+                    elide: Text.ElideRight
+                }
+            }
+            Label { Layout.fillWidth: true; text: i18n.catalog["completion.argument_source_note"]; wrapMode: Text.Wrap; font: Typography.caption; color: Colors.textSecondary }
+            ListView {
+                id: argumentList
+                objectName: root.editorObjectName + "ArgumentList"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                model: root.filteredArguments()
+                activeFocusOnTab: true
+                keyNavigationEnabled: true
+                highlight: Rectangle { color: Colors.primaryContainer; radius: 6; opacity: 0.35 }
+                Keys.onReturnPressed: if (currentIndex >= 0) root.showArgumentDetail(root.filteredArguments()[currentIndex])
+                Keys.onEnterPressed: if (currentIndex >= 0) root.showArgumentDetail(root.filteredArguments()[currentIndex])
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: AppScrollBar {}
+                delegate: Item {
+                    required property var modelData
+                    width: ListView.view.width
+                    height: argumentRow.implicitHeight + 20
+                    Column {
+                        id: argumentRow
+                        width: parent.width
+                        spacing: 6
+                        SelectableText { width: parent.width; text: (modelData.aliases || [modelData.token]).join(" / "); font: fontPalette.editorFont(14); color: Colors.textPrimary; wrapMode: TextEdit.Wrap }
+                        SelectableText { width: parent.width; text: root.argumentDescription(modelData); color: Colors.textSecondary; wrapMode: TextEdit.Wrap }
+                        AppButton { width: parent.width; text: i18n.catalog["completion.details"] + " (" + (modelData.syntaxes || []).length + ")"; onClicked: root.showArgumentDetail(modelData) }
+                    }
+                }
+            }
+        }
+    }
     Connections { target: commandCompletion; function onChanged() { completionPopup.close() } }
     Shortcut { sequence: Qt.platform.os === "osx" ? "Meta+G" : "Ctrl+G"; enabled: root.visible && editor.activeFocus; onActivated: jumpDialog.open() }
     Shortcut { sequences: [StandardKey.ZoomIn, Qt.platform.os === "osx" ? "Meta+=" : "Ctrl+="]; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(1) }
     Shortcut { sequences: [StandardKey.ZoomOut]; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(-1) }
-    Component.onCompleted: { syntaxHighlighter.attach(editor.textDocument); syntaxHighlighter.setDark(Theme.dark) }
+    Component.onCompleted: { syntaxHighlighter.attach(editor.textDocument); syntaxHighlighter.setDark(Theme.dark); refreshDiagnosticMarkers() }
     Connections { target: Theme; function onDarkChanged() { syntaxHighlighter.setDark(Theme.dark) } }
     Connections {
         target: analysisController
         function onResultCurrentChanged() {
-            if (root.showAnalyze) syntaxHighlighter.setUnsupportedLinesFor(
-                editor.textDocument, analysisController.coverage.unsupported_lines || [])
+            root.refreshDiagnosticMarkers()
         }
     }
     AppDialog {
         id: jumpDialog
+        objectName: root.editorObjectName + "JumpDialog"
         title: i18n.catalog["editor.goto"]
         contentItem: AppTextField {
             id: lineField
+            objectName: root.editorObjectName + "LineField"
             implicitHeight: 44
             placeholderText: i18n.catalog["editor.line_number"]
-            validator: IntValidator { bottom: 1; top: editor.lineCount }
+            validator: IntValidator { bottom: 1; top: root.totalLineCount }
             inputMethodHints: Qt.ImhDigitsOnly
             onAccepted: if (acceptableInput) { root.jumpToLine(Number(text)); jumpDialog.close() }
         }

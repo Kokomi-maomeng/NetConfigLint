@@ -16,7 +16,7 @@ from netconfiglint.core.analyzer.control import charge_vlan_memberships, checkpo
 from netconfiglint.core.analyzer.models import AnalysisMode, VendorDetection
 from netconfiglint.core.analyzer.operational_input import mask_operational_output
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
-from netconfiglint.core.lexer import SourceLine, lex_lines
+from netconfiglint.core.lexer import SourceLine, is_comment_line, lex_lines, normalize_cli_line
 from netconfiglint.core.model import (
     ACL,
     BGPAddressFamily,
@@ -111,7 +111,9 @@ class H3CConfigParser:
         if bundle is not None:
             parser_source, analysis_scope = bundle.masked_configuration, set(bundle.analysis_lines)
         annotations = {
-            number for number, line in enumerate(parser_source.splitlines(), 1) if is_annotation(line)
+            number
+            for number, line in enumerate(parser_source.splitlines(), 1)
+            if is_annotation(line) or (is_comment_line(line) and line.strip() != "#")
         }
         parser_source = "\n".join(
             "" if number in annotations else line for number, line in enumerate(parser_source.splitlines(), 1)
@@ -189,7 +191,7 @@ class H3CConfigParser:
         for number, source_text in enumerate(config.source_lines, 1):
             if mode in {AnalysisMode.FULL, AnalysisMode.SNAPSHOT} and number not in analysis_scope:
                 continue
-            body = source_text.strip()
+            body = normalize_cli_line(source_text)[0].strip()
             if _IRF_COMMAND.fullmatch(body):
                 semantic_lines.add(number)
                 if match := re.fullmatch(r"irf-port\s+(\d+)/([12])", body, re.I):
@@ -222,9 +224,9 @@ class H3CConfigParser:
             commands = [(block.header, block.source), *((item.text, item.source) for item in block.commands)]
             interface = None
             if block.header.lower().startswith("interface "):
-                interface = config.interfaces.get(block.header[10:].strip())
+                interface = config.interfaces.get(interface_name(block.header[10:]))
             for _text, item_source in commands:
-                original_text = config.source_lines[item_source.line - 1].strip()
+                original_text = normalize_cli_line(config.source_lines[item_source.line - 1])[0].strip()
                 family = _semantic_family(original_text)
                 if family is None:
                     continue
@@ -261,7 +263,9 @@ class H3CConfigParser:
         }
         remaining = []
         for item in config.unparsed_lines:
-            catalog_family = catalogued_family("h3c", config.source_lines[item.line - 1])
+            catalog_family = catalogued_family(
+                "h3c", normalize_cli_line(config.source_lines[item.line - 1])[0]
+            )
             context = line_context.get(item.line)
             if catalog_family is None or (
                 context is not None
@@ -364,6 +368,12 @@ class H3CConfigParser:
                     )
                     return None
             interface = config.interfaces.setdefault(name, Interface(name, source))
+            if (
+                re.fullmatch(r"(?:bridge|route)-aggregation\d+", name, re.I)
+                and interface.aggregation_mode is None
+            ):
+                interface.aggregation_mode = "static"
+                interface.aggregation_mode_origin = "reference_default"
             return ("interface", interface)
         if len(tokens) >= 2 and lower.startswith("bgp "):
             if re.fullmatch(r"bgp \d+(?:\.\d+)?", lower) is None:
@@ -556,6 +566,20 @@ class H3CConfigParser:
         lower = line.text.lower()
         source = SourceRange(line.number)
         interface.raw_commands.append((line.text, source))
+        if lower in {
+            "link-aggregation mode dynamic",
+            "undo link-aggregation mode",
+        }:
+            if re.fullmatch(r"(?:bridge|route)-aggregation\d+", interface.name, re.I) is None:
+                return False
+            interface.aggregation_mode = (
+                "static" if lower == "undo link-aggregation mode" else lower.rsplit(" ", 1)[1]
+            )
+            interface.aggregation_mode_origin = (
+                "reference_default" if lower == "undo link-aggregation mode" else "explicit"
+            )
+            interface.command_sources["aggregation_mode"] = source
+            return True
         vlan_command = lower.removeprefix("undo ")
         undo = lower.startswith("undo ")
         if vlan_command.startswith("port hybrid vlan "):

@@ -143,9 +143,16 @@ def test_connected_candidates_are_scoped(family: int, scope: str | None, interfa
     assert ("HUA-BGP-002" in {d.rule_id for d in result.diagnostics}) == (scope != interface_scope)
 
 
-def test_explicit_foreign_banner_is_not_hidden_by_shared_commands() -> None:
+def test_explicit_banner_does_not_override_distinctive_mixed_vendor_commands() -> None:
     source = "H3C Comware Software\nsysname SYNTHETIC\n port trunk allow-pass vlan 100\n"
-    assert analyze(source).detection.vendor == "H3C"
+    # allow-pass is distinct Huawei syntax, so this is mixed evidence rather
+    # than the genuinely shared sysname/route-static case retained below.
+    with pytest.raises(ValueError, match="identify a supported vendor"):
+        analyze(source)
+    forced = analyze(source, vendor="h3c")
+    assert forced.detection.vendor == "H3C"
+    assert not forced.coverage["semantic_complete"]
+    assert 3 in forced.coverage["pending_lines"]
 
 
 def test_ambiguous_bannerless_snippet_does_not_select_huawei() -> None:

@@ -10,10 +10,11 @@ Item {
     signal toggleRequested()
     signal openRequested()
     signal exportRequested()
+    signal temporaryExportRequested()
     signal aboutRequested()
     signal minimizeRequested()
     signal maximizeRequested()
-    implicitHeight: 52
+    implicitHeight: toolbar.implicitHeight + 12
 
     Rectangle { anchors.fill: parent; color: Colors.surfaceContainerLow }
 
@@ -44,12 +45,15 @@ Item {
             onClicked: root.toggleRequested()
         }
         ConfigToolbar {
+            id: toolbar
             objectName: "topConfigToolbar"
             Layout.fillWidth: true
-            Layout.preferredHeight: 40
+            Layout.minimumWidth: 0
+            Layout.preferredHeight: implicitHeight
             controller: root.controller
             onOpenRequested: root.openRequested()
             onExportRequested: root.exportRequested()
+            onTemporaryExportRequested: root.temporaryExportRequested()
         }
         ToolButton {
             objectName: "brandAboutButton"

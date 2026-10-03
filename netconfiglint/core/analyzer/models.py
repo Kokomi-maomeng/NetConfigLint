@@ -4,6 +4,8 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
+from netconfiglint.core.lexer import is_comment_line
+
 if TYPE_CHECKING:
     from netconfiglint.core.diagnostics import Diagnostic
     from netconfiglint.core.model import DeviceConfig
@@ -54,7 +56,8 @@ class AnalysisResult:
         ignored.update(
             number
             for number, line in enumerate(config.source_lines, 1)
-            if number in scope and (not line.strip() or line.strip().lower() in {"#", "return"})
+            if number in scope
+            and (not line.strip() or is_comment_line(line) or line.strip().lower() == "return")
         )
         unsupported = {item.line for item in config.unsupported_lines if item.line in scope}
         catalogued = {item.line for item in config.catalogued_lines if item.line in scope} - ignored
@@ -65,6 +68,8 @@ class AnalysisResult:
             - catalogued
         )
         total = len(scope)
+        context_unknown = {item.line for item in config.context_unknown_lines if item.line in scope} - ignored
+        pending = (unsupported | unparsed | catalogued | context_unknown) - ignored
         return {
             "recognized": max(0, total - len(ignored | unsupported | unparsed | catalogued)),
             "catalogued": len(catalogued),
@@ -82,14 +87,27 @@ class AnalysisResult:
                 for family, value in sorted(config.command_catalog.items())
                 if isinstance(value, dict) and isinstance(value.get("count"), int)
             ],
-            "context_unknown_lines": sorted({item.line for item in config.context_unknown_lines}),
+            "context_unknown_lines": sorted(context_unknown),
+            "pending": len(pending),
+            "pending_lines": sorted(pending),
+            "pending_line_details": [
+                {
+                    "line": number,
+                    "status": (
+                        "context_required"
+                        if number in context_unknown
+                        else "unsupported"
+                        if number in unsupported
+                        else "catalogued_only"
+                        if number in catalogued
+                        else "unparsed"
+                    ),
+                }
+                for number in sorted(pending)
+            ],
             "complete": not config.incomplete_reasons,
             "semantic_complete": not (
-                unsupported
-                or unparsed
-                or catalogued
-                or config.incomplete_reasons
-                or config.metadata.get("operational_only") == "true"
+                pending or config.incomplete_reasons or config.metadata.get("operational_only") == "true"
             ),
             "incomplete_reasons": list(config.incomplete_reasons),
             "scope": (

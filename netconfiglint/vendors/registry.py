@@ -104,4 +104,6 @@ def extract_configuration_preview(source: str) -> tuple[str, dict[int, int]] | N
 def detect_vendor_plugin(source: str) -> tuple[VendorPlugin, VendorDetection] | None:
     candidates = ((plugin, plugin.detector.detect(source)) for plugin in VENDOR_PLUGINS)
     supported = [candidate for candidate in candidates if candidate[1].vendor != "Unknown"]
-    return max(supported, key=lambda candidate: candidate[1].confidence, default=None)
+    # Two distinctive vendor signatures are mixed evidence, irrespective of scores.
+    # Shared sysname/interface syntax alone still yields no supported candidate.
+    return supported[0] if len(supported) == 1 else None

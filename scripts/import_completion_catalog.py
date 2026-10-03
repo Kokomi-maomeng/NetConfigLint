@@ -19,8 +19,12 @@ from pathlib import Path
 from typing import Any
 
 from bs4 import BeautifulSoup, NavigableString, Tag
-from completion_syntax import normalize_syntax
 from defusedxml.ElementTree import fromstring
+
+if __package__:
+    from .completion_syntax import normalize_syntax
+else:
+    from completion_syntax import normalize_syntax
 
 HUAWEI_MANUALS = {
     "EDOC1100459368": "CloudEngine S8700 V600R024C10",
@@ -86,6 +90,61 @@ def _syntax(paragraph: Tag) -> str:
     return syntax
 
 
+def split_annotations(syntax: str) -> tuple[str, list[str]]:
+    """Separate documented applicability prose, while retaining real CLI parentheses."""
+    for match in re.finditer(r"\s*\(", syntax):
+        tail = syntax[match.start() :].strip()
+        note = tail.lstrip("( ")
+        if (
+            re.match(r"(?:S\d|CE\d|V\d{3}R\d|0:\s*visit\s+level\b)", note, re.I)
+            or re.search(
+                r"\b(?:supported?|supports?|this command|interface views?|port group view|VLAN view)\b",
+                note,
+                re.I,
+            )
+            or note.lower().startswith("if vpn-instance ")
+        ):
+            return syntax[: match.start()].strip(), [tail]
+    return syntax, []
+
+
+def _row(
+    syntax: str, view: str | list[str], source: str, manual: str, chapter: str, title: str = ""
+) -> dict[str, Any]:
+    syntax, annotations = split_annotations(syntax)
+    views = [view] if isinstance(view, str) else view
+    return {
+        "syntax": syntax,
+        "views": views,
+        "source": source,
+        "sources": [
+            {
+                "url": source,
+                "manual": manual,
+                "views": views,
+                "chapter": chapter,
+                "title": title,
+                "annotations": annotations,
+            }
+        ],
+    }
+
+
+def merge_row(entries: dict[str, dict[str, Any]], row: dict[str, Any], vendor: str) -> None:
+    syntax = normalize_syntax(vendor, row["syntax"])
+    row["syntax"] = syntax
+    if syntax in entries:
+        current = entries[syntax]
+        # The view union is used only for ranking. Each source retains its own
+        # applicability and view conditions; these are never unioned as validation.
+        current["views"] = sorted(set(current["views"] + row["views"]))
+        current["sources"].extend(value for value in row["sources"] if value not in current["sources"])
+        if not row.get("legacy", False):
+            current.pop("legacy", None)
+    else:
+        entries[syntax] = row
+
+
 def huawei_rows(path: Path, source: str) -> list[dict[str, Any]]:
     soup = BeautifulSoup(path.read_bytes(), "html.parser")
     rows = []
@@ -98,32 +157,66 @@ def huawei_rows(path: Path, source: str) -> list[dict[str, Any]]:
                 continue
             syntax = _syntax(paragraph)
             if syntax:
-                rows.append({"syntax": syntax, "views": [view], "source": source})
+                nid = next((nid for nid in HUAWEI_MANUALS if nid in source), "")
+                heading = topic.select_one('[class$="title"]') if topic else None
+                rows.append(
+                    _row(
+                        syntax,
+                        view,
+                        source,
+                        HUAWEI_MANUALS.get(nid, nid),
+                        path.name,
+                        heading.get_text(" ", strip=True) if heading else "",
+                    )
+                )
     return rows
 
 
-def h3c_rows(path: Path) -> list[dict[str, Any]]:
+def h3c_rows(path: Path, review: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     soup = BeautifulSoup(path.read_bytes(), "html.parser")
     heading = soup.find(string=lambda value: value is not None and value.strip() == "Syntax")
     if not heading:
         return []
     viewheading = soup.find(string=lambda value: value is not None and value.strip() == "Views")
-    view = "Any view"
+    view = ["Any view"]
     if viewheading:
         parent = viewheading.find_parent("p")
-        if parent and parent.find_next_sibling():
-            view = parent.find_next_sibling().get_text(" ", strip=True)
+        views = []
+        while parent:
+            parent = parent.find_next_sibling()
+            if not parent or parent.get("class") == ["Command"]:
+                break
+            text = parent.get_text(" ", strip=True)
+            if text:
+                views.append(text)
+        if views:
+            view = views
     paragraph = heading.find_parent("p")
     rows = []
+    ordinal = 0
     while paragraph:
         paragraph = paragraph.find_next_sibling()
         if not paragraph or paragraph.get("class") == ["Command"]:
             break
-        if not paragraph.select_one(".commandkeywords"):
+        ordinal += 1
+        if not paragraph.select_one(".commandkeywords, .BoldText"):
+            if review is not None and paragraph.get_text(" ", strip=True):
+                review.append(
+                    {"paragraph": ordinal, "reason": "Syntax paragraph has no recognized keyword style"}
+                )
             continue
         syntax = _syntax(paragraph)
         if syntax:
-            rows.append({"syntax": syntax, "views": [view], "source": H3C_SOURCE})
+            rows.append(
+                _row(
+                    syntax,
+                    view,
+                    H3C_SOURCE,
+                    H3C_MANUAL,
+                    path.name,
+                    soup.title.get_text(" ", strip=True) if soup.title else "",
+                )
+            )
     return rows
 
 
@@ -158,6 +251,9 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--download", action="store_true")
+    parser.add_argument(
+        "--supplement", type=Path, help="Reviewed scoped chapter rows; never treated as semantic support"
+    )
     args = parser.parse_args()
     args.input.mkdir(parents=True, exist_ok=True)
     entries: dict[str, dict[str, Any]] = {}
@@ -181,23 +277,28 @@ def main() -> None:
     else:
         jobs = [(path, H3C_SOURCE) for path in sorted(args.input.rglob("*.htm"))]
     for path, source in jobs:
-        rows = huawei_rows(path, source) if args.vendor == "huawei" else h3c_rows(path)
+        review: list[dict[str, Any]] = []
+        rows = huawei_rows(path, source) if args.vendor == "huawei" else h3c_rows(path, review)
         for row in rows:
-            syntax = normalize_syntax(args.vendor, row["syntax"])
-            row["syntax"] = syntax
-            if syntax in entries:
-                entries[syntax]["views"] = sorted(set(entries[syntax]["views"] + row["views"]))
-            else:
-                entries[syntax] = row
+            merge_row(entries, row, args.vendor)
         inventory.append(
             {
                 "file": path.name,
                 "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                 "syntaxes": len(rows),
+                "review_queue": review,
             }
         )
+    if args.supplement:
+        supplement = json.loads(args.supplement.read_text(encoding="utf-8"))
+        if supplement.get("vendor") != args.vendor:
+            raise ValueError("Supplement vendor mismatch")
+        for row in supplement["commands"]:
+            if not row.get("sources") or not all(value.get("manual") for value in row["sources"]):
+                raise ValueError("Supplement requires scoped provenance")
+            merge_row(entries, row, args.vendor)
     payload = {
-        "schema": 1,
+        "schema": 2,
         "vendor": args.vendor,
         "manuals": list(HUAWEI_MANUALS.values()) if args.vendor == "huawei" else [H3C_MANUAL],
         "commands": sorted(entries.values(), key=lambda row: row["syntax"]),

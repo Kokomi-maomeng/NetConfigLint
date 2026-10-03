@@ -47,7 +47,9 @@ class HuaweiSnapshotParser:
         for line in lex_lines(source):
             checkpoint()
             text, lower = line.text, line.text.lower()
-            prompt = re.match(r"^<([^>]+)>\s*(.*)$", text)
+            # Configuration lexing strips terminal prompts, but capture boundaries
+            # and device identity must be read from the unchanged source line.
+            prompt = re.match(r"^<([^>]+)>\s*(.*)$", line.raw.strip())
             command = prompt.group(2) if prompt else text
             if prompt:
                 devices.add(prompt.group(1))
@@ -145,16 +147,16 @@ class HuaweiSnapshotParser:
                     interfaces.append((record_id, interface))
             elif section == "lldp":
                 row = re.fullmatch(
-                    r"\s*([A-Za-z][A-Za-z-]*\s*\d[\d/.:]*)\s+(\S+)\s+"
-                    r"([A-Za-z][A-Za-z-]*\s*\d[\d/.:]*)\s+(\d+)\s*",
+                    r"\s*((?:[A-Za-z][A-Za-z-]*|(?:10|25|40|100)GE)\s*\d[\d/.:]*)\s+(\S+)\s+"
+                    r"((?:[A-Za-z][A-Za-z-]*|(?:10|25|40|100)GE)\s*\d[\d/.:]*)\s+(\d+)\s*",
                     text,
                 )
                 if row:
                     evidence.operational["lldp"]["edges"].append(
                         {
-                            "local": row.group(1),
+                            "local": interface_name(row.group(1)),
                             "remote": row.group(2),
-                            "port": row.group(3),
+                            "port": interface_name(row.group(3)),
                             "line": line.number,
                         }
                     )
@@ -247,7 +249,7 @@ class HuaweiSnapshotParser:
             if protocol:
                 pending["protocol"] = protocol.group(1)
             if interface:
-                pending["interface"] = interface.group(1).strip()
+                pending["interface"] = interface_name(interface.group(1))
                 route = cls._finish_ipv6_route(pending)
                 return (None, route) if route is not None else (pending, None)
             return pending, None
@@ -260,7 +262,7 @@ class HuaweiSnapshotParser:
                 except ValueError:
                     return pending, None
                 pending["next_hop"] = tokens[0]
-                pending["interface"] = " ".join(tokens[1:])
+                pending["interface"] = interface_name(" ".join(tokens[1:]))
                 return None, cls._finish_ipv6_route(pending)
             return pending, None
         if len(tokens) >= 2:
@@ -328,12 +330,10 @@ class HuaweiSnapshotParser:
         tokens = text.split()
         if len(tokens) < 4 or tokens[0].startswith("-"):
             return None
-        if (
-            len(tokens) > 1
-            and re.fullmatch(r"(?:[A-Za-z][A-Za-z-]*|\d+GE)", tokens[0])
-            and re.fullmatch(r"\d[\d/.:-]*", tokens[1])
-        ):
-            tokens = [tokens[0] + tokens[1], *tokens[2:]]
+        if len(tokens) > 1:
+            joined = interface_name(" ".join(tokens[:2]))
+            if " " not in joined:
+                tokens = [joined, *tokens[2:]]
         offset = 2 if ip_table else 1
         if len(tokens) <= offset + 1:
             return None
@@ -342,7 +342,7 @@ class HuaweiSnapshotParser:
         if physical not in {"up", "down", "administratively-down"} or protocol not in {"up", "down"}:
             return None
         return SnapshotInterface(
-            name=tokens[0],
+            name=interface_name(tokens[0]),
             address=tokens[1] if ip_table else "Unknown",
             physical_state=physical,
             protocol_state=protocol,

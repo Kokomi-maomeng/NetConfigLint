@@ -67,7 +67,18 @@ def index_blocks(lines: tuple[SourceLine, ...], initial_view: str | None = None)
         checkpoint()
         text, lower = line.text, line.text.lower()
         indent = len(line.raw.expandtabs()) - len(line.raw.expandtabs().lstrip())
+        if line.prompt:
+            prompt = line.prompt.strip("[]<>~*").lower()
+            if active is not None and active.header.lower().startswith("interface "):
+                name = interface_name(active.header[10:]).lower()
+                indent = 1 if prompt.endswith("-" + name) else 0
+            elif active is not None and re.fullmatch(r"(?:bgp|ospf) \d+", active.header, re.I):
+                indent = 1 if prompt.endswith("-" + active.header.split()[0].lower()) else 0
+            else:
+                indent = 0
         if not text:
+            continue
+        if text.startswith("#") and text != "#":
             continue
         if lower in {"return", "system-view"}:
             active, previous = None, None
@@ -121,6 +132,11 @@ def _key(header: str, text: str, views: tuple[str, ...]) -> tuple[str, ...] | No
         if w[:1] == ["authentication-mode"]:
             return ("authentication-mode",)
     if root.startswith("interface ") and not views:
+        if re.fullmatch(r"interface (?:bridge|route)-aggregation\s*\d+", root) and text.lower() in {
+            "link-aggregation mode dynamic",
+            "undo link-aggregation mode",
+        }:
+            return ("aggregation-mode",)
         if w[:2] == ["ip", "address"] and len(t) in {3, 4} and "sub" not in w:
             return ("ip", "address", "primary")
         for prefix in (

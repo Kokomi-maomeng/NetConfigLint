@@ -27,7 +27,7 @@ class NetworkConfigHighlighter(QSyntaxHighlighter):
         r"\b(access|active|address-family|area|authentication|authorization-attribute|behavior|bridge|"
         r"classifier|description|destination|dhcp|disable|edge(?:d-port)?|enable|eth-trunk|export|"
         r"filter|group|import|inbound|irf|l2vpn-family|lacp-static|link-aggregation|link-mode|"
-        r"member|network|priority|renumber|persistent|"
+        r"member|network|priority|renumber|persistent|mode|mstp|rstp|global|sys-info|version|v1|v2c|v3|"
         r"network-entity|outbound|peer|permit|deny|policy|route-distinguisher|route-policy|"
         r"server|service-type|shutdown|source|ssl|static|telnet|tls1\.[0123]|trunk|undo|user-role|"
         r"vpn-instance|vpn-target|vni|vxlan)\b",
@@ -44,11 +44,20 @@ class NetworkConfigHighlighter(QSyntaxHighlighter):
         r"\b(password|cipher|community|pre-shared-key|secret|private-key)\b", re.IGNORECASE
     )
     _ANNOTATION = re.compile(r"^\s*(?:#|!|//|(?:说明|备注|注意)\s*[:：])")  # noqa: RUF001
+    _DESCRIPTION = re.compile(r"^\s*(?:<[^>]+>|\[[^]]+\])?\s*(?:undo\s+)?description\b", re.I)
+    _SECURITY_COMMAND = re.compile(
+        r"^\s*(?:<[^>]+>|\[[^]]+\])?\s*(?:undo\s+)?"
+        r"(?:password|local-user|snmp-agent|authentication|radius|radius-server|hwtacacs|"
+        r"tacacs-server|ike|ipsec|pre-shared-key|keychain|key|secret|private-key|"
+        r"peer\s+\S+\s+password)\b",
+        re.I,
+    )
 
     def __init__(self, document: QTextDocument, *, dark: bool = False) -> None:
         super().__init__(document)
         self._dark = dark
         self._unsupported_lines: set[int] = set()
+        self._diagnostics: dict[int, dict[str, Any]] = {}
         self._formats = self._make_formats()
 
     def _make_formats(self) -> dict[str, QTextCharFormat]:
@@ -61,11 +70,14 @@ class NetworkConfigHighlighter(QSyntaxHighlighter):
             "section": "#8C9199" if self._dark else "#74777F",
             "sensitive": "#FFB4AB" if self._dark else "#BA1A1A",
             "unsupported": "#5B2020" if self._dark else "#FFF0EE",
+            "error": "#5B2020" if self._dark else "#FFF0EE",
+            "warning": "#514022" if self._dark else "#FFF4DA",
+            "notice": "#243F58" if self._dark else "#EAF2FF",
         }
         formats = {}
         for name, color in colors.items():
             value = QTextCharFormat()
-            if name == "unsupported":
+            if name in {"unsupported", "error", "warning", "notice"}:
                 value.setBackground(QColor(color))
             else:
                 value.setForeground(QColor(color))
@@ -85,6 +97,11 @@ class NetworkConfigHighlighter(QSyntaxHighlighter):
             self._unsupported_lines = lines
             self.rehighlight()
 
+    def set_diagnostics(self, diagnostics: dict[int, dict[str, Any]]) -> None:
+        if diagnostics != self._diagnostics:
+            self._diagnostics = diagnostics
+            self.rehighlight()
+
     def highlightBlock(self, text: str) -> None:
         # Running every semantic regex over hundreds of thousands of operational
         # output lines blocks the GUI. In a large diagnostic bundle, keep the
@@ -98,15 +115,22 @@ class NetworkConfigHighlighter(QSyntaxHighlighter):
             offsets.append(offsets[-1] + (2 if ord(character) > 0xFFFF else 1))
 
         unsupported = self.currentBlock().blockNumber() + 1 in self._unsupported_lines
+        diagnostic = self._diagnostics.get(self.currentBlock().blockNumber() + 1)
+        severity = str(diagnostic.get("severity", "notice")).lower() if diagnostic else ""
+        decoration = "error" if severity == "error" else "warning" if severity == "warning" else "notice"
 
         def apply(start: int, end: int, kind: str) -> None:
             value = QTextCharFormat(self._formats[kind])
             if unsupported and kind != "unsupported":
                 value.setBackground(self._formats["unsupported"].background())
+            if diagnostic:
+                value.setBackground(self._formats[decoration].background())
             self.setFormat(offsets[start], offsets[end] - offsets[start], value)
 
         if unsupported:
             apply(0, len(text), "unsupported")
+        if diagnostic:
+            apply(0, len(text), decoration)
         if text.strip() in {"#", "return"}:
             apply(0, len(text), "section")
             return
@@ -117,16 +141,41 @@ class NetworkConfigHighlighter(QSyntaxHighlighter):
             apply(match.start(1), match.end(1), "keyword")
         if match := self._BLOCK.search(text):
             apply(match.start(), match.end(), "block")
+        if match := self._DESCRIPTION.match(text):
+            apply(match.end(), len(text), "quoted")
+            return
+        quoted = list(self._QUOTED.finditer(text))
+
+        def in_quote(match: re.Match[str]) -> bool:
+            return any(match.start() < span.end() and match.end() > span.start() for span in quoted)
+
         for match in self._KEYWORDS.finditer(text):
-            apply(match.start(), match.end(), "keyword")
+            if not in_quote(match):
+                apply(match.start(), match.end(), "keyword")
         for match in self._ADDRESS.finditer(text):
-            apply(match.start(), match.end(), "address")
+            if not in_quote(match):
+                apply(match.start(), match.end(), "address")
         for match in self._NUMBER.finditer(text):
-            apply(match.start(), match.end(), "number")
-        for match in self._QUOTED.finditer(text):
+            if not in_quote(match):
+                apply(match.start(), match.end(), "number")
+        for match in quoted:
             apply(match.start(), match.end(), "quoted")
-        for match in self._SENSITIVE.finditer(text):
-            apply(match.start(), match.end(), "sensitive")
+        if self._SECURITY_COMMAND.match(text):
+            for match in self._SENSITIVE.finditer(text):
+                if not in_quote(match):
+                    apply(match.start(), match.end(), "sensitive")
+        if diagnostic and isinstance(diagnostic.get("column"), int):
+            start = max(0, min(len(text), diagnostic["column"] - 1))
+            length = diagnostic.get("length")
+            if not isinstance(length, int):
+                end_column = diagnostic.get("end_column")
+                length = max(1, end_column - diagnostic["column"] + 1) if isinstance(end_column, int) else 1
+            end = min(len(text), start + max(1, length))
+            for index in range(start, end):
+                value = self.format(offsets[index])
+                value.setUnderlineStyle(QTextCharFormat.UnderlineStyle.WaveUnderline)
+                value.setUnderlineColor(QColor("#FFB4AB" if self._dark else "#BA1A1A"))
+                self.setFormat(offsets[index], offsets[index + 1] - offsets[index], value)
 
 
 HuaweiConfigHighlighter = NetworkConfigHighlighter
@@ -158,6 +207,20 @@ class _TextPreview:
         start, end, _ = self.ranges[self.page]
         return self.text[start:end]
 
+    def replace_visible(self, text: str) -> None:
+        start, end, line = self.ranges[self.page]
+        previous = self.text[start:end]
+        if text == previous:
+            return
+        self.text = self.text[:start] + text + self.text[end:]
+        delta = len(text) - len(previous)
+        line_delta = text.count("\n") - previous.count("\n")
+        self.ranges[self.page] = (start, end + delta, line)
+        for index in range(self.page + 1, len(self.ranges)):
+            first, last, first_line = self.ranges[index]
+            self.ranges[index] = (first + delta, last + delta, first_line + line_delta)
+        self.total_lines += line_delta
+
 
 class SyntaxHighlighterBridge(QObject):
     def __init__(self, parent: QObject | None = None) -> None:
@@ -183,21 +246,13 @@ class SyntaxHighlighterBridge(QObject):
         """Bound native text layout; the complete source stays in the analysis controller."""
         large = len(text) > 250_000
         if editor is not None:
-            # Guard text notifications before detaching formatting from the existing document.
+            # The returned page is applied by the QML binding after this call.
+            existing = self._previews.get(editor)
+            current = existing.text if existing is not None else str(editor.property("text") or "")
+            if current != text:
+                editor.setProperty("previewLoading", True)
+                QTimer.singleShot(0, editor, lambda: editor.setProperty("previewLoading", False))
             editor.setProperty("pagedPreview", large)
-        for highlighter, proxy in zip(self._highlighters, self._document_proxies, strict=True):
-            if proxy is not value:
-                continue
-            if large:
-                highlighter.setDocument(None)
-            elif highlighter.document() is None:
-
-                def restore(item: NetworkConfigHighlighter = highlighter, target: QObject = proxy) -> None:
-                    document = target.textDocument() if hasattr(target, "textDocument") else target
-                    if isinstance(document, QTextDocument) and document.characterCount() <= 250_001:
-                        item.setDocument(document)
-
-                QTimer.singleShot(0, highlighter, restore)
         if editor is None:
             return text
         if not large:
@@ -205,6 +260,7 @@ class SyntaxHighlighterBridge(QObject):
             editor.setProperty("previewPage", 1)
             editor.setProperty("previewPageCount", 1)
             editor.setProperty("previewStartLine", 1)
+            editor.setProperty("previewTotalLines", text.count("\n") + 1)
             return text
         preview = self._previews.get(editor)
         if preview is None:
@@ -228,8 +284,13 @@ class SyntaxHighlighterBridge(QObject):
         if preview is None:
             return
         preview.page = max(0, min(len(preview.ranges) - 1, preview.page + delta))
+        self._show_preview(editor, preview)
+
+    def _show_preview(self, editor: QObject, preview: _TextPreview) -> None:
+        editor.setProperty("previewLoading", True)
         self._set_preview_metadata(editor, preview)
         editor.setProperty("text", preview.visible_text())
+        editor.setProperty("previewLoading", False)
 
     @Slot(QObject, int, result=int)
     def lineInPreview(self, editor: QObject, line: int) -> int:
@@ -237,11 +298,44 @@ class SyntaxHighlighterBridge(QObject):
         if preview is None:
             return line
         line = max(1, min(preview.total_lines, line))
-        starts = [row[2] for row in preview.ranges]
-        preview.page = max(0, bisect_right(starts, line) - 1)
-        self._set_preview_metadata(editor, preview)
-        editor.setProperty("text", preview.visible_text())
+        position = 0
+        for _ in range(line - 1):
+            position = preview.text.find("\n", position) + 1
+        # A user can remove the page's boundary newline. Locate the actual
+        # global line beginning, rather than choosing a continuation page.
+        preview.page = max(0, bisect_right([row[0] for row in preview.ranges], position) - 1)
+        self._show_preview(editor, preview)
         return line - preview.ranges[preview.page][2] + 1
+
+    @Slot(QObject, str, result=str)
+    def commitPreviewText(self, editor: QObject, text: str) -> str:
+        """Immediately splice edits into the complete source, retaining page-local undo."""
+        preview = self._previews.get(editor)
+        if preview is None:
+            return text
+        preview.replace_visible(text)
+        self._set_preview_metadata(editor, preview)
+        return preview.text
+
+    @Slot(QObject, int, result=int)
+    def globalPosition(self, editor: QObject, position: int) -> int:
+        preview = self._previews.get(editor)
+        prefix = preview.text[: preview.ranges[preview.page][0]] if preview is not None else ""
+        return len(prefix.encode("utf-16-le")) // 2 + position
+
+    @Slot(QObject, int, result=int)
+    def positionInPreview(self, editor: QObject, position: int) -> int:
+        preview = self._previews.get(editor)
+        if preview is None:
+            return position
+        # QML TextEdit and JS string positions are UTF-16 offsets; Python strings are code points.
+        encoded = preview.text.encode("utf-16-le")
+        safe = max(0, min(len(encoded) // 2, position))
+        character = len(encoded[: safe * 2].decode("utf-16-le", errors="ignore"))
+        preview.page = max(0, bisect_right([row[0] for row in preview.ranges], character) - 1)
+        self._show_preview(editor, preview)
+        prefix = preview.text[: preview.ranges[preview.page][0]]
+        return safe - len(prefix.encode("utf-16-le")) // 2
 
     @Slot(QObject, result=str)
     def fullText(self, editor: QObject) -> str:
@@ -254,9 +348,27 @@ class SyntaxHighlighterBridge(QObject):
             highlighter.set_dark(dark)
 
     @Slot(QObject, "QVariantList")
-    def setUnsupportedLinesFor(self, document: QObject, lines: list[object]) -> None:
-        parsed = {int(value) for value in lines if isinstance(value, int) and value > 0}
+    @Slot(QObject, "QVariantList", int)
+    def setUnsupportedLinesFor(self, document: QObject, lines: list[object], start_line: int = 1) -> None:
+        parsed = {value - start_line + 1 for value in lines if isinstance(value, int) and value >= start_line}
         for highlighter, proxy in zip(self._highlighters, self._document_proxies, strict=True):
             if proxy is document or highlighter.document() is document:
                 highlighter.set_unsupported_lines(parsed)
+                break
+
+    @Slot(QObject, "QVariantList", int)
+    def setDiagnosticMarkersFor(self, document: QObject, markers: list[object], start_line: int) -> None:
+        parsed: dict[int, dict[str, Any]] = {}
+        for marker in markers:
+            if not isinstance(marker, dict) or not isinstance(marker.get("line"), int):
+                continue
+            local_line = marker["line"] - start_line + 1
+            if local_line < 1:
+                continue
+            existing = parsed.get(local_line)
+            if existing is None or marker.get("severity", "").lower() == "error":
+                parsed[local_line] = marker
+        for highlighter, proxy in zip(self._highlighters, self._document_proxies, strict=True):
+            if proxy is document or highlighter.document() is document:
+                highlighter.set_diagnostics(parsed)
                 break

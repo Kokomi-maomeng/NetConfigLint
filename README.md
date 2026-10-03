@@ -1,4 +1,4 @@
-# NetConfigLint v2.6
+# NetConfigLint v3.0
 
 Project versions, local release files, rollback records, and the consolidated task entry are mapped in [PROJECT_INDEX.md](PROJECT_INDEX.md).
 
@@ -14,40 +14,45 @@ vendor-supported validation and lab testing.
 See the [v2.4 command and language scope](docs/v2.4-command-catalog-and-i18n.md), [v2.3 GUI acceptance notes](docs/v2.3-gui-acceptance.md), [v2.2 GUI acceptance notes](docs/v2.2-gui-acceptance.md), [v2.1 change scope](docs/v2.1-change-scope.md), [H3C coverage contract](docs/h3c-command-support.md),
 and [v2.0 acceptance report](docs/v2.0-acceptance.md) for earlier release evidence.
 
-## Desktop v2.6
+## Desktop v3.0
 
-The Completion button beside Vendor selects automatic detection or multiple specific
-vendors independently of the analyzer. Press Tab in either editable configuration area:
-unique keywords complete directly; ambiguous keywords expand their common prefix and show
-a list. Use Tab/Shift+Tab or arrows, Enter to accept, and Escape to cancel. Parameters,
-optional groups, `undo`, interface types and declared VPN/policy names are supported.
-Shared syntax does not force a vendor; mixed or uncertain input retains multiple vendors.
+See the [37-item repair record](docs/v3.0-ux-repairs.md) and
+[command support matrix](docs/v3.0-command-support.md) for changes and explicit scope.
 
-The independent offline catalogs contain 9,722 Comware and 28,464 VRP syntax forms from
-specified official references. They provide completion rather than universal device syntax
-validation. See the [v2.6 completion, sources and vendor independence report](docs/v2.6-command-completion.md).
+Configuration and the local draft track unsaved changes independently. Opening another
+source, restoring history, loading an example, clearing configuration, and closing the
+window offer Save, Discard, or Cancel. Save / Save as writes the complete configuration.
+The local draft has its own Save draft and export actions and does not participate in
+analysis. File identity and modified state remain visible. Failed or cancelled file
+operations preserve the current source.
 
-Huawei VRP and H3C Comware now own separate parsers, effective-view reducers,
-semantic rules and operational parsers. Comware does not translate its source into
-VRP or wrap Huawei rule objects. The shared layer supplies data models, resource
-bounds, protocol-neutral message hypotheses and plugin dispatch. See the
-[v2.5 repairs and qualification](docs/v2.5-repairs-and-qualification.md).
+Large files use editable pages with original line numbers. Search scans the complete
+source, and Go to line or diagnostic navigation switches pages. Diagnostics mark source
+lines and expose confidence; changing input clears stale markers. The result panel always
+separates normalized, catalogued, and pending lines, with a list of pending
+locations. Zero diagnostics with pending lines does not mean the source has passed every
+check. Snippet mode accepts an optional starting CLI view under More.
 
-Narrow windows stack the cards in a scrollable workspace. Expanded coverage details
-scroll without consuming the issue list. File decoding and history persistence run
-outside the GUI thread; editors render only visible line numbers. Above 250,000 characters,
-read-only pages bound native text layout. Search covers the current preview page;
-diagnostic jumps switch pages, while analysis, history, scratch saving and exports retain
-the complete text. Settings includes Reduce interface animations.
-UTF-16 BOM exports are accepted alongside UTF-8 and GB18030. History remains enabled
-by default with full source and diagnostics; the aggregate 64 MiB quota retains the
-newest entries and concurrent instances merge writes under a file lock.
+The Completion selector is independent of the analyzer. The indexed libraries contain
+10,128 Comware and 28,439 VRP syntax forms. Tab completes keywords and effective document
+objects; candidate details preserve sources, views, annotations, and product/version
+scope. Ctrl+Shift+Space opens command lookup; F1 opens candidate details; F2 opens all
+parameter hints. Parameter hints state document-object, interface-type, manual-input,
+or unconfirmed capability. Shared or mixed syntax retains uncertainty. Legacy forms
+are identified by their historical product scope; no selected device model is assumed.
 
-The v2.6 public release contains only the Windows x64 portable ZIP. Windows 10
-version 1809/build 17763 or newer is required by the qualified Qt runtime. Linux
-supports XCB/Xwayland and includes client Wayland plugins. macOS editor shortcuts use
-Command where appropriate. Native platform evidence and untested boundaries are
-listed in the qualification record.
+New installations keep summary-only history by default. Full configuration and diagnostics
+require an explicit Settings opt-in. Existing full-source history remains visible as full
+retention until the user changes it. Switching to summary strips source and diagnostic
+content from stored entries. Disabling history removes saved entries. History search uses
+safe source titles; local history and drafts can still contain sensitive information.
+
+Release packaging supports a Windows x64 portable ZIP and MSI, a Linux amd64 DEB, and a
+macOS arm64 PKG. Extract the Windows ZIP and start NetConfigLint.exe; Python is bundled.
+Windows 10 version 1809/build 17763 or newer is required by the Qt runtime. Linux includes
+XCB/Xwayland and Wayland client plugins. Unsigned installers identify that status in their
+filenames. The macOS package is not signed or notarized; no physical Mac acceptance is
+claimed. Use the release asset filenames and SHA256SUMS.txt to choose and verify a build.
 
 The command coverage panel distinguishes parser-normalized lines, documented command families
 whose exact semantics remain unchecked, and unsupported lines. Huawei and H3C command families
