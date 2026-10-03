@@ -68,7 +68,11 @@ class AnalysisController(QObject):
     _workerSucceeded = Signal(object)
     _workerFailed = Signal(str)
     _fileLoaded = Signal(object)
-    _fileFailed = Signal(int)
+    _fileFailed = Signal(int, str)
+    workspaceChanged = Signal()
+    unsavedRequested = Signal()
+    saveAsRequested = Signal(str)
+    closeApproved = Signal()
 
     def __init__(
         self,
@@ -91,6 +95,14 @@ class AnalysisController(QObject):
         self._busy = False
         self._status_message = ""
         self._file_name = ""
+        self._file_path: Path | None = None
+        self._saved_source = ""
+        self._source_identity = "new"
+        self._initial_view = ""
+        self._running_initial_view = ""
+        self._pending_action: tuple[str, str] | None = None
+        self._pending_save_scopes: list[str] = []
+        self._example_snapshot: tuple[str, str, str, Path | None, str, str, str, str] | None = None
         self._revision = 0
         self._loading = False
         self._load_revision = -1
@@ -124,6 +136,7 @@ class AnalysisController(QObject):
             )
         except (OSError, UnicodeError):
             self._temporary_text = ""
+        self._saved_temporary = self._temporary_text
         self._result_timestamp = ""
         self._fileLoaded.connect(self._apply_loaded_input)
         self._fileFailed.connect(self._apply_file_error)
@@ -145,6 +158,7 @@ class AnalysisController(QObject):
         self._detection = self._empty_detection()
         self._summary = {key: 0 for key in self._summary}
         self.resultCurrentChanged.emit()
+        self.workspaceChanged.emit()
         self.detectionChanged.emit()
         self.summaryChanged.emit()
         if not self._source_text.strip():
@@ -176,6 +190,8 @@ class AnalysisController(QObject):
             self.toastRequested.emit("temporary.save_error")
             return
         self._temporary_text = value
+        self._saved_temporary = value
+        self.workspaceChanged.emit()
         self.temporaryTextChanged.emit()
         self.toastRequested.emit("temporary.saved")
 
@@ -213,6 +229,7 @@ class AnalysisController(QObject):
             self._input_metadata = {}
             self._invalidate()
             self.sourceTextChanged.emit()
+            self.workspaceChanged.emit()
 
     sourceText = Property(str, _get_source_text, _set_source_text, notify=sourceTextChanged)
 
@@ -339,6 +356,10 @@ class AnalysisController(QObject):
         self._detection = self._empty_detection()
         self._summary = {key: 0 for key in self._summary}
         self._file_name = ""
+        self._file_path = None
+        self._saved_source = ""
+        self._source_identity = "new"
+        self.workspaceChanged.emit()
         self.fileNameChanged.emit()
         self.detectionChanged.emit()
         self.summaryChanged.emit()
@@ -355,10 +376,10 @@ class AnalysisController(QObject):
         if not self._async_enabled:
             try:
                 self._apply_loaded_input(self._read_input_file(path, self._revision))
-            except (OSError, UnicodeError, ValueError, AnalysisLimitReached):
-                self.toastRequested.emit("file.open_error")
+            except (OSError, UnicodeError, ValueError, AnalysisLimitReached) as error:
+                self.toastRequested.emit(self._input_error_key(error))
             return
-        self._invalidate()
+        self._revision += 1
         self._loading = True
         self._set_busy(True)
         revision = self._revision
@@ -371,11 +392,11 @@ class AnalysisController(QObject):
             return
         try:
             self._fileLoaded.emit(future.result())
-        except Exception:  # Input boundary: error values/source paths are never logged.
-            self._fileFailed.emit(revision)
+        except Exception as error:  # Input boundary: never log source paths or values.
+            self._fileFailed.emit(revision, self._input_error_key(error))
 
-    @Slot(int)
-    def _apply_file_error(self, revision: int) -> None:
+    @Slot(int, str)
+    def _apply_file_error(self, revision: int, key: str = "file.open_error") -> None:
         if revision != self._load_revision:
             return
         if revision != self._revision:
@@ -385,7 +406,7 @@ class AnalysisController(QObject):
             return
         self._loading = False
         self._set_busy(False)
-        self.toastRequested.emit("file.open_error")
+        self.toastRequested.emit(key)
 
     @Slot(object)
     def _apply_loaded_input(self, item: object) -> None:
@@ -396,6 +417,7 @@ class AnalysisController(QObject):
             self._set_busy(False)
             return
         decoded, preview = item.decoded, item.preview
+        self._active_history_id = None
         if preview is None:
             self._set_source_text(decoded.text)
         else:
@@ -410,6 +432,10 @@ class AnalysisController(QObject):
             "recovered_bytes": decoded.recovered_bytes,
         }
         self._file_name = item.path.name
+        self._file_path = item.path
+        self._saved_source = self._source_text
+        self._source_identity = "file"
+        self.workspaceChanged.emit()
         self._loading = False
         self._set_busy(False)
         self.fileNameChanged.emit()
@@ -468,6 +494,7 @@ class AnalysisController(QObject):
         if not self._source_text.strip():
             return
         self._running_revision = self._revision
+        self._running_initial_view = self._initial_view if self._mode == "snippet" else ""
         self._cancellation = CancellationToken()
         self._set_busy(True)
         self._set_status("analysis.running")
@@ -525,12 +552,15 @@ class AnalysisController(QObject):
                 enabled=True,
                 persist_settings=False,
                 limit=self._history_store.limit,
+                retention=self._history_store.retention,
             )
             try:
                 store.append(
                     result,
                     source,
                     vendor,
+                    title=self._file_name,
+                    initial_view=self._running_initial_view,
                     guard=lambda: epoch == self._history_epoch and not cancellation.cancelled,
                 )
                 entries = list(store.entries)
@@ -542,7 +572,13 @@ class AnalysisController(QObject):
         self, source: str, mode: str, vendor: str, cancellation: CancellationToken
     ) -> AnalysisResult:
         if self._analyzer is analyze:
-            return analyze(source, mode, vendor, cancellation=cancellation)
+            return analyze(
+                source,
+                mode,
+                vendor,
+                cancellation=cancellation,
+                initial_view=self._running_initial_view or None,
+            )
         # Third-party injected analyzers retain their existing three-argument contract.
         if cancellation.cancelled:
             raise AnalysisCancelled()
@@ -574,10 +610,15 @@ class AnalysisController(QObject):
             return
         self._diagnostics.replace(result.diagnostics)
         self._coverage = result.coverage
+        if self._running_initial_view:
+            self._input_metadata["initial_view"] = self._running_initial_view
+        else:
+            self._input_metadata.pop("initial_view", None)
         self._detection = {"vendor": result.detection.vendor}
         self._result_current = True
         self._extend_bundle_preview(result)
         self.resultCurrentChanged.emit()
+        self.workspaceChanged.emit()
         counts = Counter(item.severity.value for item in result.diagnostics)
         self._summary = {key: counts[key] for key in self._summary}
         try:
@@ -589,7 +630,13 @@ class AnalysisController(QObject):
                     if completed.entries:
                         self._active_history_id = completed.entries[0].entry_id
             elif self._active_history_id is None:
-                self._history_store.append(result, self._source_text, self._vendor)
+                self._history_store.append(
+                    result,
+                    self._source_text,
+                    self._vendor,
+                    title=self._file_name,
+                    initial_view=self._running_initial_view,
+                )
                 if self._history_store.enabled and self._history_store.entries:
                     self._active_history_id = self._history_store.entries[0].entry_id
             active_entry = (
@@ -679,6 +726,9 @@ class AnalysisController(QObject):
     @Slot(str)
     def openHistory(self, entry_id: str) -> None:
         entry = self._history_store.get(entry_id)
+        if entry is not None and not entry.source_text:
+            self.toastRequested.emit("history.summary_only")
+            return
         if entry is None or not entry.source_text or self._busy:
             return
         try:
@@ -700,8 +750,13 @@ class AnalysisController(QObject):
             return
         self._set_source_text(entry.source_text)
         self._bundle_configuration = ""
-        self._input_metadata = {}
-        self._file_name = ""
+        self._input_metadata = {"initial_view": entry.initial_view} if entry.initial_view else {}
+        self._file_name = entry.title
+        self._file_path = None
+        self._saved_source = ""
+        self._source_identity = "history"
+        self._initial_view = entry.initial_view
+        self.workspaceChanged.emit()
         self.fileNameChanged.emit()
         self._set_editor_text(entry.source_text, read_only=False)
         self._invalidate()
@@ -744,6 +799,260 @@ class AnalysisController(QObject):
                 self._active_history_id = None
         except OSError:
             self.toastRequested.emit("history.clear_error")
+
+    @staticmethod
+    def _input_error_key(error: Exception) -> str:
+        if isinstance(error, AnalysisLimitReached):
+            return "file.limit_error"
+        if isinstance(error, OSError):
+            return "file.access_error"
+        if isinstance(error, UnicodeError) or "UTF-32" in str(error):
+            return "file.encoding_error"
+        return "file.binary_error"
+
+    sourceDirty = Property(
+        bool, lambda self: self._source_text != self._saved_source, notify=workspaceChanged
+    )
+    temporaryDirty = Property(
+        bool, lambda self: self._temporary_text != self._saved_temporary, notify=workspaceChanged
+    )
+    filePath = Property(str, lambda self: str(self._file_path or ""), notify=workspaceChanged)
+    sourceIdentity = Property(str, lambda self: self._source_identity, notify=workspaceChanged)
+    temporaryPath = Property(str, lambda self: str(self._temporary_path), constant=True)
+    historyPath = Property(str, lambda self: str(self._history_store.path), constant=True)
+
+    @Slot(str)
+    def updateTemporaryText(self, value: str) -> None:
+        if self._temporary_text != value:
+            self._temporary_text = value
+            self.workspaceChanged.emit()
+
+    def _set_initial_view(self, value: str) -> None:
+        if value != self._initial_view and len(value) <= 160 and "\n" not in value:
+            self._initial_view = value.strip()
+            self._active_history_id = None
+            self._invalidate()
+            self.workspaceChanged.emit()
+
+    initialView = Property(str, lambda self: self._initial_view, _set_initial_view, notify=workspaceChanged)
+
+    def _markers(self) -> list[dict[str, Any]]:
+        if not self._result_current:
+            return []
+        return [
+            {
+                "line": self._display_line_map.get(d.source.line, d.source.line),
+                "end_line": self._display_line_map.get(
+                    d.source.end_line or d.source.line, d.source.end_line or d.source.line
+                ),
+                "column": d.source.column,
+                "end_column": d.source.end_column,
+                "severity": d.severity.value,
+                "confidence": d.confidence.value,
+                "message": self.translator.diagnostic(d.message),
+                "rule_id": d.rule_id,
+            }
+            for d in self._diagnostics.items
+        ]
+
+    diagnosticMarkers = Property("QVariantList", _markers, notify=resultCurrentChanged)  # type: ignore[arg-type]
+
+    @Slot(str, str)
+    def requestAction(self, action: str, argument: str = "") -> None:
+        if (self._busy and action != "close") or action not in {
+            "load",
+            "history",
+            "clear",
+            "example",
+            "close",
+            "scratch",
+            "undo_example",
+        }:
+            return
+        if action == "history":
+            entry = self._history_store.get(argument)
+            if entry is not None and (
+                self._active_history_id == argument
+                and self._result_current
+                and entry.source_text == self._source_text
+                and entry.mode == self._mode
+                and entry.selected_vendor == self._vendor
+                and entry.initial_view == self._initial_view
+            ):
+                return
+        self._pending_action = (action, argument)
+        self._pending_save_scopes = []
+        if self._source_text != self._saved_source:
+            self._pending_save_scopes.append("configuration")
+        if action == "close" and self._temporary_text != self._saved_temporary:
+            self._pending_save_scopes.append("temporary")
+        if self._pending_save_scopes:
+            self.unsavedRequested.emit()
+        else:
+            self._finish_pending_action()
+
+    @Slot(str)
+    def resolveUnsaved(self, decision: str) -> None:
+        if decision == "cancel":
+            self._pending_action = None
+            self._pending_save_scopes = []
+        elif decision == "discard":
+            self._pending_save_scopes = []
+            self._finish_pending_action()
+        elif decision == "save":
+            self._save_next_pending()
+
+    def _save_next_pending(self) -> None:
+        if not self._pending_save_scopes:
+            self._finish_pending_action()
+            return
+        scope = self._pending_save_scopes[0]
+        if scope == "temporary":
+            self.saveTemporaryText(self._temporary_text)
+            if self._saved_temporary == self._temporary_text:
+                self._pending_save_scopes.pop(0)
+                self._save_next_pending()
+        elif self._file_path is not None:
+            self.saveSourceFile(str(self._file_path))
+        else:
+            self.saveAsRequested.emit("configuration")
+
+    def _finish_pending_action(self) -> None:
+        pending, self._pending_action = self._pending_action, None
+        if pending is None:
+            return
+        action, argument = pending
+        if action == "load":
+            self.loadFile(argument)
+        elif action == "history":
+            self.openHistory(argument)
+        elif action == "clear":
+            self.clear()
+        elif action == "example":
+            self._example_snapshot = (
+                self._source_text,
+                self._saved_source,
+                self._file_name,
+                self._file_path,
+                self._source_identity,
+                self._vendor,
+                self._mode,
+                self._initial_view,
+            )
+            self.clear()
+            self._set_vendor("h3c")
+            self._set_mode("snippet")
+            self._set_initial_view("")
+            self._set_source_text(
+                "sysname LAB-SW\n# Synthetic example\nvlan 10\n"
+                "interface GigabitEthernet 1/0/1\n port link-type access\n port access vlan 10\n#\n"
+            )
+        elif action == "scratch":
+            self.clear()
+            self._set_source_text(self._temporary_text)
+        elif action == "undo_example" and self._example_snapshot is not None:
+            text, saved, name, path, identity, vendor, mode, initial_view = self._example_snapshot
+            self._set_vendor(vendor)
+            self._set_mode(mode)
+            self._set_initial_view(initial_view)
+            self._set_source_text(text)
+            self._saved_source, self._file_name = saved, name
+            self._file_path, self._source_identity = path, identity
+            self._example_snapshot = None
+            self.fileNameChanged.emit()
+            self.workspaceChanged.emit()
+        elif action == "close":
+            self.closeApproved.emit()
+
+    @Slot()
+    def saveConfiguration(self) -> None:
+        if self._file_path is None:
+            self.saveAsRequested.emit("configuration")
+        else:
+            self.saveSourceFile(str(self._file_path))
+
+    exampleAvailable = Property(
+        bool, lambda self: self._example_snapshot is not None, notify=workspaceChanged
+    )
+
+    @Slot(str, result=bool)
+    def saveSourceFile(self, value: str) -> bool:
+        path = Path(QUrl(value).toLocalFile() if value.startswith("file:") else value)
+        try:
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", newline="", dir=path.parent, delete=False
+            ) as stream:
+                temporary = Path(stream.name)
+                stream.write(self._source_text)
+            try:
+                temporary.replace(path)
+            finally:
+                temporary.unlink(missing_ok=True)
+        except OSError:
+            self.toastRequested.emit("file.save_error")
+            return False
+        self._file_path = path
+        self._file_name = path.name
+        self._source_identity = "file"
+        self._saved_source = self._source_text
+        self.fileNameChanged.emit()
+        self.workspaceChanged.emit()
+        self.toastRequested.emit("file.saved")
+        if self._pending_save_scopes and self._pending_save_scopes[0] == "configuration":
+            self._pending_save_scopes.pop(0)
+            self._save_next_pending()
+        return True
+
+    @Slot(str, result=bool)
+    def exportTemporaryFile(self, value: str) -> bool:
+        path = Path(QUrl(value).toLocalFile() if value.startswith("file:") else value)
+        try:
+            path.write_text(self._temporary_text, encoding="utf-8", newline="")
+        except OSError:
+            self.toastRequested.emit("file.save_error")
+            return False
+        self.toastRequested.emit("file.saved")
+        return True
+
+    historyRetention = Property(str, lambda self: self._history_store.retention, notify=historyEnabledChanged)
+
+    @Slot(str)
+    def setHistoryRetention(self, value: str) -> None:
+        if value in {"summary", "full"}:
+            self._history_epoch += 1
+            try:
+                self._history_store.set_retention(value)
+            except OSError:
+                self.toastRequested.emit("history.clear_error")
+                return
+            self._history_model.replace(self._history_store.entries)
+            self.historyEnabledChanged.emit()
+
+    @Slot(str)
+    def filterHistory(self, value: str) -> None:
+        self._history_model.set_filter(value)
+
+    def _support_summary(self) -> dict[str, Any]:
+        from netconfiglint.core.support import support_scope
+
+        return support_scope()
+
+    supportSummary = Property("QVariantMap", _support_summary, constant=True)  # type: ignore[arg-type]
+
+    @Slot(str, result=bool)
+    def exportSupportInventory(self, value: str) -> bool:
+        from netconfiglint.core.support import export_support_inventory
+
+        path = QUrl(value).toLocalFile() if value.startswith("file:") else value
+        try:
+            export_support_inventory(path)
+        except (OSError, ValueError):
+            self.toastRequested.emit("file.save_error")
+            return False
+        self.toastRequested.emit("file.saved")
+        return True
 
     def close(self) -> None:
         self._closing = True

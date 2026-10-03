@@ -7,7 +7,7 @@ from threading import Event
 from time import perf_counter
 
 import pytest
-from PySide6.QtCore import QObject, QSettings, QUrl
+from PySide6.QtCore import QMetaObject, QObject, QSettings, Qt, QUrl
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
@@ -55,7 +55,8 @@ def test_history_restore_clears_bundle_and_decoding_metadata(tmp_path: Path, qap
     controller._file_name = "SYNTHETIC-A.cfg"
     controller.openHistory(store.entries[0].entry_id)
     assert controller.sourceText == source and controller.editorText == source
-    assert not controller._bundle_configuration and not controller._input_metadata and not controller.fileName
+    assert not controller._bundle_configuration and not controller._input_metadata
+    assert controller.fileName == store.entries[0].title and controller.sourceIdentity == "history"
     assert controller.prepareExport("configuration", "txt", False)
     assert source in controller._export_payload and "SYNTHETIC-A" not in controller._export_payload
     controller.close()
@@ -174,13 +175,14 @@ def test_english_severity_filters_wrap_without_overlap(tmp_path: Path, qapp: obj
     dispose_engine(qapp, engine, controller)
 
 
-def test_default_full_history_behavior_is_retained(tmp_path: Path, qapp: object) -> None:
+def test_new_users_store_summary_history_without_source(tmp_path: Path, qapp: object) -> None:
     QSettings().remove("privacy/historyEnabled")
     store = HistoryStore(tmp_path / "history.json", persist_settings=False)
     assert store.enabled
     source = "sysname SYNTHETIC\npassword cipher SYNTHETIC_ONLY\n"
     store.append(analyze(source, vendor="huawei"), source)
-    assert "SYNTHETIC_ONLY" in store.path.read_text("utf-8")
+    assert "SYNTHETIC_ONLY" not in store.path.read_text("utf-8")
+    assert store.retention == "summary" and not store.entries[0].source_text
 
 
 def _wait_idle(controller: AnalysisController) -> None:
@@ -255,7 +257,7 @@ def test_background_analysis_cannot_restore_cleared_history(
     controller.close()
 
 
-def test_large_editor_detaches_highlighting_and_restores_small_document(tmp_path: Path, qapp: object) -> None:
+def test_large_editor_keeps_editable_pages_with_bounded_highlighting(tmp_path: Path, qapp: object) -> None:
     controller = AnalysisController(
         async_enabled=False,
         history_store=HistoryStore(tmp_path / "history.json", enabled=False, persist_settings=False),
@@ -266,15 +268,24 @@ def test_large_editor_detaches_highlighting_and_restores_small_document(tmp_path
     window = engine.rootObjects()[0]
     editor = _item(window, "configurationTextArea")
     QTest.qWait(30)
-    assert editor.property("pagedPreview") and editor.property("readOnly")
+    assert editor.property("pagedPreview") and not editor.property("readOnly")
     assert len(editor.property("text")) <= 82_768
     assert bridge.fullText(editor) == controller.sourceText
     relative_line = bridge.lineInPreview(editor, 39_990)
     assert 1 <= relative_line <= editor.property("lineCount")
     assert editor.property("previewPage") == editor.property("previewPageCount")
     assert controller.sourceText == "description SYNTHETIC\n" * 40_000
-    source_highlighter = next(item for item in bridge._highlighters if item.document() is None)
-    assert source_highlighter.document() is None
+    document = editor.property("textDocument").textDocument()
+    source_highlighter = next(item for item in bridge._highlighters if item.document() is document)
+    assert source_highlighter.document().characterCount() <= 82_769
+    assert source_highlighter.document().firstBlock().layout().formats()
+    editor.setProperty("cursorPosition", 0)
+    editor.forceActiveFocus()
+    QTest.keyClick(window, Qt.Key.Key_X)
+    assert bridge.fullText(editor) == controller.sourceText
+    assert "xdescription" in controller.sourceText
+    QMetaObject.invokeMethod(editor, "undo")
+    assert controller.sourceText == "description SYNTHETIC\n" * 40_000
     controller.sourceText = "sysname SYNTHETIC\n"
     QTest.qWait(30)
     assert source_highlighter.document() is not None

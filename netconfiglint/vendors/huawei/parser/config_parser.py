@@ -16,7 +16,7 @@ from netconfiglint.core.analyzer.control import charge_vlan_memberships, checkpo
 from netconfiglint.core.analyzer.models import AnalysisMode, VendorDetection
 from netconfiglint.core.analyzer.operational_input import mask_operational_output
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
-from netconfiglint.core.lexer import SourceLine, lex_lines
+from netconfiglint.core.lexer import SourceLine, is_comment_line, lex_lines, normalize_cli_line
 from netconfiglint.core.model import (
     ACL,
     BGPAddressFamily,
@@ -57,7 +57,9 @@ class HuaweiConfigParser:
             else (source, set())
         )
         annotations = {
-            number for number, line in enumerate(parser_source.splitlines(), 1) if is_annotation(line)
+            number
+            for number, line in enumerate(parser_source.splitlines(), 1)
+            if is_annotation(line) or (is_comment_line(line) and line.strip() != "#")
         }
         parser_source = "\n".join(
             "" if number in annotations else line for number, line in enumerate(parser_source.splitlines(), 1)
@@ -123,7 +125,7 @@ class HuaweiConfigParser:
         header_lines = {block.source.line for block in config.blocks}
         remaining = []
         for item in config.unparsed_lines:
-            family = catalogued_family("huawei", config.source_lines[item.line - 1])
+            family = catalogued_family("huawei", normalize_cli_line(config.source_lines[item.line - 1])[0])
             context = line_context.get(item.line)
             if (
                 family is None
@@ -204,6 +206,9 @@ class HuaweiConfigParser:
                     )
                     return None
             interface = config.interfaces.setdefault(name, Interface(name, source))
+            if re.fullmatch(r"eth-trunk\d+", name, re.I) and interface.aggregation_mode is None:
+                interface.aggregation_mode = "manual load-balance"
+                interface.aggregation_mode_origin = "reference_default"
             return ("interface", interface)
         if len(tokens) >= 2 and lower.startswith("bgp "):
             if re.fullmatch(r"bgp \d+(?:\.\d+)?", lower) is None:
@@ -391,6 +396,15 @@ class HuaweiConfigParser:
         lower = line.text.lower()
         source = SourceRange(line.number)
         interface.raw_commands.append((line.text, source))
+        if lower in {"mode lacp-static", "mode manual load-balance", "undo mode"}:
+            if re.fullmatch(r"eth-trunk\d+", interface.name, re.I) is None:
+                return False
+            interface.aggregation_mode = (
+                "manual load-balance" if lower == "undo mode" else lower.removeprefix("mode ")
+            )
+            interface.aggregation_mode_origin = "reference_default" if lower == "undo mode" else "explicit"
+            interface.command_sources["aggregation_mode"] = source
+            return True
         vlan_command = lower.removeprefix("undo ")
         undo = lower.startswith("undo ")
         lists = {

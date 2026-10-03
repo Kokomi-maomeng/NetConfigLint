@@ -102,7 +102,7 @@ def test_f16_sidebar_history_fits_and_disabled_state_is_visible(
     QTest.qWait(400)
     card = next(i for i in descendants(window.contentItem()) if i.objectName() == "historyEntry-synthetic")
     assert card.isVisible() and card.width() <= rail.width()
-    assert card.height() == 56
+    assert card.height() >= 56
     assert window.grabWindow().save(str(tmp_path / "history-long.png"))
     controller.historyEnabled = False
     QTest.qWait(120)

@@ -56,6 +56,9 @@ def test_tab_popup_keyboard_accept_and_undo(desktop: tuple, name: str) -> None:
     assert candidate_list.property("currentIndex") == 1
     QTest.keyClick(window, Qt.Key.Key_Backtab)
     assert candidate_list.property("currentIndex") == 0
+    QTest.keyClick(window, Qt.Key.Key_Down)
+    QTest.keyClick(window, Qt.Key.Key_Tab, Qt.KeyboardModifier.ShiftModifier)
+    assert candidate_list.property("currentIndex") == 0
     QTest.keyClick(window, Qt.Key.Key_Return)
     for _ in range(50):
         if not popup.property("visible"):

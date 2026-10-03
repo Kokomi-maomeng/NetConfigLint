@@ -7,6 +7,7 @@ AppCard {
     id: root
     objectName: "diagnosticIssueCard"
     property string severityValue: "INFO"
+    property string confidenceValue: ""
     property string ruleIdentifier: ""
     property int sourceLine: 1
     property string targetName: ""
@@ -41,6 +42,12 @@ AppCard {
                 color: Colors.textSecondary
                 font: Typography.caption
             }
+        }
+        SelectableText {
+            Layout.fillWidth: true
+            text: i18n.catalog["confidence." + root.confidenceValue] || root.confidenceValue
+            color: Colors.textSecondary
+            font: Typography.caption
         }
         SelectableText {
             Layout.fillWidth: true

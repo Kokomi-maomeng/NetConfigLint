@@ -80,7 +80,7 @@ def test_dense_filters_keep_delegates_and_event_delay_bounded(qapp: object, coun
 
 
 @pytest.mark.parametrize(
-    "prefix", ["description ", "description 中文 ", "description 😀 ", "description 😀𠮷😀 "]
+    "prefix", ["ip address ", "[中文] ip address ", "[😀] ip address ", "[😀𠮷😀] ip address "]
 )
 def test_highlighter_uses_utf16_offsets(qapp: object, prefix: str) -> None:
     document = QTextDocument(prefix + "192.0.2.1")

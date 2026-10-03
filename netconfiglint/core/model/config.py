@@ -65,6 +65,8 @@ class Interface:
     traffic_policies: list[tuple[str, str, SourceRange]] = field(default_factory=list)
     shutdown: bool = False
     eth_trunk: str | None = None
+    aggregation_mode: str | None = None
+    aggregation_mode_origin: str = "unknown"
     vpn_instance: str | None = None
     command_sources: dict[str, SourceRange] = field(default_factory=dict)
     raw_commands: list[tuple[str, SourceRange]] = field(default_factory=list)

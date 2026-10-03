@@ -206,5 +206,55 @@
     "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/5906a2c",
     "chapter": "EDOC1100410645-j00a.html",
     "reason": "Notation typo; grouping checked against the same command's adjacent forms and parameter descriptions."
+  },
+  {
+    "vendor": "huawei",
+    "original": "arp static <ip-address> <mac-address> vni <vni-id> { source-ip <ip-address1> peer-ip <ip-address2> } | { source-ipv6 <ipv6-address1> peer-ipv6 <ipv6-address2> }",
+    "corrected": "arp static <ip-address> <mac-address> vni <vni-id> { source-ip <ip-address1> peer-ip <ip-address2> | source-ipv6 <ipv6-address1> peer-ipv6 <ipv6-address2> }",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/8dac5608",
+    "reason": "Shared command prefix grouping checked against original Format and the adjacent source forms."
+  },
+  {
+    "vendor": "huawei",
+    "original": "display fei mpls bgplsp xcnode [ inlabel <in-label-id> ] | [ ip <ip-address> <mask-length> ] slot <slot-id>",
+    "corrected": "display fei mpls bgplsp xcnode { [ inlabel <in-label-id> ] | [ ip <ip-address> <mask-length> ] } slot <slot-id>",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100420140/13c475b6",
+    "reason": "Shared command prefix grouping checked against original Format and the adjacent source forms."
+  },
+  {
+    "vendor": "huawei",
+    "original": "ipv6 neighbor <ipv6-address> <mac-address> vni <vni-id> { source-ip <ipv4-address1> peer-ip <ipv4-address2> } | { source-ipv6 <ipv6-address1> peer-ipv6 <ipv6-address2> }",
+    "corrected": "ipv6 neighbor <ipv6-address> <mac-address> vni <vni-id> { source-ip <ipv4-address1> peer-ip <ipv4-address2> | source-ipv6 <ipv6-address1> peer-ipv6 <ipv6-address2> }",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/8dac5608",
+    "reason": "Shared command prefix grouping checked against original Format and the adjacent source forms."
+  },
+  {
+    "vendor": "huawei",
+    "original": "sftp [ -a <source-address> | -i <interface-type> <interface-number> ] <host-ip> [ <port> ] [ [ public-net | -vpn-instance <vpn-instance-name> ] | identity-key { dsa | rsa | ecc | rsa_sha2_256 | rsa_sha2_512 } | user-identity-key { rsa | dsa | ecc } | prefer_kex <prefer_key-exchange> | prefer_ctos_cipher <prefer_ctos_cipher> | prefer_stoc_cipher <prefer_stoc_cipher> | prefer_ctos_hmac <prefer_ctos_hmac> | prefer_stoc_hmac <prefer_stoc_hmac> | -ki <aliveinterval> ] | [ -kc <alivecountmax> ] *",
+    "corrected": "sftp [ -a <source-address> | -i <interface-type> <interface-number> ] <host-ip> [ <port> ] [ [ public-net | -vpn-instance <vpn-instance-name> ] | identity-key { dsa | rsa | ecc | rsa_sha2_256 | rsa_sha2_512 } | user-identity-key { rsa | dsa | ecc } | prefer_kex <prefer_key-exchange> | prefer_ctos_cipher <prefer_ctos_cipher> | prefer_stoc_cipher <prefer_stoc_cipher> | prefer_ctos_hmac <prefer_ctos_hmac> | prefer_stoc_hmac <prefer_stoc_hmac> | -ki <aliveinterval> | -kc <alivecountmax> ] *",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/5906a2c",
+    "reason": "Shared command prefix grouping checked against original Format and the adjacent source forms."
+  },
+  {
+    "vendor": "huawei",
+    "original": "undo arp static <ip-address> <mac-address> vni <vni-id> { source-ip <ip-address1> peer-ip <ip-address2> } | { source-ipv6 <ipv6-address1> peer-ipv6 <ipv6-address2> }",
+    "corrected": "undo arp static <ip-address> <mac-address> vni <vni-id> { source-ip <ip-address1> peer-ip <ip-address2> | source-ipv6 <ipv6-address1> peer-ipv6 <ipv6-address2> }",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/8dac5608",
+    "reason": "Shared command prefix grouping checked against original Format and the adjacent source forms."
+  },
+  {
+    "vendor": "huawei",
+    "original": "undo ipv6 neighbor <ipv6-address> <mac-address> vni <vni-id> { source-ip <ipv4-address1> peer-ip <ipv4-address2> } | { source-ipv6 <ipv6-address1> peer-ipv6 <ipv6-address2> }",
+    "corrected": "undo ipv6 neighbor <ipv6-address> <mac-address> vni <vni-id> { source-ip <ipv4-address1> peer-ip <ipv4-address2> | source-ipv6 <ipv6-address1> peer-ipv6 <ipv6-address2> }",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/8dac5608",
+    "reason": "Shared command prefix grouping checked against original Format and the adjacent source forms."
+  },
+  {
+    "vendor": "huawei",
+    "original": "ip route-static vpn-instance <vpn-source-name> <prefix> { <mask> | <mask-length> } vpn-instance <vpn-destination-name> <nexthop-address> > [ recursive-lookup host-route [ arp-vlink-only ] ] [ preference <preference-value> | tag <tag-value> ] * [ [ bfd enable | track { bfd-session <session-name> | nqa <admin-name> <test-name> } ] [ inherit-cost ] | permanent ] [ arp-detect { <arp-interface-name> | <arp-ifType> <arp-ifNum> } ] [ inter-protocol-ecmp ] [ description <description-value> ]",
+    "corrected": "ip route-static vpn-instance <vpn-source-name> <prefix> { <mask> | <mask-length> } vpn-instance <vpn-destination-name> <nexthop-address> [ recursive-lookup host-route [ arp-vlink-only ] ] [ preference <preference-value> | tag <tag-value> ] * [ [ bfd enable | track { bfd-session <session-name> | nqa <admin-name> <test-name> } ] [ inherit-cost ] | permanent ] [ arp-detect { <arp-interface-name> | <arp-ifType> <arp-ifNum> } ] [ inter-protocol-ecmp ] [ description <description-value> ]",
+    "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100420140/3a7bfc3f",
+    "chapter": "EDOC1100420140-j027.html",
+    "reason": "Stray closing angle appears in the source Format after a metavariable; adjacent forms and the parameter table confirm it is not a CLI token."
   }
 ]

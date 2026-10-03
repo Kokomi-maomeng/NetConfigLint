@@ -6,6 +6,7 @@ import re
 from dataclasses import replace
 
 from netconfiglint.core.analyzer.models import VendorDetection
+from netconfiglint.core.lexer import normalize_cli_line
 from netconfiglint.vendors.huawei.profiles import ProfileDatabase
 
 _PROFILES = ProfileDatabase()
@@ -25,6 +26,7 @@ class HuaweiDetector:
     )
 
     def detect(self, source: str) -> VendorDetection:
+        source = "\n".join(normalize_cli_line(line)[0] for line in source.splitlines())
         # An explicit foreign banner outweighs syntax shared with VRP, including mixed captures.
         foreign = re.search(
             r"(?im)^\s*(?:H3C\b|HPE Comware\b|HP Comware\b|.*Comware Software|"
@@ -41,6 +43,20 @@ class HuaweiDetector:
                 evidence=(
                     "Explicit unsupported or mixed vendor banner; select the intended vendor manually",
                 ),
+            )
+        if re.search(
+            r"(?im)^\s*(?:port\s+(?:access\s+vlan|trunk\s+permit\s+vlan|link-aggregation\s+group)\b|"
+            r"stp\s+global\s+(?:enable|disable)\b|acl\s+(?:ipv6\s+)?basic\s+\d+\b|"
+            r"version\s+7\.\d+\.\d+,\s+Release\s+\d+\b)",
+            source,
+        ):
+            return VendorDetection(
+                "Unknown",
+                "Unknown",
+                "Unknown",
+                "Unknown",
+                0.0,
+                evidence=("Foreign Comware configuration signature; select the intended vendor manually",),
             )
         distinctive = bool(re.search(r"(?im)^\s*port (?:trunk allow-pass vlan|default vlan)\b", source))
         evidence: list[str] = []

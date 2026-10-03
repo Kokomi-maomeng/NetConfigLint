@@ -1,0 +1,425 @@
+{
+  "schema": 1,
+  "types": [
+    {
+      "vendor": "h3c",
+      "canonical": "GigabitEthernet",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "521733892_747936564_-1529542759_-996050370.htm",
+      "sha256": "72cebedaec986334978b77f87e41f8c23a27190452d1f43bbf1702dac68ac197",
+      "example": "interface gigabitethernet 1/0/1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "Ten-GigabitEthernet",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "521733892_747936564_-1529542759_463240766.htm",
+      "sha256": "024804fe1164e7ba97fb1c24d2e9ef02a5ca254a08d43c38deec8485db523933",
+      "example": "interface ten-gigabitethernet 1/0/26:1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "Twenty-FiveGigE",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "1631632732_1317970016_758114215.htm",
+      "sha256": "f5a6a27e27dd475891310bbbaec2a5601640e96f01228581a8bf80e63adc3333",
+      "example": "interface Twenty-FiveGigE1/0/1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "FortyGigE",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "521733892_747936564_-1529542759_806769785.htm",
+      "sha256": "a0269be44d835193c8415eb921ff82163f79ca320cabf431dc84ec085e3e3f06",
+      "example": "interface fortygige 1/0/1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "FiftyGigE",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "521733892_747936564_-1529542759_463240766.htm",
+      "sha256": "024804fe1164e7ba97fb1c24d2e9ef02a5ca254a08d43c38deec8485db523933",
+      "example": "interface fiftygige 1/0/1:1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "HundredGigE",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "1772804906_-1360988401_-360747181.htm",
+      "sha256": "11fa6a4eb29192f4adc08bcc7c761c735ce541345c4b5cf57853dbbf8a2336e1",
+      "example": "interface hundredgige 1/0/1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "FourHundredGigE",
+      "status": "existing-domain",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "",
+      "sha256": "",
+      "example": ""
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "M-GigabitEthernet",
+      "status": "existing-domain",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "",
+      "sha256": "",
+      "example": ""
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "Bridge-Aggregation",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "1921850757_-718784183_-1785655739.htm",
+      "sha256": "8a94c699c3c1dd5468d10f7bdda48f039c6ab0d7adf10aca63d0ebc90bb98176",
+      "example": "interface bridge-aggregation 1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "Route-Aggregation",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "1921850757_-718784183_-1785655739.htm",
+      "sha256": "8a94c699c3c1dd5468d10f7bdda48f039c6ab0d7adf10aca63d0ebc90bb98176",
+      "example": "interface route-aggregation 1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "LoopBack",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "1132290576_-713229791_-15959352.htm",
+      "sha256": "5989434e8d89737c56e14bcb06a3f1d71c702b5855a60bd8d4e1bc595a43d59e",
+      "example": "interface loopback 1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "Vlan-interface",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "1773569824_1135939118_-1882327240.htm",
+      "sha256": "d2e7ecac3c5ac2e3675c1b0638169e719f725709fcd9e5a47171de9338fdc55d",
+      "example": "interface vlan-interface 1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "Tunnel",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "-475935434_-2121999186_-15959352.htm",
+      "sha256": "6c083e0a997b3f0d8952394de01ab12afa2ef46e57ad14b3f3a43309fbe7e911",
+      "example": "interface tunnel 1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "NULL",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "1132290576_-713229791_-335424410.htm",
+      "sha256": "94a600e88ce139be6f6da98e2582d3afd9d8b85aea8c8da8bb49ae01b9d93de0",
+      "example": "interface null 0"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "FC",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "2143052317_-391399366_-2117152596_1088735541.htm",
+      "sha256": "f736cd644b27da9a965e5607feb6d01172bae574d22d59d9efe136b431e54ec3",
+      "example": "interface fc 1/0/1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "VFC",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "2143052317_-391399366_-1390529925_-2037650277.htm",
+      "sha256": "a53719cc9cf81b579f28fa732ab3cccc96a5fe85b9c179d459c4059586aec8d0",
+      "example": "interface vfc 1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "SAN-Aggregation",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "2143052317_-391399366_1751887400_-1180616996.htm",
+      "sha256": "e5c868cf7e1bea8645dfa5ff304987218fa826cf63f619acf49749ec55a9d7d1",
+      "example": "interface san-aggregation 1"
+    },
+    {
+      "vendor": "h3c",
+      "canonical": "VSI-interface",
+      "status": "confirmed-source-example",
+      "source": "https://www.h3c.com/en/Support/Resource_Center/EN/Home/Public/00-Public/Technical_Documents/Reference_Guides/Command_References/H3C_S6805_S9850_CRs_Release_6715-18388/00/",
+      "manual": "S6805/S6825/S6850/S9850 Comware 7 Release 6715-6W100",
+      "chapter": "-1808924743_545870571_-1765872679_-1212370481.htm",
+      "sha256": "1347100b685fe53915fc46c136a9e63edb37a698947329b9063dbfdfa5ca1539",
+      "example": "interface vsi-interface 1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "GigabitEthernet",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/bbd0bc8e",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100410645-j004.html",
+      "sha256": "db992d2d295d736e0810f65836b61423a312a9d5f7511a73ed6532c34bedefde",
+      "example": "interface gigabitethernet 0/0/1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "XGigabitEthernet",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/34f4250e",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100410645-j00g.html",
+      "sha256": "36159758e818a8975962f47038696d64689690f2e3ab07fc6bb454af3652eea0",
+      "example": "interface XGigabitEthernet 0/0/2"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "GE",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/5020efa",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j00c.html",
+      "sha256": "d30bfbe447181a2522b0a238775beec490343900054e8ea8c317d0fe845fc0dc",
+      "example": "interface GE1/0/1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "10GE",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/54f8dacb",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j004.html",
+      "sha256": "921aea8b70ab053bfdeb2b058d36e7f056c4e23b49f4a1329942a3c02552a902",
+      "example": "interface 10GE 1/0/1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "25GE",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/83bee215",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j00y.html",
+      "sha256": "9cb573613edf3dd833f127f49e3c0d99d541b5e0b7aa29a2c4402d871c2023e3",
+      "example": "interface 25ge 1/0/1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "40GE",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/7f9e2908",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100410645-j02m.html",
+      "sha256": "180a8c42735ed152f3d012a3ce0c11a34a1c51f1076f82cecb0548f1d78b3158",
+      "example": "interface 40GE 0/0/1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "100GE",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/83bee215",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j00y.html",
+      "sha256": "9cb573613edf3dd833f127f49e3c0d99d541b5e0b7aa29a2c4402d871c2023e3",
+      "example": "interface 100ge 1/0/1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "400GE",
+      "status": "existing-domain",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "",
+      "sha256": "",
+      "example": ""
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "MEth",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/556971e0",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j00h.html",
+      "sha256": "89b20f431dbbe86c9f77f5adf7505aa0b0eabc84002753d817a969900489e641",
+      "example": "interface MEth 0/0/0"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "Eth-Trunk",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/54f8dacb",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j004.html",
+      "sha256": "921aea8b70ab053bfdeb2b058d36e7f056c4e23b49f4a1329942a3c02552a902",
+      "example": "interface Eth-Trunk0"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "Vlanif",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/6191e055",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j00g.html",
+      "sha256": "e8c14d8c501269137acf35898aee6eafe86bcc1720f313bd0e5fed5a7cff00f7",
+      "example": "interface Vlanif 100"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "LoopBack",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/9ed80f78",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j005.html",
+      "sha256": "dcf0080f385b2187c80d625082508306a145cf9d0d184e01636f6fd62f0ee1f5",
+      "example": "interface LoopBack 0"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "Tunnel",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/98a1b33e",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j00w.html",
+      "sha256": "ed15c5b6bedcc9db6854ecdfae212268b23e23823922f8e3d3a5935fce2dd947",
+      "example": "interface Tunnel 1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "Nve",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/98a1b33e",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j00w.html",
+      "sha256": "ed15c5b6bedcc9db6854ecdfae212268b23e23823922f8e3d3a5935fce2dd947",
+      "example": "interface Nve 1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "Vbdif",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/98a1b33e",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j00w.html",
+      "sha256": "ed15c5b6bedcc9db6854ecdfae212268b23e23823922f8e3d3a5935fce2dd947",
+      "example": "interface Vbdif 1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "NULL",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/d5595e3f",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j009.html",
+      "sha256": "8b90ca64b5395e97e06b3dbbd63454af5f7f7f433ea0a8f65b82b178d81818b0",
+      "example": "interface NULL0"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "MultiGE",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/8ba752ac",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j00d.html",
+      "sha256": "20f87c02d1d728474652fb52d4c1af4a83a1f90f66e912b27484cb56abd3ebcb",
+      "example": "interface MultiGE 1/0/1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "Ethernet",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/8dc9fa52",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j02i.html",
+      "sha256": "97d945a695dc812fcf08bdd847555fc07f3c3b8f6db2aae8e61d9acf24d7796d",
+      "example": "interface Ethernet3/0/0"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "Fabric-Port",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/2b4d0ea3",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100410645-j029.html",
+      "sha256": "3c5be1e40dda927eef96616b56835753e46ef8a0ddc92b8a28745f1f50d715bc",
+      "example": "interface fabric-port 1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "FC",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100420140/913176bf",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100420140-j06f.html",
+      "sha256": "ddb9b86a60f87084ef7da7e6efd9c793a807e10cf30ac06a210374ea62da63ec",
+      "example": "interface fc 1/0/1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "FCoE-Port",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100420140/913176bf",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100420140-j06f.html",
+      "sha256": "ddb9b86a60f87084ef7da7e6efd9c793a807e10cf30ac06a210374ea62da63ec",
+      "example": "interface fcoe-port 1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "MTunnel",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/e918e8d3",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100410645-j0xp.html",
+      "sha256": "5802455f6b615fea9a093a892f44060c5d09e022e91ae408016d0d42cc82776c",
+      "example": "interface mtunnel 10"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "Stack-Port",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100459368/ec3bf9b2",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100459368-j011.html",
+      "sha256": "4321476e3a9a340c8310c2c9e010e3a8c0d302b2d54b3dcf0f4c657ca04ce612",
+      "example": "interface Stack-Port1/1"
+    },
+    {
+      "vendor": "huawei",
+      "canonical": "Virtual-Ethernet",
+      "status": "confirmed-source-example",
+      "source": "https://support.huawei.com/enterprise/en/doc/EDOC1100410645/dabc6991",
+      "manual": "Selected CloudEngine and S-series reference collection; verify product scope at source",
+      "chapter": "EDOC1100410645-j02n.html",
+      "sha256": "4493a357d6560fc6ac0515d3d272366341d37042dc428bd615a47bade379405e",
+      "example": "interface virtual-ethernet 0/0/1"
+    }
+  ]
+}

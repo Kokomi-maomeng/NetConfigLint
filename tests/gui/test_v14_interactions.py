@@ -162,7 +162,8 @@ def test_gutter_grows_by_digits_and_wheel_changes_only_target_editor(gui: tuple)
         controller.sourceText = "\n" * (lines - 1)
         QTest.qWait(30)
         widths.append(gutter.width())
-    assert widths[0] < 30
+    # The gutter reserves an independent 16 px diagnostic marker slot.
+    assert 28 < widths[0] < 48
     assert all(b > a for a, b in pairwise(widths))
     editor = find(window, "configurationEditor")
     original = editor.property("editorFontSize")

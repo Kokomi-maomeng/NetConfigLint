@@ -4,6 +4,7 @@ from netconfiglint.vendors.h3c.rules.advanced_policy import (
     EmptyReferencedAclRule,
     MissingRedistributionPolicyRule,
 )
+from netconfiglint.vendors.h3c.rules.aggregation import AggregationModeEvidenceRule
 from netconfiglint.vendors.h3c.rules.basic_security import (
     FtpServerRule,
     SensitiveConfigurationRule,
@@ -104,6 +105,7 @@ _COMWARE_RULES: tuple[Rule, ...] = (
 H3C_RULES: tuple[Rule, ...] = (
     *_COMWARE_RULES,
     MissingBridgeAggregationRule(),
+    AggregationModeEvidenceRule(),
     MissingVlanInterfaceVlanRule(),
     PlaintextPasswordRule(),
     LocalUserTelnetRule(),

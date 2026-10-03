@@ -189,13 +189,16 @@ def catalogued_family(vendor: str, command: str) -> CommandFamily | None:
 
 def is_annotation(value: str) -> bool:
     """Identify prose-only lines; CLI arguments containing Chinese remain commands."""
-    body = value.strip()
+    from netconfiglint.core.lexer import normalize_cli_line
+
+    body = normalize_cli_line(value)[0].strip()
     return bool(
         body
         and (
             body.startswith(
                 ("!", "//", ";", "\uff1b", "\u6ce8\uff1a", "\u5907\u6ce8\uff1a", "\u8bf4\u660e\uff1a")
             )
+            or (body.startswith("#") and body != "#")
             or re.match(r"^[\u3400-\u9fff]", body)
         )
     )

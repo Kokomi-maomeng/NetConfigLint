@@ -7,6 +7,7 @@ import re
 
 from netconfiglint.core.diagnostics import SourceRange
 from netconfiglint.core.model.config import ACLRule
+from netconfiglint.vendors.huawei.parser.interfaces import interface_name
 
 
 def vlan_list(tokens: tuple[str, ...] | list[str], *, allow_all: bool = False) -> tuple[set[int], bool]:
@@ -110,6 +111,7 @@ def route_arguments(
             return destination, mask, "", vpn, "Cannot verify next-table route installation", False
     if rest and not _INTERFACE.fullmatch(next_hop) and _INTERFACE.fullmatch(next_hop + rest[0]):
         next_hop += rest.pop(0)
+    next_hop = interface_name(next_hop)
     try:
         address = ipaddress.ip_address(next_hop)
         if address.version != family:

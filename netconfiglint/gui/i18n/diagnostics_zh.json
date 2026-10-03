@@ -442,5 +442,16 @@
   "This output is unsupported, empty, failed or truncated.": "此输出不受支持、为空、执行失败或已被截断。",
   "VTY authentication is disabled.": "VTY 认证被禁用。",
   "VTY authentication requires verification.": "VTY 认证需要核实。",
-  "prefix-list {0} was not found in the snippet.": "片段中未找到 prefix-list {0}。"
+  "prefix-list {0} was not found in the snippet.": "片段中未找到 prefix-list {0}。",
+  "Local LACP mode is configured; peer negotiation is not verified.": "本端已配置 LACP 模式；尚未验证对端协商状态。",
+  "Local dynamic aggregation is configured; peer LACP negotiation is not verified.": "本端已配置动态聚合；尚未验证对端 LACP 协商状态。",
+  "The normalized local configuration has {0} member reference(s). Member references and local mode do not establish peer mode, cabling, or selected state.": "规范化的本端配置含 {0} 个成员引用。成员引用和本端模式不能证明对端模式、布线或成员选中状态。",
+  "Compare both ends and collect display eth-trunk with current member and LACP state.": "核对两端配置，采集 display eth-trunk，检查当前成员和 LACP 状态。",
+  "Compare both ends and collect display link-aggregation verbose with current LACP state.": "核对两端配置，采集 display link-aggregation verbose，检查当前 LACP 状态。",
+  "Interface references undefined Route-Aggregation{0}.": "接口引用了未定义的 Route-Aggregation{0}。",
+  "Route-Aggregation{0} was not found in the snippet.": "在配置片段中未找到 Route-Aggregation{0}。",
+  "Define Route-Aggregation{0} or correct the group number.": "定义 Route-Aggregation{0}，或修正聚合组编号。",
+  "Interface references undefined {0}{1}.": "接口引用了未定义的 {0}{1}。",
+  "{0}{1} was not found in the snippet.": "在配置片段中未找到 {0}{1}。",
+  "Define {0}{1} or correct the group number.": "定义 {0}{1}，或修正聚合组编号。"
 }

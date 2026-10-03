@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from netconfiglint.core.analyzer.models import VendorDetection
+from netconfiglint.core.lexer import normalize_cli_line
 
 
 class H3CDetector:
@@ -20,6 +21,10 @@ class H3CDetector:
         re.compile(r"^\s*port\s+link-aggregation\s+group\s+\d+", re.MULTILINE | re.IGNORECASE),
         re.compile(r"^\s*interface\s+Vlan-interface\s*\d+", re.MULTILINE | re.IGNORECASE),
         re.compile(r"^\s*local-user\s+\S+\s+class\s+(?:manage|network)", re.MULTILINE | re.IGNORECASE),
+        re.compile(r"^\s*port\s+access\s+vlan\s+\d+\s*$", re.MULTILINE | re.IGNORECASE),
+        re.compile(r"^\s*stp\s+global\s+(?:enable|disable)\s*$", re.MULTILINE | re.IGNORECASE),
+        re.compile(r"^\s*acl\s+(?:ipv6\s+)?basic\s+\d+\b", re.MULTILINE | re.IGNORECASE),
+        re.compile(r"^\s*version\s+7\.\d+\.\d+,\s+Release\s+\d+\b", re.MULTILINE | re.IGNORECASE),
     )
     _shared = (
         re.compile(r"^\s*sysname\s+\S+", re.MULTILINE | re.IGNORECASE),
@@ -28,12 +33,22 @@ class H3CDetector:
     )
 
     def detect(self, source: str) -> VendorDetection:
+        source = "\n".join(normalize_cli_line(line)[0] for line in source.splitlines())
         if re.search(
             r"(?im)^\s*(?:Huawei Versatile Routing Platform|VRP \(R\) software|"
             r"Cisco IOS\b|Junos:|Juniper Networks\b|Arista Networks\b)",
             source,
         ):
             return VendorDetection("Unknown", "Unknown", "Unknown", "Unknown", 0.0)
+        if re.search(r"(?im)^\s*port\s+(?:default\s+vlan|trunk\s+allow-pass\s+vlan)\b", source):
+            return VendorDetection(
+                "Unknown",
+                "Unknown",
+                "Unknown",
+                "Unknown",
+                0.0,
+                evidence=("Foreign VLAN configuration signature; select the intended vendor manually",),
+            )
 
         strong = sum(bool(pattern.search(source)) for pattern in self._strong)
         distinctive = sum(bool(pattern.search(source)) for pattern in self._distinctive)
@@ -51,6 +66,7 @@ class H3CDetector:
             line.strip()
             for line in source.splitlines()
             if re.search(r"(?i)\b(?:H3C|HPE|HP|Comware Software|Software Version)\b", line)
+            or re.match(r"(?i)^\s*version\s+7\.\d+\.\d+,\s+Release\s+\d+\b", line)
         )
         models = {
             value.upper()

@@ -7,7 +7,7 @@ import sys
 import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from enum import IntEnum
 from pathlib import Path
@@ -56,6 +56,26 @@ def local_timestamp(value: str) -> str:
     return parsed.astimezone().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def safe_history_title(title: str, source: str, vendor: str) -> str:
+    """Keep a short local label; never put paths or secret-looking values in the title."""
+    import hashlib
+
+    label = Path(title).name.strip()
+    device = re.search(r"(?mi)^\s*sysname\s+([A-Za-z0-9_.-]{1,40})\s*$", source)
+    if device:
+        suffix = f" · {device[1]}"
+        while label.endswith(suffix):
+            label = label[: -len(suffix)].rstrip()
+        label = f"{label[: 80 - len(suffix)].rstrip()}{suffix}" if label and label != device[1] else device[1]
+    else:
+        label = label[:80]
+    if not label or re.search(r"(?i)@|password|secret|token|api.?key|\b(?:\d{1,3}\.){3}\d{1,3}\b", label):
+        label = (
+            f"{vendor} · {len(source.splitlines())} lines · {hashlib.sha256(source.encode()).hexdigest()[:8]}"
+        )
+    return label
+
+
 @dataclass(frozen=True, slots=True)
 class HistoryEntry:
     entry_id: str
@@ -70,10 +90,19 @@ class HistoryEntry:
     selected_vendor: str = "auto"
     diagnostics: tuple[dict[str, Any], ...] = ()
     coverage: dict[str, Any] | None = None
+    title: str = ""
+    initial_view: str = ""
 
     @classmethod
     def from_result(
-        cls, result: AnalysisResult, source_text: str = "", selected_vendor: str = "auto"
+        cls,
+        result: AnalysisResult,
+        source_text: str = "",
+        selected_vendor: str = "auto",
+        *,
+        title: str = "",
+        initial_view: str = "",
+        retention: str = "full",
     ) -> HistoryEntry:
         timestamp = datetime.now(UTC).isoformat(timespec="microseconds")
         summary = {key: 0 for key in ("ERROR", "WARNING", "INFO", "UNKNOWN")}
@@ -88,10 +117,12 @@ class HistoryEntry:
             source_line_count=result.source_line_count,
             summary=summary,
             rule_ids=tuple(sorted({item.rule_id for item in result.diagnostics})),
-            source_text=source_text,
+            source_text=source_text if retention == "full" else "",
             selected_vendor=selected_vendor,
-            diagnostics=tuple(item.to_dict() for item in result.diagnostics),
-            coverage=result.coverage,
+            diagnostics=tuple(item.to_dict() for item in result.diagnostics) if retention == "full" else (),
+            coverage=result.coverage if retention == "full" else None,
+            title=safe_history_title(title, source_text, result.detection.vendor),
+            initial_view=initial_view if retention == "full" else "",
         )
 
 
@@ -103,14 +134,29 @@ class HistoryStore:
         enabled: bool | None = None,
         persist_settings: bool = True,
         limit: int = 100,
+        retention: str | None = None,
     ) -> None:
         self.path = path or default_history_path()
         self.limit = limit
         self._persist_settings = persist_settings
+        configured_retention = QSettings().value("privacy/historyRetention", "summary")
+        self.retention = retention or ("full" if enabled is not None else str(configured_retention))
+        if self.retention not in {"summary", "full"}:
+            self.retention = "summary"
         configured = QSettings().value("privacy/historyEnabled", True, type=bool)
         self.enabled = bool(configured if enabled is None else enabled)
         self.load_warning = False
         self.entries = self._load() if self.enabled else []
+        if (
+            retention is None
+            and enabled is None
+            and not QSettings().contains("privacy/historyRetention")
+            and any(entry.source_text for entry in self.entries)
+        ):
+            # Preserve existing recovery data, and describe its actual scope truthfully.
+            self.retention = "full"
+            if self._persist_settings:
+                QSettings().setValue("privacy/historyRetention", "full")
 
     def _load(self) -> list[HistoryEntry]:
         try:
@@ -120,7 +166,7 @@ class HistoryStore:
                 raise ValueError("History size limit")
             raw = json.loads(data)
             if isinstance(raw, dict):
-                if raw.get("schema_version") not in {1, 2}:
+                if raw.get("schema_version") not in {1, 2, 3}:
                     raise ValueError("Unsupported history schema")
                 raw = raw.get("entries")
             if not isinstance(raw, list) or len(raw) > 1000:
@@ -198,7 +244,24 @@ class HistoryStore:
             selected_vendor,
             tuple(diagnostics),
             coverage,
+            safe_history_title(str(item.get("title", "")), source_text, item["vendor"]),
+            str(item.get("initial_view", ""))[:160],
         )
+
+    def set_retention(self, value: str) -> None:
+        if value not in {"summary", "full"} or value == self.retention:
+            return
+        if value == "summary" and self.enabled:
+            with self._transaction():
+                self._refresh_for_write()
+                self.entries = [
+                    replace(e, source_text="", diagnostics=(), coverage=None, initial_view="")
+                    for e in self.entries
+                ]
+                self._write()
+        self.retention = value
+        if self._persist_settings:
+            QSettings().setValue("privacy/historyRetention", value)
 
     def set_enabled(self, enabled: bool) -> None:
         if enabled and not self.enabled:
@@ -237,12 +300,21 @@ class HistoryStore:
         selected_vendor: str = "auto",
         *,
         guard: Callable[[], bool] | None = None,
+        title: str = "",
+        initial_view: str = "",
     ) -> None:
         if not self.enabled:
             return
         if len(source_text) > 4_000_000:
             raise OSError("History source exceeds per-entry limit")
-        entry = HistoryEntry.from_result(result, source_text, selected_vendor)
+        entry = HistoryEntry.from_result(
+            result,
+            source_text,
+            selected_vendor,
+            title=title,
+            initial_view=initial_view,
+            retention=self.retention,
+        )
         with self._transaction():
             self._refresh_for_write()
             if guard is not None and not guard():
@@ -309,6 +381,8 @@ class HistoryRole(IntEnum):
     SUMMARY = Qt.ItemDataRole.UserRole + 6
     RULE_IDS = Qt.ItemDataRole.UserRole + 7
     ENTRY_ID = Qt.ItemDataRole.UserRole + 8
+    TITLE = Qt.ItemDataRole.UserRole + 9
+    RESTORABLE = Qt.ItemDataRole.UserRole + 10
 
 
 class HistoryListModel(QAbstractListModel):
@@ -321,11 +395,15 @@ class HistoryListModel(QAbstractListModel):
         HistoryRole.SUMMARY: b"summary",
         HistoryRole.RULE_IDS: b"ruleIds",
         HistoryRole.ENTRY_ID: b"entryId",
+        HistoryRole.TITLE: b"entryTitle",
+        HistoryRole.RESTORABLE: b"restorable",
     }
 
     def __init__(self, entries: list[HistoryEntry] | None = None) -> None:
         super().__init__()
-        self._items = list(entries or ())
+        self._all_items = list(entries or ())
+        self._items = list(self._all_items)
+        self._query = ""
 
     def roleNames(self) -> dict[int, QByteArray]:
         return {int(key): QByteArray(value) for key, value in self._ROLE_NAMES.items()}
@@ -350,13 +428,20 @@ class HistoryListModel(QAbstractListModel):
             HistoryRole.SUMMARY: item.summary,
             HistoryRole.RULE_IDS: list(item.rule_ids),
             HistoryRole.ENTRY_ID: item.entry_id,
+            HistoryRole.TITLE: item.title,
+            HistoryRole.RESTORABLE: bool(item.source_text),
         }
         return values.get(role)
 
     def replace(self, entries: list[HistoryEntry]) -> None:
         self.beginResetModel()
-        self._items = list(entries)
+        self._all_items = list(entries)
+        self._items = [e for e in self._all_items if self._query in (e.title + " " + e.vendor).casefold()]
         self.endResetModel()
+
+    def set_filter(self, value: str) -> None:
+        self._query = value.strip().casefold()
+        self.replace(self._all_items)
 
     def ids_between(self, first: int, last: int) -> list[str]:
         start, end = sorted((first, last))

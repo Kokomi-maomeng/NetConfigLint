@@ -15,3 +15,4 @@ history/
 *.spec
 !/pysidedeploy.spec
 *.log
+docs/audits/

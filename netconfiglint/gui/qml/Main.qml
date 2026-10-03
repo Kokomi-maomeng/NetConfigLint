@@ -98,6 +98,11 @@ ApplicationWindow {
         }
     }
     onClosing: close => {
+        if (!allowClose && (analysisController.sourceDirty || analysisController.temporaryDirty)) {
+            close.accepted = false
+            analysisController.requestAction("close", "")
+            return
+        }
         var normal = visibility === Window.Windowed ? Qt.rect(x, y, width, height) : normalGeometry
         var maximized = visibility === Window.Minimized ? lastNonMinimizedMaximized : visibility === Window.Maximized
         preferences.saveWindowGeometry(normal.x, normal.y, normal.width, normal.height,
@@ -154,6 +159,7 @@ ApplicationWindow {
             onMaximizeRequested: window.toggleMaximize()
             onOpenRequested: { window.currentPage = 0; checkPage.openFileDialog() }
             onExportRequested: { window.currentPage = 0; checkPage.openExportDialog() }
+            onTemporaryExportRequested: { window.currentPage = 0; checkPage.openTemporaryExportDialog() }
             onAboutRequested: {
                 window.currentPage = window.currentPage === 1 ? 0 : 1
                 navigation.expandedInCompact = false
@@ -183,7 +189,7 @@ ApplicationWindow {
                     currentIndex: window.currentPage
                     controller: analysisController
                     onHistorySelected: entryId => {
-                        analysisController.openHistory(entryId)
+                        analysisController.requestAction("history", entryId)
                         window.currentPage = 0
                     }
                     onPageSelected: index => {
@@ -230,6 +236,24 @@ ApplicationWindow {
         objectName: "settingsDialog"
         controller: analysisController
         onReturnToCheckRequested: window.currentPage = 0
+    }
+    AppDialog {
+        id: unsavedDialog
+        objectName: "unsavedDialog"
+        title: i18n.catalog["file.unsaved_title"]
+        closePolicy: Popup.CloseOnEscape
+        onRejected: analysisController.resolveUnsaved("cancel")
+        contentItem: Label { text: i18n.catalog["file.unsaved_body"]; wrapMode: Text.Wrap; font: Typography.body; color: Colors.textPrimary }
+        footer: DialogButtonBox {
+            Button { objectName: "unsavedSave"; text: i18n.catalog["file.save"]; onClicked: { unsavedDialog.close(); analysisController.resolveUnsaved("save") } }
+            Button { objectName: "unsavedDiscard"; text: i18n.catalog["file.discard"]; onClicked: { unsavedDialog.close(); analysisController.resolveUnsaved("discard") } }
+            Button { objectName: "unsavedCancel"; text: i18n.catalog["common.cancel"]; onClicked: { unsavedDialog.close(); analysisController.resolveUnsaved("cancel") } }
+        }
+    }
+    Connections {
+        target: analysisController
+        function onUnsavedRequested() { unsavedDialog.open() }
+        function onCloseApproved() { window.allowClose = true; window.close() }
     }
     AppToast {
         id: toast

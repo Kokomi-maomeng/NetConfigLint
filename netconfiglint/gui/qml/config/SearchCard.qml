@@ -108,7 +108,7 @@ Item {
     function collectMatches() {
         var result = { positions: [], error: "" }
         if (!targetEditor || !searchField.text.length) return result
-        var source = targetEditor.text
+        var source = syntaxHighlighter.fullText(targetEditor)
         var query = searchField.text
         var pattern = regexCheck.checked ? query : query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
         if (regexCheck.checked) pattern = pattern.replace(/\\r\\n/g, "\\r?\\n").replace(/\r\n/g, "\\r?\\n")
@@ -126,7 +126,8 @@ Item {
         if (searchTimer.running) refreshMatches()
         if (!targetEditor || searchResult.error || !searchResult.positions.length) return
         var positions = searchResult.positions
-        var start = direction > 0 ? targetEditor.selectionEnd : targetEditor.selectionStart
+        var start = syntaxHighlighter.globalPosition(targetEditor,
+            direction > 0 ? targetEditor.selectionEnd : targetEditor.selectionStart)
         var index = direction > 0 ? 0 : positions.length - 1
         if (direction > 0) {
             while (index < positions.length && positions[index].start < start) index++
@@ -136,10 +137,10 @@ Item {
             if (index < 0) index = positions.length - 1
         }
         var hit = positions[index]
-        targetEditor.select(hit.start, hit.end)
+        var localStart = targetCard.selectGlobalRange(hit.start, hit.end)
         rememberSelection(targetCard)
-        targetCard.searchCaretPosition = targetEditor.text.slice(hit.start, hit.end).indexOf("\n") >= 0
-            ? hit.start : -1
+        targetCard.searchCaretPosition = syntaxHighlighter.fullText(targetEditor).slice(hit.start, hit.end).indexOf("\n") >= 0
+            ? localStart : -1
         searchField.forceActiveFocus()
     }
     function beginResize(point) {
@@ -266,6 +267,12 @@ Item {
                 CheckBox { id: caseCheck; objectName: "editorMatchCase"; text: i18n.catalog["editor.match_case"]; onCheckedChanged: root.scheduleSearch() }
                 CheckBox { id: regexCheck; objectName: "editorRegex"; text: i18n.catalog["editor.regex"]; onCheckedChanged: root.scheduleSearch() }
                 Item { Layout.fillWidth: true }
+                Text {
+                    objectName: "editorSearchScope"
+                    text: i18n.catalog["editor.search_full_source"]
+                    color: Colors.textSecondary
+                    font: Typography.caption
+                }
                 Text {
                     objectName: "editorSearchStatus"
                     text: root.searchResult.error ? i18n.catalog["editor.invalid_regex"]

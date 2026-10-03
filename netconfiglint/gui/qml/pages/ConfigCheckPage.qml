@@ -29,6 +29,7 @@ Item {
     property string pendingDropKey: ""
     function openFileDialog() { openDialog.open() }
     function openExportDialog() { exportOptions.open() }
+    function openTemporaryExportDialog() { temporaryFileDialog.open() }
     function panel(key) { return key === "configuration" ? configEditor : (key === "diagnostics" ? analysisPanel : temporaryEditor) }
     function syncOrder() {
         var order = preferences.values.panelOrder
@@ -104,6 +105,48 @@ Item {
         var order = preferences.values.panelOrder
         movePanel(key, Math.max(0, Math.min(2, order.indexOf(key) + direction)))
     }
+    property var focusedEditorCard: null
+    function revealEditor(card) {
+        focusedEditorCard = card
+        revealEditorTimer.restart()
+    }
+    function revealFocusedEditor() {
+        if (configEditor && configEditor.editor && configEditor.editor.activeFocus) root.revealEditor(configEditor)
+        else if (temporaryEditor && temporaryEditor.editor && temporaryEditor.editor.activeFocus) root.revealEditor(temporaryEditor)
+    }
+    onWidthChanged: revealFocusedEditor()
+    onHeightChanged: revealFocusedEditor()
+    Timer {
+        id: revealEditorTimer
+        interval: 1
+        onTriggered: {
+            var card = root.focusedEditorCard
+            if (!card || !card.visible || !card.editor.activeFocus || !workspaceScroll.contentItem) return
+            var caret = card.editor.cursorRectangle
+            var point = card.editor.mapToItem(workspaceScroll, caret.x, caret.y)
+            var top = 8
+            var bottom = workspaceScroll.availableHeight - 8
+            var delta = point.y < top ? point.y - top
+                : point.y + caret.height > bottom ? point.y + caret.height - bottom : 0
+            if (delta !== 0) {
+                var flickable = workspaceScroll.contentItem
+                flickable.contentY = Math.max(0, Math.min(flickable.contentHeight - flickable.height,
+                    flickable.contentY + delta))
+            }
+        }
+    }
+    Connections {
+        target: configEditor.editor
+        function onActiveFocusChanged() { if (target.activeFocus) root.revealEditor(configEditor) }
+        function onCursorPositionChanged() { if (target.activeFocus) root.revealEditor(configEditor) }
+        function onTextChanged() { if (target.activeFocus) root.revealEditor(configEditor) }
+    }
+    Connections {
+        target: temporaryEditor.editor
+        function onActiveFocusChanged() { if (target.activeFocus) root.revealEditor(temporaryEditor) }
+        function onCursorPositionChanged() { if (target.activeFocus) root.revealEditor(temporaryEditor) }
+        function onTextChanged() { if (target.activeFocus) root.revealEditor(temporaryEditor) }
+    }
     ColumnLayout {
         anchors.fill: parent
         anchors.leftMargin: 20
@@ -111,21 +154,63 @@ Item {
         anchors.topMargin: 20
         anchors.bottomMargin: 20
         spacing: 12
+        Label {
+            objectName: "sourceIdentityLabel"
+            Layout.fillWidth: true
+            elide: Text.ElideMiddle
+            font: Typography.caption
+            color: Colors.textSecondary
+            text: (root.controller.fileName || i18n.catalog["file.new"]) + (root.controller.sourceDirty ? " * " + i18n.catalog["file.modified"] : "")
+                  + " · " + (i18n.catalog["file.identity." + root.controller.sourceIdentity] || "")
+            HoverHandler { id: identityHover }
+            ToolTip.visible: identityHover.hovered
+            ToolTip.text: root.controller.filePath
+        }
         ScrollView {
             id: workspaceScroll
             objectName: "workspaceScrollView"
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
+            contentWidth: availableWidth
+            contentHeight: workspaceContent.height
             ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-            ScrollBar.vertical.policy: root.narrow ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: ScrollBar.AsNeeded
             Item {
+                id: workspaceContent
                 width: workspaceScroll.availableWidth
-                height: root.narrow ? Math.max(workspaceScroll.availableHeight,
-                    480 * (1 + (analysisPanel.visible ? 1 : 0) + (temporaryEditor.visible ? 1 : 0)))
-                    : workspaceScroll.availableHeight
+                height: Math.max(workspaceScroll.availableHeight, workspacePreamble.implicitHeight + 12
+                    + (root.narrow ? 480 * (1 + (analysisPanel.visible ? 1 : 0) + (temporaryEditor.visible ? 1 : 0)) : 280))
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 12
+                    ColumnLayout {
+                        id: workspacePreamble
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: implicitHeight
+                        spacing: 12
+                        onImplicitHeightChanged: root.revealFocusedEditor()
+                        Label {
+                            objectName: "historyPrivacyNotice"
+                            Layout.fillWidth: true
+                            text: i18n.catalog[root.controller.historyEnabled ? "history.notice." + root.controller.historyRetention : "history.disabled"]
+                            wrapMode: Text.Wrap
+                            font: Typography.caption
+                            color: Colors.textSecondary
+                        }
+                        Label {
+                            objectName: "firstUseHelp"
+                            Layout.fillWidth: true
+                            visible: root.controller.sourceText.length === 0
+                            text: i18n.catalog["editor.get_started"]
+                            wrapMode: Text.Wrap
+                            font: Typography.body
+                            color: Colors.textSecondary
+                        }
+                    }
         SplitView {
-            anchors.fill: parent
+            Layout.fillWidth: true
+            Layout.fillHeight: true
             id: workspaceSplit
             objectName: "workspaceSplitView"
             orientation: root.narrow ? Qt.Vertical : Qt.Horizontal
@@ -139,7 +224,7 @@ Item {
                 objectName: "configurationEditor"
                 editorObjectName: "configurationTextArea"
                 visible: true
-                SplitView.preferredWidth: 300
+                SplitView.preferredWidth: 540
                 SplitView.minimumWidth: root.narrow ? 0 : headerMinimumWidth
                 SplitView.preferredHeight: 480
                 SplitView.minimumHeight: root.narrow ? 400 : 0
@@ -147,6 +232,8 @@ Item {
                 titleObjectName: "checkPageTitle"
                 text: syntaxHighlighter.prepareText(configEditor.editor ? configEditor.editor.textDocument : null, root.controller.editorText, configEditor.editor)
                 readOnly: root.controller.editorReadOnly
+                SplitView.fillWidth: true
+                diagnosticMarkers: root.controller.diagnosticMarkers
                 showAnalyze: true
                 analysisBusy: root.controller.busy
                 onAnalyzeRequested: root.controller.analyzeConfig()
@@ -162,7 +249,7 @@ Item {
                 property string panelKey: "diagnostics"
                 objectName: "analysisPanel"
                 visible: preferences.values.panels.indexOf(panelKey) >= 0
-                SplitView.fillWidth: true
+                SplitView.preferredWidth: 340
                 SplitView.minimumWidth: root.narrow ? 0 : 240
                 SplitView.fillHeight: root.narrow
                 SplitView.preferredHeight: 480
@@ -173,6 +260,7 @@ Item {
                 summary: root.controller.summary
                 statusKey: root.controller.statusMessage
                 coverage: root.controller.coverage
+                onPendingLineActivated: line => configEditor.jumpToLine(line)
                 onCancelRequested: root.controller.cancelAnalysis()
                 resultCurrent: root.controller.resultCurrent
                 busy: root.controller.busy
@@ -192,10 +280,11 @@ Item {
                 SplitView.minimumWidth: root.narrow ? 0 : headerMinimumWidth
                 SplitView.preferredHeight: 480
                 SplitView.minimumHeight: root.narrow ? 400 : 0
-                title: i18n.catalog["editor.temporary"]
+                title: i18n.catalog["temporary.local_draft"] + (root.controller.temporaryDirty ? " *" : "")
                 text: syntaxHighlighter.prepareText(temporaryEditor.editor ? temporaryEditor.editor.textDocument : null, root.controller.temporaryText, temporaryEditor.editor)
                 showSave: true
                 onSaveRequested: value => root.controller.saveTemporaryText(value)
+                onTextEdited: value => root.controller.updateTemporaryText(value)
                 onSearchOpenRequested: searchCard.openFor(temporaryEditor)
                 onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
                 onDragMoved: sceneX => root.updateDrag(sceneX)
@@ -203,6 +292,7 @@ Item {
                 onStepRequested: direction => root.step(panelKey, direction)
             }
         }
+                }
             }
         }
     }
@@ -276,8 +366,33 @@ Item {
         objectName: "openConfigDialog"
         title: i18n.catalog["dialog.open"]
         nameFilters: [i18n.catalog["file.config_filter"], i18n.catalog["file.all_filter"]]
-        onAccepted: root.controller.loadFile(selectedFile)
+        onAccepted: root.controller.requestAction("load", String(selectedFile))
     }
+    FileDialog {
+        id: sourceSaveDialog
+        objectName: "sourceSaveDialog"
+        title: i18n.catalog["file.save_as"]
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "cfg"
+        nameFilters: [i18n.catalog["file.config_filter"], i18n.catalog["file.all_filter"]]
+        onAccepted: root.controller.saveSourceFile(String(selectedFile))
+        onRejected: root.controller.resolveUnsaved("cancel")
+    }
+    FileDialog {
+        id: temporaryFileDialog
+        objectName: "temporaryFileDialog"
+        title: i18n.catalog["temporary.export"]
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "txt"
+        onAccepted: root.controller.exportTemporaryFile(String(selectedFile))
+    }
+    AppDialog {
+        id: storageDialog
+        title: i18n.catalog["storage.locations"]
+        contentItem: SelectableText { wrapMode: TextEdit.WrapAnywhere; text: i18n.catalog["editor.temporary"] + ": " + root.controller.temporaryPath + "\n" + i18n.catalog["settings.history"] + ": " + root.controller.historyPath }
+    }
+    Shortcut { sequence: StandardKey.Save; enabled: root.visible; onActivated: root.controller.saveConfiguration() }
+    Connections { target: root.controller; function onSaveAsRequested(scope) { if (scope === "configuration") sourceSaveDialog.open() } }
     ExportDialog {
         id: exportOptions
         objectName: "exportOptionsDialog"
@@ -297,7 +412,7 @@ Item {
         onAccepted: root.controller.exportReport(selectedFile)
         onRejected: root.controller.cancelExport()
     }
-    DropArea { anchors.fill: parent; onDropped: drop => { if (drop.urls.length > 0) root.controller.loadFile(drop.urls[0]) } }
+    DropArea { anchors.fill: parent; onDropped: drop => { if (drop.urls.length > 0) root.controller.requestAction("load", String(drop.urls[0])) } }
     Connections { target: root.controller; function onJumpToLine(line, endLine) { Qt.callLater(function() { configEditor.jumpToLine(line) }) } }
     Component.onCompleted: Qt.callLater(syncOrder)
 }

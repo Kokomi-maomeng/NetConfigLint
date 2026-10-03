@@ -4,6 +4,7 @@ from netconfiglint.vendors.huawei.rules.advanced_policy import (
     EmptyReferencedAclRule,
     MissingRedistributionPolicyRule,
 )
+from netconfiglint.vendors.huawei.rules.aggregation import AggregationModeEvidenceRule
 from netconfiglint.vendors.huawei.rules.bgp import (
     BgpNetworkCandidateRule,
     BgpPeerOperationalStateRule,
@@ -78,6 +79,7 @@ HUAWEI_RULES: tuple[Rule, ...] = (
     ShutdownWithBusinessConfigRule(),
     LinkTypeMismatchRule(),
     MissingEthTrunkRule(),
+    AggregationModeEvidenceRule(),
     InvalidInterfaceAddressRule(),
     MissingVlanifVlanRule(),
     OperationalInterfaceDownRule(),
