@@ -274,6 +274,41 @@ def test_macos_tool_diagnostics_never_expose_arguments_or_stderr(monkeypatch: py
     assert "private" not in str(raised.value)
 
 
+@pytest.mark.parametrize(
+    "identity", ["/Library/Frameworks/Python.framework/Versions/3.13/Python", "@rpath/Python"]
+)
+def test_macos_replay_preserves_official_absolute_self_id_like_nuitka_42(
+    reviewed_inputs: tuple[Path, Path, bytes], tmp_path: Path, monkeypatch: pytest.MonkeyPatch, identity: str
+) -> None:
+    archive, patcher, source = reviewed_inputs
+    verifier = provenance.IndependentRuntimeProvenance("linux", archive, [], patcher)
+    verifier.platform = "macos"
+    monkeypatch.setattr(provenance, "sys", types.SimpleNamespace(platform="darwin"))
+    target = tmp_path / "Python"
+    target.write_bytes(source)
+    commands = []
+
+    def run(*args: str) -> str:
+        commands.append(args)
+        if args[0].endswith("lipo"):
+            return "arm64"
+        if args[1] == "-L":
+            return "header\n\t" + identity + " (compatibility version 3.13.0, current version 3.13.0)\n"
+        if args[1] == "-D":
+            return "header\n" + identity + "\n"
+        return ""
+
+    monkeypatch.setattr(provenance, "_run", run)
+    derived, steps = verifier._macos_replay(target, source, tmp_path / "payload", "unused", tmp_path)
+    assert derived.read_bytes() == source
+    loader_commands = [command for command in commands if command[0].endswith("install_name_tool")]
+    if identity.startswith("/"):
+        assert not loader_commands
+        assert any("keep official absolute/bare self identity" in step for step in steps)
+    else:
+        assert loader_commands == [("/usr/bin/install_name_tool", "-id", "Python", str(target))]
+
+
 @pytest.mark.parametrize("duplicate", [False, True])
 def test_macos_dependency_mapping_ignores_bundle_root_documents_and_reports_ambiguity_safely(
     reviewed_inputs: tuple[Path, Path, bytes],

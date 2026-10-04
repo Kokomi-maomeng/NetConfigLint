@@ -592,8 +592,17 @@ class IndependentRuntimeProvenance:
                 raise NativeReplayError(reason, **details)
             replacement = "@executable_path/" + next(iter(choices))
             command.extend(("-change", old, replacement))
-        if identity:
+        # Nuitka 4.2 resolves @-prefixed self references and marks had_self,
+        # but skips an absolute/bare self ID by its source basename before
+        # marking had_self. The reviewed official Python.framework uses that
+        # absolute self ID, so Nuitka preserves it instead of setting -id.
+        rewrite_identity = any(
+            value.startswith(("@rpath/", "@loader_path/", "@executable_path/")) for value in identity
+        )
+        if rewrite_identity:
             command.extend(("-id", target.name))
+        elif identity:
+            steps.append("LC_ID_DYLIB: keep official absolute/bare self identity, matching Nuitka 4.2")
         if len(command) > 1:
             _replay_tool("canonical-loader-relocation", *command, str(target))
             steps.append("install_name_tool: canonical application-local dependencies and basename identity")

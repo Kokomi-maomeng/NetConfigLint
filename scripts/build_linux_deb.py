@@ -161,7 +161,8 @@ StartupWMClass=NetConfigLint
     if output.exists():
         output.unlink()
     subprocess.run(
-        ["dpkg-deb", "--root-owner-group", "--build", os.fspath(stage), os.fspath(output)], check=True
+        ["dpkg-deb", "--root-owner-group", "-Zxz", "--build", os.fspath(stage), os.fspath(output)],
+        check=True,
     )
     subprocess.run(["dpkg-deb", "--info", os.fspath(output)], check=True)
     print(output)

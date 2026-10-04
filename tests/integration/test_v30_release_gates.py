@@ -354,7 +354,8 @@ def test_reused_artifacts_reject_unqualified_or_substituted_files(
     assert not stage.exists()
 
 
-def test_debian_native_extraction_matches_control_and_data(tmp_path: Path) -> None:
+@pytest.mark.parametrize("compression", [[], ["-Zxz"]], ids=["default", "xz"])
+def test_debian_native_extraction_matches_control_and_data(tmp_path: Path, compression: list[str]) -> None:
     if shutil.which("dpkg-deb") is None:
         pytest.skip("Native dpkg-deb extraction is exercised by Linux CI")
     prepared = tmp_path / "prepared"
@@ -367,5 +368,19 @@ def test_debian_native_extraction_matches_control_and_data(tmp_path: Path) -> No
     (prepared / "DEBIAN/control").chmod(0o644)
     (prepared / "application.txt").write_text("synthetic", encoding="utf-8")
     installer = tmp_path / "application.deb"
-    subprocess.run(["dpkg-deb", "--build", str(prepared), str(installer)], check=True, capture_output=True)
+    subprocess.run(
+        ["dpkg-deb", *compression, "--build", str(prepared), str(installer)],
+        check=True,
+        capture_output=True,
+    )
     assert payload_auditor.audit_installer(installer, prepared, "linux", [], tmp_path)["passed"]
+    # Compression must never hide a private value from the extracted-payload gate.
+    (prepared / "personal.txt").write_bytes(b"/home/" + b"SYNTHETIC-ACCOUNT/private-file")
+    subprocess.run(
+        ["dpkg-deb", *compression, "--build", str(prepared), str(installer)],
+        check=True,
+        capture_output=True,
+    )
+    report = payload_auditor.audit_installer(installer, prepared, "linux", [], tmp_path)
+    assert not report["passed"]
+    assert {"path": "personal.txt", "category": "unix-personal-path"} in report["payload"]["findings"]
