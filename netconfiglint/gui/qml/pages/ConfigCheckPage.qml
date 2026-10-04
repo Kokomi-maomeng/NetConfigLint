@@ -124,12 +124,13 @@ Item {
             if (!card || !card.visible || !card.editor.activeFocus || !workspaceScroll.contentItem) return
             var caret = card.editor.cursorRectangle
             var point = card.editor.mapToItem(workspaceScroll, caret.x, caret.y)
-            var top = 8
-            var bottom = workspaceScroll.availableHeight - 8
+            var flickable = workspaceScroll.contentItem
+            var viewportTop = flickable.mapToItem(workspaceScroll, 0, 0).y
+            var top = viewportTop + 8
+            var bottom = viewportTop + flickable.height - 8
             var delta = point.y < top ? point.y - top
                 : point.y + caret.height > bottom ? point.y + caret.height - bottom : 0
             if (delta !== 0) {
-                var flickable = workspaceScroll.contentItem
                 flickable.contentY = Math.max(0, Math.min(flickable.contentHeight - flickable.height,
                     flickable.contentY + delta))
             }
@@ -171,6 +172,16 @@ Item {
             objectName: "workspaceScrollView"
             Layout.fillWidth: true
             Layout.fillHeight: true
+            // The viewport is allocated by its parent, independently of the
+            // scrollable content's natural height.
+            Layout.minimumHeight: 0
+            Layout.preferredHeight: 0
+            implicitWidth: 0
+            implicitHeight: 0
+            padding: 0
+            // Reserve the scrollbar gutter even while the scrollbar is hidden:
+            // wrapped text must not resize itself through AsNeeded visibility.
+            rightPadding: ScrollBar.vertical.implicitWidth
             clip: true
             contentWidth: availableWidth
             contentHeight: workspaceContent.height
@@ -178,120 +189,121 @@ Item {
             ScrollBar.vertical.policy: ScrollBar.AsNeeded
             Item {
                 id: workspaceContent
+                objectName: "workspaceContent"
                 width: workspaceScroll.availableWidth
-                height: Math.max(workspaceScroll.availableHeight, workspacePreamble.implicitHeight + 12
-                    + (root.narrow ? 480 * (1 + (analysisPanel.visible ? 1 : 0) + (temporaryEditor.visible ? 1 : 0)) : 280))
-                ColumnLayout {
-                    anchors.fill: parent
+                readonly property int panelCount: 1 + (analysisPanel.visible ? 1 : 0) + (temporaryEditor.visible ? 1 : 0)
+                readonly property real panelsHeight: root.narrow ? 480 * panelCount + 16 * (panelCount - 1) : 280
+                height: Math.max(workspaceScroll.availableHeight, workspacePreamble.height + 12 + panelsHeight)
+                Column {
+                    id: workspacePreamble
+                    objectName: "workspacePreamble"
+                    width: parent.width
                     spacing: 12
-                    ColumnLayout {
-                        id: workspacePreamble
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: implicitHeight
-                        spacing: 12
-                        onImplicitHeightChanged: root.revealFocusedEditor()
-                        Label {
-                            objectName: "historyPrivacyNotice"
-                            Layout.fillWidth: true
-                            text: i18n.catalog[root.controller.historyEnabled ? "history.notice." + root.controller.historyRetention : "history.disabled"]
-                            wrapMode: Text.Wrap
-                            font: Typography.caption
-                            color: Colors.textSecondary
-                        }
-                        Label {
-                            objectName: "firstUseHelp"
-                            Layout.fillWidth: true
-                            visible: root.controller.sourceText.length === 0
-                            text: i18n.catalog["editor.get_started"]
-                            wrapMode: Text.Wrap
-                            font: Typography.body
-                            color: Colors.textSecondary
-                        }
+                    onHeightChanged: root.revealFocusedEditor()
+                    Label {
+                        objectName: "historyPrivacyNotice"
+                        width: parent.width
+                        text: i18n.catalog[root.controller.historyEnabled ? "history.notice." + root.controller.historyRetention : "history.disabled"]
+                        wrapMode: Text.Wrap
+                        font: Typography.caption
+                        color: Colors.textSecondary
                     }
-        SplitView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            id: workspaceSplit
-            objectName: "workspaceSplitView"
-            orientation: root.narrow ? Qt.Vertical : Qt.Horizontal
-            handle: Item {
-                implicitWidth: 16
-                implicitHeight: 16
-            }
-            ConfigEditor {
-                id: configEditor
-                property string panelKey: "configuration"
-                objectName: "configurationEditor"
-                editorObjectName: "configurationTextArea"
-                visible: true
-                SplitView.preferredWidth: 540
-                SplitView.minimumWidth: root.narrow ? 0 : headerMinimumWidth
-                SplitView.preferredHeight: 480
-                SplitView.minimumHeight: root.narrow ? 400 : 0
-                title: root.controller.editorReadOnly ? i18n.catalog["editor.bundle_preview"] : i18n.catalog["editor.configuration"]
-                titleObjectName: "checkPageTitle"
-                text: syntaxHighlighter.prepareText(configEditor.editor ? configEditor.editor.textDocument : null, root.controller.editorText, configEditor.editor)
-                readOnly: root.controller.editorReadOnly
-                SplitView.fillWidth: true
-                diagnosticMarkers: root.controller.diagnosticMarkers
-                showAnalyze: true
-                analysisBusy: root.controller.busy
-                onAnalyzeRequested: root.controller.analyzeConfig()
-                onTextEdited: value => { if (!readOnly && root.controller.sourceText !== value) root.controller.sourceText = value }
-                onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
-                onDragMoved: sceneX => root.updateDrag(sceneX)
-                onDragFinished: sceneX => root.finishDrag(sceneX)
-                onStepRequested: direction => root.step(panelKey, direction)
-                onSearchOpenRequested: searchCard.openFor(configEditor)
-            }
-            AnalysisPanel {
-                id: analysisPanel
-                property string panelKey: "diagnostics"
-                objectName: "analysisPanel"
-                visible: preferences.values.panels.indexOf(panelKey) >= 0
-                SplitView.preferredWidth: 340
-                SplitView.minimumWidth: root.narrow ? 0 : 240
-                SplitView.fillHeight: root.narrow
-                SplitView.preferredHeight: 480
-                SplitView.minimumHeight: root.narrow ? 400 : 0
-                diagnosticsModel: root.controller.diagnosticsModel
-                detection: root.controller.detection
-                resultTimestamp: root.controller.resultTimestamp
-                summary: root.controller.summary
-                statusKey: root.controller.statusMessage
-                coverage: root.controller.coverage
-                onPendingLineActivated: line => configEditor.jumpToLine(line)
-                onCancelRequested: root.controller.cancelAnalysis()
-                resultCurrent: root.controller.resultCurrent
-                busy: root.controller.busy
-                onIssueActivated: row => root.controller.requestJump(row)
-                onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
-                onDragMoved: sceneX => root.updateDrag(sceneX)
-                onDragFinished: sceneX => root.finishDrag(sceneX)
-                onStepRequested: direction => root.step(panelKey, direction)
-            }
-            ConfigEditor {
-                id: temporaryEditor
-                property string panelKey: "temporary"
-                objectName: "temporaryEditor"
-                editorObjectName: "temporaryTextArea"
-                visible: preferences.values.panels.indexOf(panelKey) >= 0
-                SplitView.preferredWidth: 300
-                SplitView.minimumWidth: root.narrow ? 0 : headerMinimumWidth
-                SplitView.preferredHeight: 480
-                SplitView.minimumHeight: root.narrow ? 400 : 0
-                title: i18n.catalog["temporary.local_draft"] + (root.controller.temporaryDirty ? " *" : "")
-                text: syntaxHighlighter.prepareText(temporaryEditor.editor ? temporaryEditor.editor.textDocument : null, root.controller.temporaryText, temporaryEditor.editor)
-                showSave: true
-                onSaveRequested: value => root.controller.saveTemporaryText(value)
-                onTextEdited: value => root.controller.updateTemporaryText(value)
-                onSearchOpenRequested: searchCard.openFor(temporaryEditor)
-                onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
-                onDragMoved: sceneX => root.updateDrag(sceneX)
-                onDragFinished: sceneX => root.finishDrag(sceneX)
-                onStepRequested: direction => root.step(panelKey, direction)
-            }
-        }
+                    Label {
+                        objectName: "firstUseHelp"
+                        width: parent.width
+                        visible: root.controller.sourceText.length === 0
+                        text: i18n.catalog["editor.get_started"]
+                        wrapMode: Text.Wrap
+                        font: Typography.body
+                        color: Colors.textSecondary
+                    }
+                }
+                SplitView {
+                    id: workspaceSplit
+                    objectName: "workspaceSplitView"
+                    y: workspacePreamble.height + 12
+                    width: parent.width
+                    height: parent.height - y
+                    onYChanged: root.revealFocusedEditor()
+                    onHeightChanged: root.revealFocusedEditor()
+                    orientation: root.narrow ? Qt.Vertical : Qt.Horizontal
+                    handle: Item {
+                        implicitWidth: 16
+                        implicitHeight: 16
+                    }
+                    ConfigEditor {
+                        id: configEditor
+                        property string panelKey: "configuration"
+                        objectName: "configurationEditor"
+                        editorObjectName: "configurationTextArea"
+                        visible: true
+                        SplitView.preferredWidth: 540
+                        SplitView.minimumWidth: root.narrow ? 0 : headerMinimumWidth
+                        SplitView.preferredHeight: 480
+                        SplitView.minimumHeight: root.narrow ? 400 : 0
+                        title: root.controller.editorReadOnly ? i18n.catalog["editor.bundle_preview"] : i18n.catalog["editor.configuration"]
+                        titleObjectName: "checkPageTitle"
+                        text: syntaxHighlighter.prepareText(configEditor.editor ? configEditor.editor.textDocument : null, root.controller.editorText, configEditor.editor)
+                        readOnly: root.controller.editorReadOnly
+                        SplitView.fillWidth: true
+                        diagnosticMarkers: root.controller.diagnosticMarkers
+                        showAnalyze: true
+                        analysisBusy: root.controller.busy
+                        onAnalyzeRequested: root.controller.analyzeConfig()
+                        onTextEdited: value => { if (!readOnly && root.controller.sourceText !== value) root.controller.sourceText = value }
+                        onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
+                        onDragMoved: sceneX => root.updateDrag(sceneX)
+                        onDragFinished: sceneX => root.finishDrag(sceneX)
+                        onStepRequested: direction => root.step(panelKey, direction)
+                        onSearchOpenRequested: searchCard.openFor(configEditor)
+                    }
+                    AnalysisPanel {
+                        id: analysisPanel
+                        property string panelKey: "diagnostics"
+                        objectName: "analysisPanel"
+                        visible: preferences.values.panels.indexOf(panelKey) >= 0
+                        SplitView.preferredWidth: 340
+                        SplitView.minimumWidth: root.narrow ? 0 : 240
+                        SplitView.fillHeight: root.narrow
+                        SplitView.preferredHeight: 480
+                        SplitView.minimumHeight: root.narrow ? 400 : 0
+                        diagnosticsModel: root.controller.diagnosticsModel
+                        detection: root.controller.detection
+                        resultTimestamp: root.controller.resultTimestamp
+                        summary: root.controller.summary
+                        statusKey: root.controller.statusMessage
+                        coverage: root.controller.coverage
+                        onPendingLineActivated: line => configEditor.jumpToLine(line)
+                        onCancelRequested: root.controller.cancelAnalysis()
+                        resultCurrent: root.controller.resultCurrent
+                        busy: root.controller.busy
+                        onIssueActivated: row => root.controller.requestJump(row)
+                        onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
+                        onDragMoved: sceneX => root.updateDrag(sceneX)
+                        onDragFinished: sceneX => root.finishDrag(sceneX)
+                        onStepRequested: direction => root.step(panelKey, direction)
+                    }
+                    ConfigEditor {
+                        id: temporaryEditor
+                        property string panelKey: "temporary"
+                        objectName: "temporaryEditor"
+                        editorObjectName: "temporaryTextArea"
+                        visible: preferences.values.panels.indexOf(panelKey) >= 0
+                        SplitView.preferredWidth: 300
+                        SplitView.minimumWidth: root.narrow ? 0 : headerMinimumWidth
+                        SplitView.preferredHeight: 480
+                        SplitView.minimumHeight: root.narrow ? 400 : 0
+                        title: i18n.catalog["temporary.local_draft"] + (root.controller.temporaryDirty ? " *" : "")
+                        text: syntaxHighlighter.prepareText(temporaryEditor.editor ? temporaryEditor.editor.textDocument : null, root.controller.temporaryText, temporaryEditor.editor)
+                        showSave: true
+                        onSaveRequested: value => root.controller.saveTemporaryText(value)
+                        onTextEdited: value => root.controller.updateTemporaryText(value)
+                        onSearchOpenRequested: searchCard.openFor(temporaryEditor)
+                        onDragStarted: sceneX => root.startDrag(panelKey, sceneX)
+                        onDragMoved: sceneX => root.updateDrag(sceneX)
+                        onDragFinished: sceneX => root.finishDrag(sceneX)
+                        onStepRequested: direction => root.step(panelKey, direction)
+                    }
                 }
             }
         }
@@ -391,7 +403,7 @@ Item {
         title: i18n.catalog["storage.locations"]
         contentItem: SelectableText { wrapMode: TextEdit.WrapAnywhere; text: i18n.catalog["editor.temporary"] + ": " + root.controller.temporaryPath + "\n" + i18n.catalog["settings.history"] + ": " + root.controller.historyPath }
     }
-    Shortcut { sequence: StandardKey.Save; enabled: root.visible; onActivated: root.controller.saveConfiguration() }
+    Shortcut { sequences: [StandardKey.Save]; enabled: root.visible; onActivated: root.controller.saveConfiguration() }
     Connections { target: root.controller; function onSaveAsRequested(scope) { if (scope === "configuration") sourceSaveDialog.open() } }
     ExportDialog {
         id: exportOptions

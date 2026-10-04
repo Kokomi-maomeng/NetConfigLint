@@ -14,11 +14,12 @@ import stat
 import subprocess
 import tempfile
 import tomllib
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 if __package__:
     from .audit_release import (
+        PATTERNS,
         expected_resources,
         forbidden_path,
         git,
@@ -30,6 +31,7 @@ if __package__:
     )
 else:
     from audit_release import (
+        PATTERNS,
         expected_resources,
         forbidden_path,
         git,
@@ -162,6 +164,16 @@ def audit_installer(
         "prepared_files": len(expected),
         "extracted_files": len(actual),
         "payload_mismatches": changed,
+        "payload_mismatch_details": [
+            {
+                "path": name,
+                "prepared_sha256": expected.get(name, {}).get("sha256"),
+                "extracted_sha256": actual.get(name, {}).get("sha256"),
+                "prepared_mode": expected.get(name, {}).get("mode"),
+                "extracted_mode": actual.get(name, {}).get("mode"),
+            }
+            for name in changed
+        ],
         "findings": outer_findings,
         "payload": payload,
         "passed": not changed and not outer_findings and payload["passed"],
@@ -212,6 +224,74 @@ def audit_release_payload(
     return result
 
 
+def failure_diagnostics(
+    result: dict[str, Any], prepared: Path, root: Path, wheels: list[Path]
+) -> list[dict[str, Any]]:
+    """Log known public modules and digests, hiding arbitrary payload filenames."""
+    upstream = upstream_binary_hashes(wheels) if wheels else {}
+    native_names = {key.removeprefix("basename:").lower() for key in upstream if key.startswith("basename:")}
+    public_resources = expected_resources(root)
+    fixed_names = {
+        "netconfiglint",
+        "netconfiglint.exe",
+        "netconfiglintapp",
+        "sbom.json",
+        "netconfiglint-sbom.json",
+        "license",
+        "third_party_notices.md",
+    }
+
+    def module(name: str) -> str:
+        relative = resource_path(name)
+        if relative in public_resources:
+            return relative
+        basename = PurePosixPath(name).name
+        if basename.lower() in native_names and not scan_bytes(basename.encode()):
+            return "PySide6/" + basename
+        if basename.lower() in fixed_names:
+            return basename
+        if name == "DEBIAN/control":
+            return name
+        return "unclassified-payload-file"
+
+    diagnostics = []
+
+    def add(name: str, category: str, **details: Any) -> None:
+        path = prepared / name
+        digest = None
+        if path.resolve().is_relative_to(prepared.resolve()) and path.is_file():
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        diagnostics.append({"module": module(name), "category": category, "sha256": digest, **details})
+
+    installer = result.get("installer", {})
+    extracted = installer.get("payload", {})
+    for payload in (result, extracted):
+        for finding in payload.get("findings", []):
+            category = finding["category"]
+            if category not in PATTERNS and category != "private-artifact-path":
+                category = "unclassified-privacy-finding"
+            add(finding["path"], category)
+        for name in payload.get("resource_mismatches", []):
+            add(name, "resource-content-mismatch")
+        for name in payload.get("missing_resources", []):
+            add(name, "missing-resource")
+    for mismatch in installer.get("payload_mismatch_details", []):
+        add(
+            mismatch["path"],
+            "native-payload-mismatch",
+            **{
+                key: mismatch[key]
+                for key in ("prepared_sha256", "extracted_sha256", "prepared_mode", "extracted_mode")
+            },
+        )
+    for finding in installer.get("findings", []):
+        diagnostics.append(
+            {"module": "native-installer", "category": finding["category"], "sha256": installer.get("sha256")}
+        )
+    # A byte scan can occur on both prepared and extracted copies. Log one row.
+    return list({json.dumps(row, sort_keys=True): row for row in diagnostics}.values())
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("payload", type=Path)
@@ -234,7 +314,10 @@ def main() -> int:
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=True, indent=2), encoding="utf-8")
-    print(json.dumps({"passed": result["passed"], "findings": len(result["findings"])}))
+    summary = {"passed": result["passed"], "findings": len(result["findings"])}
+    if not result["passed"]:
+        summary["diagnostics"] = failure_diagnostics(result, args.payload, args.root, args.upstream_wheel)
+    print(json.dumps(summary))
     return 0 if result["passed"] else 1
 
 

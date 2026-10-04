@@ -153,6 +153,8 @@ StartupWMClass=NetConfigLint
         encoding="utf-8",
         newline="\n",
     )
+    # dpkg stores control metadata with mode 0644, independently of the builder's umask.
+    (stage / "DEBIAN/control").chmod(0o644)
     release = root / "release"
     release.mkdir(exist_ok=True)
     output = release / f"NetConfigLint-{args.version}-linux-amd64.deb"

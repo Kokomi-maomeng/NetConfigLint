@@ -19,7 +19,11 @@ from netconfiglint.gui.controllers import AnalysisController
 
 
 def run_smoke(
-    app: QGuiApplication, engine: QQmlApplicationEngine, controller: AnalysisController, output: Path
+    app: QGuiApplication,
+    engine: QQmlApplicationEngine,
+    controller: AnalysisController,
+    output: Path,
+    startup_warnings: list[str] | None = None,
 ) -> int:
     window = engine.rootObjects()[0]
     if not isinstance(window, QQuickWindow):
@@ -28,7 +32,7 @@ def run_smoke(
     window.setHeight(900)
     preferences = engine.rootContext().contextProperty("preferences")
     translator = engine.rootContext().contextProperty("i18n")
-    errors: list[str] = []
+    errors: list[str] = list(startup_warnings or [])
     report: dict[str, Any] = {"version": __version__, "passed": False}
     engine.warnings.connect(lambda warnings: errors.extend(str(w.description()) for w in warnings))
     preferences.setValue("themeMode", 1)

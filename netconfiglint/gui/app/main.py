@@ -41,10 +41,16 @@ def configure_portable_storage() -> Path | None:
     return data
 
 
-def create_engine(controller: AnalysisController) -> QQmlApplicationEngine:
+def create_engine(
+    controller: AnalysisController, startup_warnings: list[str] | None = None
+) -> QQmlApplicationEngine:
     if QQuickStyle.name() != "Material":
         QQuickStyle.setStyle("Material")
     engine = QQmlApplicationEngine()
+    if startup_warnings is not None:
+        engine.warnings.connect(
+            lambda warnings: startup_warnings.extend(str(w.description()) for w in warnings)
+        )
     i18n = TranslationController(engine)
     controller.translator = i18n
     preferences = Preferences(engine)
@@ -126,14 +132,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         async_enabled=smoke_output is None,
         history_store=HistoryStore(enabled=False, persist_settings=False) if smoke_output else None,
     )
-    engine = create_engine(controller)
+    startup_warnings: list[str] = []
+    engine = create_engine(controller, startup_warnings if smoke_output is not None else None)
     if not engine.rootObjects():
         controller.close()
         return 1
     if smoke_output is not None:
         from netconfiglint.gui.app.smoke import run_smoke
 
-        exit_code = run_smoke(app, engine, controller, smoke_output)
+        exit_code = run_smoke(app, engine, controller, smoke_output, startup_warnings)
         dispose_engine(app, engine, controller)
         return exit_code
     exit_code = app.exec()

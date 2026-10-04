@@ -163,6 +163,51 @@ def test_payload_gate_checks_support_inventory_and_forbidden_private_files(tmp_p
     assert payload_auditor.audit(payload, [], root)["missing_resources"] == [auditor.SUPPORT_RESOURCE]
 
 
+def test_failure_diagnostics_hide_private_values_and_arbitrary_filenames(tmp_path: Path) -> None:
+    payload = tmp_path / "payload"
+    payload.mkdir()
+    private_filename = "ghp_" + "A" * 36 + ".txt"
+    private_bytes = b"/" + b"home/" + b"private-person/" + b"source/"
+    (payload / private_filename).write_bytes(private_bytes)
+    result = payload_auditor.audit(payload, [])
+    diagnostics = payload_auditor.failure_diagnostics(result, payload, tmp_path, [])
+    serialized = json.dumps(diagnostics)
+    assert private_filename not in serialized and private_bytes.decode() not in serialized
+    assert diagnostics == [
+        {
+            "module": "unclassified-payload-file",
+            "category": "unix-personal-path",
+            "sha256": hashlib.sha256(private_bytes).hexdigest(),
+        }
+    ]
+
+
+def test_failure_diagnostics_show_known_qt_module_without_granting_an_exception(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    wheel = tmp_path / "reviewed-test-only.whl"
+    original = b"/" + b"home/" + b"qt-build/"
+    with zipfile.ZipFile(wheel, "w") as package:
+        package.writestr("PySide6/Qt6Core.dll", original)
+    monkeypatch.setitem(
+        auditor.REVIEWED_UPSTREAM_WHEELS, wheel.name, hashlib.sha256(wheel.read_bytes()).hexdigest()
+    )
+    payload = tmp_path / "payload"
+    payload.mkdir()
+    modified = original + b"modified"
+    (payload / "Qt6Core.dll").write_bytes(modified)
+    result = payload_auditor.audit(payload, [wheel])
+    assert not result["passed"]
+    diagnostics = payload_auditor.failure_diagnostics(result, payload, tmp_path, [wheel])
+    assert diagnostics == [
+        {
+            "module": "PySide6/Qt6Core.dll",
+            "category": "unix-personal-path",
+            "sha256": hashlib.sha256(modified).hexdigest(),
+        }
+    ]
+
+
 def test_archive_rejects_unsafe_paths_duplicate_resources_and_empty_payload(tmp_path: Path) -> None:
     source = tmp_path / "netconfiglint/gui/qml/Main.qml"
     source.parent.mkdir(parents=True)
@@ -302,6 +347,7 @@ def test_debian_native_extraction_matches_control_and_data(tmp_path: Path) -> No
         "Maintainer: Contributors\nDescription: Synthetic payload test\n",
         encoding="utf-8",
     )
+    (prepared / "DEBIAN/control").chmod(0o644)
     (prepared / "application.txt").write_text("synthetic", encoding="utf-8")
     installer = tmp_path / "application.deb"
     subprocess.run(["dpkg-deb", "--build", str(prepared), str(installer)], check=True, capture_output=True)

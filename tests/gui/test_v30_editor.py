@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import Q_ARG, QMetaObject, QObject, QPointF, Qt
+from PySide6.QtCore import Q_ARG, QMetaObject, QObject, QPointF, Qt, QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QTextCharFormat, QTextDocument
 from PySide6.QtQuick import QQuickItem, QQuickWindow
 from PySide6.QtTest import QTest
@@ -27,6 +28,14 @@ def _find(window: QQuickWindow, name: str) -> QObject:
     )
 
 
+def _wait_for(predicate: Callable[[], bool], message: str) -> None:
+    for _ in range(150):
+        if predicate():
+            return
+        QTest.qWait(10)
+    assert predicate(), message
+
+
 @pytest.fixture
 def desktop(qapp: object, tmp_path: Path):
     controller = AnalysisController(
@@ -36,6 +45,10 @@ def desktop(qapp: object, tmp_path: Path):
     engine = create_engine(controller)
     assert engine.rootObjects()
     window = engine.rootObjects()[0]
+    window.show()
+    window.requestActivate()
+    assert QTest.qWaitForWindowExposed(window, 2000)
+    assert QTest.qWaitForWindowActive(window, 2000)
     window.setWidth(1600)
     QTest.qWait(200)
     yield window, engine, controller
@@ -54,8 +67,11 @@ def test_full_source_search_crosses_pages_and_paged_edits_write_back(desktop: tu
     editor.forceActiveFocus()
     QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
     _find(window, "editorSearchField").setProperty("text", "UNIQUE_LAST_PAGE_TOKEN")
-    QTest.qWait(140)
     overlay = _find(window, "editorSearchOverlay")
+    _wait_for(
+        lambda: len(overlay.property("searchResult").toVariant()["positions"]) == 1,
+        "Full-source search did not find the last-page token",
+    )
     assert len(overlay.property("searchResult").toVariant()["positions"]) == 1
     QMetaObject.invokeMethod(overlay, "find", Q_ARG("QVariant", 1))
     assert editor.property("selectedText") == "UNIQUE_LAST_PAGE_TOKEN"
@@ -289,20 +305,52 @@ def test_small_english_blank_window_keeps_scrollable_workspace_and_real_editor_i
         async_enabled=False,
         history_store=HistoryStore(tmp_path / "history.json", enabled=False, persist_settings=False),
     )
-    engine = create_engine(controller)
+    warnings = []
+
+    def collect_warning(kind, _context, message):
+        if kind in {QtMsgType.QtWarningMsg, QtMsgType.QtCriticalMsg, QtMsgType.QtFatalMsg}:
+            warnings.append(message)
+
+    # Initialize the bundled font database before measuring QML layout warnings.
+    font_module.load_fonts()
+    font_module.make_font(15)
+    previous_handler = qInstallMessageHandler(collect_warning)
+    engine = None
     try:
+        engine = create_engine(controller)
         window = engine.rootObjects()[0]
+        window.show()
+        window.requestActivate()
+        assert QTest.qWaitForWindowExposed(window, 2000)
+        assert QTest.qWaitForWindowActive(window, 2000)
         engine.rootContext().contextProperty("i18n").language = "en"
         engine.rootContext().contextProperty("preferences").setValue("reduceMotion", True)
         window.setWidth(640)
         window.setHeight(400)
         QTest.qWait(150)
         scroll = _find(window, "workspaceScrollView")
+        _wait_for(
+            lambda: (
+                scroll.height() > 40
+                and scroll.mapToScene(QPointF(0, scroll.height())).y() <= window.height() + 1
+                and scroll.mapToScene(QPointF(scroll.width(), 0)).x() <= window.width() + 1
+            ),
+            "The resized workspace did not settle inside the actual window",
+        )
         assert scroll.height() > 40
         assert scroll.mapToScene(QPointF(0, scroll.height())).y() <= window.height() + 1
         editor = _find(window, "configurationTextArea")
         editor.forceActiveFocus()
-        QTest.qWait(30)
+
+        def input_point():
+            return editor.mapToScene(
+                QPointF(editor.property("leftPadding") + 8, editor.property("topPadding") + 4)
+            ).toPoint()
+
+        _wait_for(
+            lambda: scroll.mapToScene(QPointF()).y() <= input_point().y() < window.height(),
+            "The real editor input point did not settle inside the viewport",
+        )
         point = editor.mapToScene(
             QPointF(editor.property("leftPadding") + 8, editor.property("topPadding") + 4)
         ).toPoint()
@@ -312,6 +360,15 @@ def test_small_english_blank_window_keeps_scrollable_workspace_and_real_editor_i
         QTest.keyClick(window, Qt.Key.Key_X)
         QTest.qWait(30)
         assert controller.sourceText == "x"
+
+        def caret_visible():
+            rect = editor.property("cursorRectangle")
+            point = editor.mapToScene(QPointF(rect.x(), rect.y()))
+            return (
+                scroll.mapToScene(QPointF()).y() <= point.y() and point.y() + rect.height() <= window.height()
+            )
+
+        _wait_for(caret_visible, "The real editor caret did not settle inside the viewport")
         identity = _find(window, "sourceIdentityLabel")
         assert identity.mapToScene(QPointF()).y() >= 0
         assert identity.mapToScene(QPointF(0, identity.height())).y() <= scroll.mapToScene(QPointF()).y()
@@ -319,10 +376,17 @@ def test_small_english_blank_window_keeps_scrollable_workspace_and_real_editor_i
         position = editor.mapToScene(QPointF(caret.x(), caret.y()))
         assert scroll.mapToScene(QPointF()).y() <= position.y()
         assert position.y() + caret.height() <= window.height()
+        for name in ("configurationEditor", "analysisPanel", "temporaryEditor"):
+            panel = _find(window, name)
+            if panel.property("visible"):
+                assert panel.height() >= 479
         more = _find(window, "toolbarMoreButton")
         point = more.mapToScene(QPointF(more.width() / 2, more.height() / 2)).toPoint()
         QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=point)
         QTest.qWait(20)
         assert _find(window, "supportScopeButton").property("visible")
     finally:
-        dispose_engine(qapp, engine, controller)
+        if engine is not None:
+            dispose_engine(qapp, engine, controller)
+        qInstallMessageHandler(previous_handler)
+    assert not warnings, "\n".join(warnings)
