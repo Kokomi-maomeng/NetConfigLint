@@ -543,6 +543,7 @@ class IndependentRuntimeProvenance:
             steps.append("lipo -thin arm64")
         app = payload / "Applications/NetConfigLint.app"
         candidates: dict[str, set[str]] = {}
+        missing_framework_aliases = set()
         for path in app.rglob("*"):
             if path.is_symlink() or not path.is_file() or not path.is_relative_to(app / "Contents"):
                 continue
@@ -551,6 +552,13 @@ class IndependentRuntimeProvenance:
                 destination = relative.removeprefix("MacOS/")
             elif relative.startswith("Frameworks/"):
                 destination = relative.removeprefix("Frameworks/")
+                # Nuitka first fixes loader names against MacOS-relative paths,
+                # then relocates frameworks and keeps that original path as a
+                # symlink. Derive only that actual qualified runtime alias.
+                alias = app / "Contents/MacOS" / destination
+                if not alias.is_file() or alias.resolve() != path.resolve():
+                    missing_framework_aliases.add(path.name)
+                    continue
             else:
                 continue
             if (
@@ -576,7 +584,12 @@ class IndependentRuntimeProvenance:
                 details: dict[str, str | int] = {"candidate_count": len(choices)}
                 if re.fullmatch(r"[A-Za-z0-9_.+-]{1,128}", basename):
                     details["official_dependency_basename"] = basename
-                raise NativeReplayError("application-dependency-destination-not-unique", **details)
+                reason = (
+                    "framework-runtime-alias-missing"
+                    if not choices and basename in missing_framework_aliases
+                    else "application-dependency-destination-not-unique"
+                )
+                raise NativeReplayError(reason, **details)
             replacement = "@executable_path/" + next(iter(choices))
             command.extend(("-change", old, replacement))
         if identity:

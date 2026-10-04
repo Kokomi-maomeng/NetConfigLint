@@ -291,9 +291,9 @@ def test_macos_dependency_mapping_ignores_bundle_root_documents_and_reports_ambi
     (app / "LICENSE").write_text("public license", encoding="utf-8")
     (app / "Contents/MacOS/Python").write_bytes(source)
     if duplicate:
-        framework = app / "Contents/Frameworks/Python.framework/Versions/3.13/Python"
-        framework.parent.mkdir(parents=True)
-        framework.write_bytes(source)
+        extra = app / "Contents/MacOS/PySide6/Python"
+        extra.parent.mkdir(parents=True)
+        extra.write_bytes(source)
     target = tmp_path / "array.so"
     target.write_bytes(source)
     commands = []
@@ -322,3 +322,38 @@ def test_macos_dependency_mapping_ignores_bundle_root_documents_and_reports_ambi
         derived, _ = verifier._macos_replay(target, source, payload, "unused", tmp_path)
         assert derived.read_bytes() == source
         assert any("@executable_path/Python" in command for command in commands)
+
+
+def test_macos_physical_framework_without_exact_runtime_alias_cannot_derive_loader_mapping(
+    reviewed_inputs: tuple[Path, Path, bytes], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    archive, patcher, source = reviewed_inputs
+    verifier = provenance.IndependentRuntimeProvenance("linux", archive, [], patcher)
+    verifier.platform = "macos"
+    monkeypatch.setattr(provenance, "sys", types.SimpleNamespace(platform="darwin"))
+    payload = tmp_path / "payload"
+    framework = (
+        payload / "Applications/NetConfigLint.app/Contents/Frameworks/Python.framework/Versions/3.13/Python"
+    )
+    framework.parent.mkdir(parents=True)
+    framework.write_bytes(source)
+    target = tmp_path / "array.so"
+    target.write_bytes(source)
+
+    def run(*args: str) -> str:
+        if args[0].endswith("lipo"):
+            return "arm64"
+        if args[1] == "-L":
+            return "header\n\t@rpath/Python (compatibility version 3.13.0, current version 3.13.0)\n"
+        if args[1] == "-D":
+            return "header\n"
+        return ""
+
+    monkeypatch.setattr(provenance, "_run", run)
+    with pytest.raises(provenance.NativeReplayError) as raised:
+        verifier._macos_replay(target, source, payload, "unused", tmp_path)
+    assert raised.value.details == {
+        "reason": "framework-runtime-alias-missing",
+        "official_dependency_basename": "Python",
+        "candidate_count": 0,
+    }
