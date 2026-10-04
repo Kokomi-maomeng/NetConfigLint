@@ -16,7 +16,7 @@ def test_linux_runtime_prunes_broad_qt_payload_by_dependency_closure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     distribution = tmp_path / "dist/NetConfigLint.dist"
-    app = _file(distribution, "NetConfigLint")
+    app = _file(distribution, "NetConfigLint.bin")
     extension = _file(distribution, "PySide6/QtCore.so")
     _file(distribution, "PySide6/Qt3DCore.so")
     plugin = _file(distribution, "PySide6/qt-plugins/platforms/libqxcb.so")
@@ -31,6 +31,8 @@ def test_linux_runtime_prunes_broad_qt_payload_by_dependency_closure(
     unused = _file(distribution, "libQt63DCore.so.6")
     system_library = _file(distribution, "libbz2.so.1.0")
     uuid_library = _file(distribution, "libuuid.so.1")
+    duplicate_catalog = _file(distribution, "commands/data/h3c.json")
+    canonical_catalog = _file(distribution, "netconfiglint/commands/data/h3c.json")
 
     graph = {
         app: (None, ("libQt6Core.so.6",)),
@@ -54,6 +56,8 @@ def test_linux_runtime_prunes_broad_qt_payload_by_dependency_closure(
     assert not (distribution / "PySide6/qml/Qt3D").exists()
     assert not (distribution / "PySide6/qml/QtQuick/Controls/Universal").exists()
     assert plugin.is_file()
+    assert canonical_catalog.is_file()
+    assert not duplicate_catalog.exists()
 
 
 def test_linux_runtime_refuses_unproven_qt_elf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

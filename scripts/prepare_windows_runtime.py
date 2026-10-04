@@ -49,7 +49,7 @@ def prune(distribution: Path) -> dict[str, object]:
         raise ValueError("Refusing to prune outside a dist/*.dist directory")
 
     removed: list[str] = []
-    for duplicate_name in ("gui", "resources", "vendors"):
+    for duplicate_name in ("gui", "resources", "vendors", "commands"):
         duplicate = distribution / duplicate_name
         packaged = distribution / "netconfiglint" / duplicate_name
         if duplicate.is_dir() and packaged.is_dir():

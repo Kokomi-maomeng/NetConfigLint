@@ -127,6 +127,7 @@ def main() -> None:
             if not item.startswith(("--windows-", "--product-", "--file-"))
         )
         + " --report=build/nuitka-compilation.xml"
+        + " --user-plugin=scripts/nuitka_build_privacy.py"
     )
     build = root / "build"
     build.mkdir(exist_ok=True)

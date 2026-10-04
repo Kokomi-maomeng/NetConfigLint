@@ -6,7 +6,10 @@ type, section-only comparison, prefix, or caller-provided expected hash.
 
 from __future__ import annotations
 
+import ast
 import hashlib
+import importlib.util
+import marshal
 import os
 import re
 import shutil
@@ -14,6 +17,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import types
 import urllib.request
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -44,6 +48,18 @@ QT_RELOCATED_MODULES = {
     "linux": {"libQt6Network.so.6", "libQt6Quick.so.6", "libQt6Widgets.so.6"},
     "macos": {"QtCore.so", "QtNetwork", "QtQuick", "QtWidgets"},
 }
+DIAGNOSTIC_MEMBER_LIMIT = 4096
+DIAGNOSTIC_MEMBER_BYTES = 2 * 1024 * 1024
+DIAGNOSTIC_TOTAL_BYTES = 96 * 1024 * 1024
+DIAGNOSTIC_PATH_LIMIT = 16384
+
+
+class NativeReplayError(ValueError):
+    """A fixed public failure reason, with no input path or tool output."""
+
+    def __init__(self, reason: str, **details: str | int):
+        super().__init__(reason)
+        self.details = {"reason": reason, **details}
 
 
 def _digest(data: bytes) -> str:
@@ -123,6 +139,15 @@ def _run(*args: str) -> str:
     return subprocess.run(args, check=True, capture_output=True, text=True).stdout
 
 
+def _replay_tool(stage: str, *args: str) -> str:
+    try:
+        return _run(*args)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise NativeReplayError(
+            "native-tool-failed", stage=stage, tool_error_type=type(error).__name__
+        ) from None
+
+
 class IndependentRuntimeProvenance:
     """Keep immutable official sources and independently derived hashes in memory."""
 
@@ -142,7 +167,10 @@ class IndependentRuntimeProvenance:
         self.sources: dict[str, tuple[bytes, dict[str, Any]]] = {}
         self.ambiguous: set[str] = set()
         self.cache: dict[tuple[str, str], dict[str, Any] | None] = {}
-        self.replay_failures: dict[tuple[str, str], dict[str, str]] = {}
+        self.replay_failures: dict[tuple[str, str], dict[str, Any]] = {}
+        self.path_index: dict[bytes, set[tuple[str, str, str]]] = {}
+        self.proven_paths: dict[bytes, set[str]] = {}
+        self.diagnostic_index = {"members": 0, "bytes": 0, "skipped": 0, "decode_failures": 0}
         self.patcher_bytes = None
         if platform == "linux":
             if patcher is None:
@@ -181,6 +209,102 @@ class IndependentRuntimeProvenance:
         else:
             self.sources[name] = (data, record)
 
+    def _index_paths(self, data: bytes, module: str, kind: str, key: str = "") -> None:
+        for value in self._personal_paths(data):
+            if len(self.path_index) >= DIAGNOSTIC_PATH_LIMIT and value not in self.path_index:
+                self.diagnostic_index["skipped"] += 1
+                continue
+            self.path_index.setdefault(value, set()).add((module, kind, key))
+
+    @staticmethod
+    def _stdlib_module(member: str) -> str | None:
+        """Use only safe public names under the official production standard library."""
+        parts = PurePosixPath(member).parts
+        if "python3.13" not in parts:
+            return None
+        relative = parts[parts.index("python3.13") + 1 :]
+        if not relative or any(
+            part in {"test", "tests", "site-packages", "idle_test", "lib-dynload"} for part in relative
+        ):
+            return None
+        if any(not re.fullmatch(r"[A-Za-z0-9_.+-]+", part) for part in relative):
+            return None
+        name = relative[-1]
+        if not name.endswith((".py", ".pyc")):
+            return None
+        name = re.sub(r"\.cpython-313(?:\.opt-[12])?\.pyc$", ".py", name)
+        relative = (*(part for part in relative[:-1] if part != "__pycache__"), name)
+        return "/".join(relative)
+
+    def _index_stdlib(self, member: str, data: bytes) -> None:
+        """Read pinned source/bytecode as bounded diagnostic data, never execute it."""
+        module = self._stdlib_module(member)
+        if module is None:
+            return
+        stats = self.diagnostic_index
+        if (
+            len(data) > DIAGNOSTIC_MEMBER_BYTES
+            or stats["members"] >= DIAGNOSTIC_MEMBER_LIMIT
+            or stats["bytes"] + len(data) > DIAGNOSTIC_TOTAL_BYTES
+        ):
+            stats["skipped"] += 1
+            return
+        stats["members"] += 1
+        stats["bytes"] += len(data)
+        try:
+            if member.endswith(".py"):
+                tree = ast.parse(data)
+                docstrings = set()
+                for node in ast.walk(tree):
+                    if (
+                        isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                        and node.body
+                        and isinstance(node.body[0], ast.Expr)
+                    ):
+                        docstrings.add(id(node.body[0].value))
+                    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                        kind = "source-docstring" if id(node) in docstrings else "source-string-constant"
+                        self._index_paths(node.value.encode(), module, kind)
+                if PurePosixPath(module).name.startswith("_sysconfigdata_"):
+                    for node in ast.walk(tree):
+                        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Dict):
+                            continue
+                        if not any(
+                            isinstance(target, ast.Name) and target.id == "build_time_vars"
+                            for target in node.targets
+                        ):
+                            continue
+                        for key, value in zip(node.value.keys, node.value.values, strict=True):
+                            if (
+                                isinstance(key, ast.Constant)
+                                and isinstance(key.value, str)
+                                and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,127}", key.value)
+                                and isinstance(value, ast.Constant)
+                                and isinstance(value.value, str)
+                            ):
+                                self._index_paths(
+                                    value.value.encode(), module, "source-sysconfig-build-var", key.value
+                                )
+            elif data[:4] == importlib.util.MAGIC_NUMBER and len(data) > 16:
+                # Exact SHA-pinned official CPython archive; decode only, never execute.
+                code = marshal.loads(data[16:])  # nosec B302
+                pending = [code]
+                visited = 0
+                while pending and visited < 8192:
+                    value = pending.pop()
+                    visited += 1
+                    if isinstance(value, types.CodeType):
+                        self._index_paths(value.co_filename.encode(), module, "bytecode-code-filename")
+                        pending.extend(value.co_consts)
+                    elif isinstance(value, str):
+                        self._index_paths(value.encode(), module, "bytecode-string-constant")
+                    elif isinstance(value, (tuple, frozenset)):
+                        pending.extend(value)
+            else:
+                stats["decode_failures"] += 1
+        except (SyntaxError, UnicodeError, EOFError, ValueError, TypeError):
+            stats["decode_failures"] += 1
+
     def _python_sources(self, archive: Path) -> None:
         with tarfile.open(archive) as package:
             if self.platform == "linux":
@@ -188,6 +312,13 @@ class IndependentRuntimeProvenance:
                     if not member.isfile():
                         continue
                     normalized = member.name.removeprefix("./")
+                    if self._stdlib_module(normalized) is not None:
+                        if member.size > DIAGNOSTIC_MEMBER_BYTES:
+                            self.diagnostic_index["skipped"] += 1
+                        else:
+                            stream = package.extractfile(member)
+                            assert stream is not None
+                            self._index_stdlib(normalized, stream.read())
                     if normalized != "lib/libpython3.13.so.1.0" and not (
                         str(PurePosixPath(normalized).parent) == "lib/python3.13/lib-dynload"
                         and re.fullmatch(
@@ -219,13 +350,30 @@ class IndependentRuntimeProvenance:
                 installer = root / "python.pkg"
                 installer.write_bytes(stream.read())
                 expanded = root / "expanded"
-                _run("/usr/sbin/pkgutil", "--expand-full", str(installer), str(expanded))
+                _replay_tool(
+                    "official-python-package-expansion",
+                    "/usr/sbin/pkgutil",
+                    "--expand-full",
+                    str(installer),
+                    str(expanded),
+                )
                 for path in expanded.rglob("*"):
                     name = path.name
                     if path.is_symlink() or not path.is_file():
                         continue
                     relative = path.relative_to(expanded).as_posix()
-                    if name == "Python" and "/Python.framework/Versions/3.13/" in relative:
+                    if self._stdlib_module(relative) is not None:
+                        if path.stat().st_size > DIAGNOSTIC_MEMBER_BYTES:
+                            self.diagnostic_index["skipped"] += 1
+                        else:
+                            self._index_stdlib(relative, path.read_bytes())
+                    if PurePosixPath(relative).parts == (
+                        "Python_Framework.pkg",
+                        "Payload",
+                        "Versions",
+                        "3.13",
+                        "Python",
+                    ):
                         self._add_source(name, path.read_bytes(), archive.name, relative)
                     elif "/lib/python3.13/lib-dynload/" in relative and re.fullmatch(
                         r"[A-Za-z_][A-Za-z0-9_]*\.cpython-313-darwin\.so", name
@@ -247,7 +395,13 @@ class IndependentRuntimeProvenance:
         if len(rest) == 3 and rest[:2] == ("MacOS", "PySide6") and rest[2] == "QtCore.so":
             return rest[2]
         # Framework code path has five segments below Contents.
-        if len(rest) == 5 and rest[0] == "Frameworks" and rest[2] == "Versions" and rest[3] in {"A", "3.13"}:
+        if (
+            len(rest) == 5
+            and rest[0] == "Frameworks"
+            and rest[1] == rest[-1] + ".framework"
+            and rest[2] == "Versions"
+            and rest[3] == ("3.13" if rest[-1] == "Python" else "A")
+        ):
             return rest[-1]
         return None
 
@@ -281,6 +435,8 @@ class IndependentRuntimeProvenance:
                     target, steps = self._macos_replay(target, original, payload, name, temporary)
                 derived = _digest(target.read_bytes())
                 if derived == key[1]:
+                    for value in self._personal_paths(target.read_bytes()):
+                        self.proven_paths.setdefault(value, set()).add(canonical)
                     result = {
                         **record,
                         "derived_sha256": derived,
@@ -297,6 +453,7 @@ class IndependentRuntimeProvenance:
                 self.replay_failures[key] = {
                     "outcome": "native-replay-failed",
                     "error_type": type(error).__name__,
+                    **(error.details if isinstance(error, NativeReplayError) else {}),
                 }
                 result = None
         self.cache[key] = result
@@ -315,7 +472,9 @@ class IndependentRuntimeProvenance:
 
         This is diagnostic evidence only and never authorizes an application binary.
         """
-        official = {value for source, _ in self.sources.values() for value in self._personal_paths(source)}
+        official = set(self.path_index) | {
+            value for source, _ in self.sources.values() for value in self._personal_paths(source)
+        }
         workspace = os.environ.get("GITHUB_WORKSPACE", "").encode()
         result = {"exact-official-input-string": 0, "current-job-workspace": 0, "unclassified": 0}
         for value in self._personal_paths(data):
@@ -329,24 +488,63 @@ class IndependentRuntimeProvenance:
             result[key] += 1
         return result
 
+    def path_details(self, data: bytes) -> dict[str, Any]:
+        """Publish only safe official module/key labels and counts; never matching bytes."""
+        counts: dict[tuple[str, str, str], int] = {}
+        proven_counts: dict[str, int] = {}
+        proven_matches = 0
+        values = self._personal_paths(data)
+        for value in values:
+            for label in self.path_index.get(value, ()):
+                counts[label] = counts.get(label, 0) + 1
+            if value in self.proven_paths:
+                proven_matches += 1
+            for module in self.proven_paths.get(value, ()):
+                proven_counts[module] = proven_counts.get(module, 0) + 1
+        return {
+            "stdlib_matches": [
+                {"module": module, "kind": kind, **({"key": key} if key else {}), "count": count}
+                for (module, kind, key), count in sorted(counts.items())[:256]
+            ],
+            "index": self.diagnostic_index.copy(),
+            "proven_payload_matches": [
+                {"module": module, "count": count} for module, count in sorted(proven_counts.items())[:256]
+            ],
+            "exact-proved-payload-string": proven_matches,
+            "not-proved-payload-string": len(values) - proven_matches,
+            "truncated": len(counts) > 256,
+        }
+
     def _macos_replay(
         self, target: Path, original: bytes, payload: Path, name: str, temporary: Path
     ) -> tuple[Path, list[str]]:
         if sys.platform != "darwin":
-            raise ValueError("macOS byte replay requires native Apple tools")
+            raise NativeReplayError("native-apple-tools-required")
         steps = []
-        architectures = _run("/usr/bin/lipo", "-archs", str(target)).strip().split()
+        architectures = (
+            _replay_tool("official-architecture-inspection", "/usr/bin/lipo", "-archs", str(target))
+            .strip()
+            .split()
+        )
         if "arm64" not in architectures:
-            raise ValueError("Reviewed macOS replay requires an official arm64 slice")
+            raise NativeReplayError("official-arm64-slice-missing")
         if len(architectures) != 1:
             thin = temporary / "thin"
-            _run("/usr/bin/lipo", "-thin", "arm64", str(target), "-output", str(thin))
+            _replay_tool(
+                "official-arm64-thinning",
+                "/usr/bin/lipo",
+                "-thin",
+                "arm64",
+                str(target),
+                "-output",
+                str(thin),
+            )
             thin.replace(target)
             steps.append("lipo -thin arm64")
         app = payload / "Applications/NetConfigLint.app"
         candidates: dict[str, set[str]] = {}
         for path in app.rglob("*"):
-            if path.is_symlink() or not path.is_file():
+            if path.is_symlink() or not path.is_file() or not path.is_relative_to(app / "Contents"):
                 continue
             relative = path.relative_to(app / "Contents").as_posix()
             if relative.startswith("MacOS/"):
@@ -361,8 +559,12 @@ class IndependentRuntimeProvenance:
             ):
                 continue
             candidates.setdefault(path.name, set()).add(destination)
-        libraries = _run("/usr/bin/otool", "-L", str(target)).splitlines()[1:]
-        identity = _run("/usr/bin/otool", "-D", str(target)).splitlines()[1:]
+        libraries = _replay_tool(
+            "official-dependency-inspection", "/usr/bin/otool", "-L", str(target)
+        ).splitlines()[1:]
+        identity = _replay_tool(
+            "official-identity-inspection", "/usr/bin/otool", "-D", str(target)
+        ).splitlines()[1:]
         command = ["/usr/bin/install_name_tool"]
         for line in libraries:
             old = line.strip().split(" (", 1)[0]
@@ -371,13 +573,16 @@ class IndependentRuntimeProvenance:
             basename = PurePosixPath(old).name
             choices = candidates.get(basename, set())
             if len(choices) != 1:
-                raise ValueError("Official dependency does not have one qualified application destination")
+                details: dict[str, str | int] = {"candidate_count": len(choices)}
+                if re.fullmatch(r"[A-Za-z0-9_.+-]{1,128}", basename):
+                    details["official_dependency_basename"] = basename
+                raise NativeReplayError("application-dependency-destination-not-unique", **details)
             replacement = "@executable_path/" + next(iter(choices))
             command.extend(("-change", old, replacement))
         if identity:
             command.extend(("-id", target.name))
         if len(command) > 1:
-            _run(*command, str(target))
+            _replay_tool("canonical-loader-relocation", *command, str(target))
             steps.append("install_name_tool: canonical application-local dependencies and basename identity")
         deployed = payload / name
         framework = next((path for path in deployed.parents if path.suffix == ".framework"), None)
@@ -391,7 +596,8 @@ class IndependentRuntimeProvenance:
             shutil.copy2(target, new_target)
             target = new_target
             signing_target = copied
-        _run(
+        _replay_tool(
+            "independent-ad-hoc-signing",
             "/usr/bin/codesign",
             "--sign",
             "-",

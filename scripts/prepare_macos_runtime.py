@@ -98,6 +98,13 @@ def prune(distribution: Path) -> dict[str, object]:
         if path.is_symlink() and not path.resolve().is_relative_to(distribution):
             raise ValueError("macOS bundle link escapes its directory")
     removed: list[str] = []
+    runtime = distribution / "Contents/MacOS"
+    for duplicate_name in ("gui", "resources", "vendors", "commands"):
+        duplicate = runtime / duplicate_name
+        packaged = runtime / "netconfiglint" / duplicate_name
+        if duplicate.is_dir() and packaged.is_dir():
+            shutil.rmtree(duplicate)
+            removed.append(duplicate.relative_to(distribution).as_posix())
     for path in pyside.glob("Qt*.so"):
         if path.name.removesuffix(".so") not in _PYSIDE_MODULES:
             path.unlink()

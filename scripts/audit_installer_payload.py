@@ -102,6 +102,7 @@ def audit(
             if provenance:
                 if category == "unix-personal-path":
                     finding["path_sources"] = provenance.path_classifications(data)
+                    finding["path_details"] = provenance.path_details(data)
                 if replay := provenance.replay_failures.get((name, digest)):
                     finding["replay"] = replay
             findings.append(finding)
@@ -174,10 +175,6 @@ def audit_installer(
     outer_findings = [
         {"path": installer.name, "category": name} for name in scan_bytes(installer.read_bytes())
     ]
-    if provenance:
-        for finding in outer_findings:
-            if finding["category"] == "unix-personal-path":
-                finding["path_sources"] = provenance.path_classifications(installer.read_bytes())
     with tempfile.TemporaryDirectory(prefix="netconfiglint-payload-audit-") as directory:
         extracted = unpack_installer(installer.resolve(), Path(directory), platform)
         actual = inventory(extracted)
@@ -185,6 +182,11 @@ def audit_installer(
             name for name in expected.keys() | actual.keys() if expected.get(name) != actual.get(name)
         )
         payload = audit(extracted, wheels, root, provenance)
+        if provenance:
+            for finding in outer_findings:
+                if finding["category"] == "unix-personal-path":
+                    finding["path_sources"] = provenance.path_classifications(installer.read_bytes())
+                    finding["path_details"] = provenance.path_details(installer.read_bytes())
     return {
         "name": installer.name,
         "sha256": hashlib.sha256(installer.read_bytes()).hexdigest(),
@@ -311,7 +313,7 @@ def failure_diagnostics(
             add(
                 finding["path"],
                 category,
-                **{key: finding[key] for key in ("path_sources", "replay") if key in finding},
+                **{key: finding[key] for key in ("path_sources", "path_details", "replay") if key in finding},
             )
         for name in payload.get("resource_mismatches", []):
             add(name, "resource-content-mismatch")
@@ -332,7 +334,7 @@ def failure_diagnostics(
                 "module": "native-installer",
                 "category": finding["category"],
                 "sha256": installer.get("sha256"),
-                **{key: finding[key] for key in ("path_sources",) if key in finding},
+                **{key: finding[key] for key in ("path_sources", "path_details") if key in finding},
             }
         )
     # A byte scan can occur on both prepared and extracted copies. Log one row.
