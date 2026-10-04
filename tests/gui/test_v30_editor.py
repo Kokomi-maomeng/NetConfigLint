@@ -276,8 +276,10 @@ def test_all_parameter_hints_and_query_remain_available_readonly_at_narrow_width
     assert query.property("visible")
     field = _find(window, name + "CommandQueryField")
     field.setProperty("text", "stp m")
-    QTest.qWait(200)
-    assert _find(window, name + "CommandQueryList").property("count") > 0
+    _wait_for(
+        lambda: _find(window, name + "CommandQueryList").property("count") > 0,
+        "The debounced command query did not produce candidates",
+    )
     QMetaObject.invokeMethod(card, "showQueryDetail", Q_ARG("QVariant", 0))
     detail = _find(window, name + "CompletionDetails")
     assert detail.property("visible")

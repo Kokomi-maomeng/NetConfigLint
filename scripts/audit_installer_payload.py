@@ -12,6 +12,7 @@ import json
 import os
 import stat
 import subprocess
+import sys
 import tempfile
 import tomllib
 from pathlib import Path, PurePosixPath
@@ -29,6 +30,7 @@ if __package__:
         scan_bytes,
         upstream_binary_hashes,
     )
+    from .native_privacy_provenance import IndependentRuntimeProvenance
 else:
     from audit_release import (
         PATTERNS,
@@ -41,6 +43,7 @@ else:
         scan_bytes,
         upstream_binary_hashes,
     )
+    from native_privacy_provenance import IndependentRuntimeProvenance
 
 
 def inventory(payload: Path) -> dict[str, dict[str, str]]:
@@ -64,7 +67,12 @@ def inventory(payload: Path) -> dict[str, dict[str, str]]:
     return result
 
 
-def audit(payload: Path, wheels: list[Path], root: Path | None = None) -> dict[str, Any]:
+def audit(
+    payload: Path,
+    wheels: list[Path],
+    root: Path | None = None,
+    provenance: IndependentRuntimeProvenance | None = None,
+) -> dict[str, Any]:
     upstream = upstream_binary_hashes(wheels) if wheels else {}
     records = inventory(payload)
     expected = expected_resources(root) if root else {}
@@ -84,9 +92,19 @@ def audit(payload: Path, wheels: list[Path], root: Path | None = None) -> dict[s
                 {"path": name, "categories": categories, "reason": "exact-reviewed-official-wheel-binary"}
             )
             categories = []
+        if categories and provenance and (proof := provenance.match(name, data, payload)):
+            reviewed.append({"path": name, "categories": categories, **proof})
+            categories = []
         if forbidden_path(name):
             categories.append("private-artifact-path")
-        findings.extend({"path": name, "category": category} for category in categories)
+        for category in categories:
+            finding: dict[str, Any] = {"path": name, "category": category}
+            if provenance:
+                if category == "unix-personal-path":
+                    finding["path_sources"] = provenance.path_classifications(data)
+                if replay := provenance.replay_failures.get((name, digest)):
+                    finding["replay"] = replay
+            findings.append(finding)
         relative = resource_path(name) if root else None
         if relative:
             if relative in seen:
@@ -145,19 +163,28 @@ def unpack_installer(installer: Path, temporary: Path, platform: str) -> Path:
 
 
 def audit_installer(
-    installer: Path, prepared: Path, platform: str, wheels: list[Path], root: Path
+    installer: Path,
+    prepared: Path,
+    platform: str,
+    wheels: list[Path],
+    root: Path,
+    provenance: IndependentRuntimeProvenance | None = None,
 ) -> dict[str, Any]:
     expected = inventory(prepared)
     outer_findings = [
         {"path": installer.name, "category": name} for name in scan_bytes(installer.read_bytes())
     ]
+    if provenance:
+        for finding in outer_findings:
+            if finding["category"] == "unix-personal-path":
+                finding["path_sources"] = provenance.path_classifications(installer.read_bytes())
     with tempfile.TemporaryDirectory(prefix="netconfiglint-payload-audit-") as directory:
         extracted = unpack_installer(installer.resolve(), Path(directory), platform)
         actual = inventory(extracted)
         changed = sorted(
             name for name in expected.keys() | actual.keys() if expected.get(name) != actual.get(name)
         )
-        payload = audit(extracted, wheels, root)
+        payload = audit(extracted, wheels, root, provenance)
     return {
         "name": installer.name,
         "sha256": hashlib.sha256(installer.read_bytes()).hexdigest(),
@@ -188,8 +215,15 @@ def audit_release_payload(
     release: Path,
     installer: Path,
     run_id: int,
+    python_archive: Path | None = None,
+    patcher_wheel: Path | None = None,
 ) -> dict[str, Any]:
-    result = audit(payload, wheels, root)
+    provenance = (
+        IndependentRuntimeProvenance(platform, python_archive, wheels, patcher_wheel)
+        if python_archive
+        else None
+    )
+    result = audit(payload, wheels, root, provenance)
     source_commit = git(root, "rev-parse", "HEAD").decode().strip()
     version = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
     manifests = [
@@ -217,7 +251,7 @@ def audit_release_payload(
                 {"name": path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
                 for path in assets
             ],
-            "installer": audit_installer(installer, payload, platform, wheels, root),
+            "installer": audit_installer(installer, payload, platform, wheels, root, provenance),
         }
     )
     result["passed"] = result["passed"] and result["installer"]["passed"]
@@ -250,6 +284,10 @@ def failure_diagnostics(
             return "PySide6/" + basename
         if basename.lower() in fixed_names:
             return basename
+        if basename in {"Python", "libpython3.13.so.1.0"} or (
+            basename.endswith(".so") and basename.removesuffix(".so") in sys.stdlib_module_names
+        ):
+            return "CPython/" + basename
         if name == "DEBIAN/control":
             return name
         return "unclassified-payload-file"
@@ -270,7 +308,11 @@ def failure_diagnostics(
             category = finding["category"]
             if category not in PATTERNS and category != "private-artifact-path":
                 category = "unclassified-privacy-finding"
-            add(finding["path"], category)
+            add(
+                finding["path"],
+                category,
+                **{key: finding[key] for key in ("path_sources", "replay") if key in finding},
+            )
         for name in payload.get("resource_mismatches", []):
             add(name, "resource-content-mismatch")
         for name in payload.get("missing_resources", []):
@@ -286,7 +328,12 @@ def failure_diagnostics(
         )
     for finding in installer.get("findings", []):
         diagnostics.append(
-            {"module": "native-installer", "category": finding["category"], "sha256": installer.get("sha256")}
+            {
+                "module": "native-installer",
+                "category": finding["category"],
+                "sha256": installer.get("sha256"),
+                **{key: finding[key] for key in ("path_sources",) if key in finding},
+            }
         )
     # A byte scan can occur on both prepared and extracted copies. Log one row.
     return list({json.dumps(row, sort_keys=True): row for row in diagnostics}.values())
@@ -301,6 +348,8 @@ def main() -> int:
     parser.add_argument("--release-directory", type=Path, default=Path("release"))
     parser.add_argument("--source-run-id", type=int, default=int(os.environ.get("GITHUB_RUN_ID", "0")))
     parser.add_argument("--upstream-wheel", type=Path, action="append", default=[])
+    parser.add_argument("--upstream-python-archive", type=Path)
+    parser.add_argument("--reviewed-patcher-wheel", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     result = audit_release_payload(
@@ -311,6 +360,8 @@ def main() -> int:
         args.release_directory,
         args.installer,
         args.source_run_id,
+        args.upstream_python_archive,
+        args.reviewed_patcher_wheel,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=True, indent=2), encoding="utf-8")

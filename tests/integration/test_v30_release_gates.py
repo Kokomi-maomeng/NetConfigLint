@@ -163,6 +163,23 @@ def test_payload_gate_checks_support_inventory_and_forbidden_private_files(tmp_p
     assert payload_auditor.audit(payload, [], root)["missing_resources"] == [auditor.SUPPORT_RESOURCE]
 
 
+def test_debian_outer_application_directory_does_not_hide_packaged_resources(tmp_path: Path) -> None:
+    resource = "netconfiglint/gui/qml/Main.qml"
+    source = tmp_path / "source" / resource
+    source.parent.mkdir(parents=True)
+    source.write_text("Item {}", encoding="utf-8")
+    payload = tmp_path / "payload"
+    deployed = payload / "opt/netconfiglint" / resource
+    deployed.parent.mkdir(parents=True)
+    deployed.write_bytes(source.read_bytes())
+    assert auditor.resource_path(deployed.relative_to(payload).as_posix()) == resource
+    assert payload_auditor.audit(payload, [], tmp_path / "source")["passed"]
+    deployed.write_text("Item { visible: false }", encoding="utf-8")
+    result = payload_auditor.audit(payload, [], tmp_path / "source")
+    assert not result["passed"] and result["resource_mismatches"] == [resource]
+    assert not result["missing_resources"]
+
+
 def test_failure_diagnostics_hide_private_values_and_arbitrary_filenames(tmp_path: Path) -> None:
     payload = tmp_path / "payload"
     payload.mkdir()

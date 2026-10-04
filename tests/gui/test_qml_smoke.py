@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, QMetaObject, QObject, QPointF, Qt
+from PySide6.QtCore import QCoreApplication, QMetaObject, QObject, QPointF, QSettings, Qt
 from PySide6.QtQuick import QQuickItem, QQuickWindow
 from PySide6.QtTest import QTest
 
@@ -44,9 +44,16 @@ def test_first_window_fits_the_available_screen(qapp: object) -> None:
 
 
 def test_window_geometry_survives_preferences_changes_and_maximize(qapp: object) -> None:
+    # Start in a normal window before resizing: GNOME may automatically maximize
+    # a newly mapped window whose default size occupies the whole VM display.
+    QSettings().setValue("appearance/windowWidth", 900)
+    QSettings().setValue("appearance/windowHeight", 600)
     controller = AnalysisController(async_enabled=False)
     engine = create_engine(controller)
     window = engine.rootObjects()[0]
+    window.requestActivate()
+    assert QTest.qWaitForWindowExposed(window, 2000)
+    assert QTest.qWaitForWindowActive(window, 2000)
     preferences = engine.rootContext().contextProperty("preferences")
     window.setWidth(1200)
     window.setHeight(760)
@@ -61,11 +68,19 @@ def test_window_geometry_survives_preferences_changes_and_maximize(qapp: object)
     preferences.setValue("themeColor", "blue")
     assert window.visibility() == QQuickWindow.Visibility.Minimized
     window.showNormal()
+    # XCB/Wayland window managers require activation to remove their hidden
+    # state; calling showNormal alone is not a user restore from the taskbar.
+    window.requestActivate()
+    assert QTest.qWaitForWindowActive(window, 2000)
     QTest.qWait(80)
     assert (window.width(), window.height()) == (1200, 760)
 
     window.showMaximized()
-    QTest.qWait(100)
+    window.requestActivate()
+    for _ in range(200):
+        if window.visibility() == QQuickWindow.Visibility.Maximized:
+            break
+        QTest.qWait(10)
     assert window.visibility() == QQuickWindow.Visibility.Maximized
     normal = window.property("normalGeometry")
     assert (normal.width(), normal.height()) == (1200, 760)
@@ -95,6 +110,8 @@ def test_window_geometry_survives_preferences_changes_and_maximize(qapp: object)
     QTest.qWait(100)
     assert reopened.visibility() == QQuickWindow.Visibility.Maximized
     reopened.showNormal()
+    reopened.requestActivate()
+    assert QTest.qWaitForWindowActive(reopened, 2000)
     QTest.qWait(100)
     available = qapp.primaryScreen().availableGeometry()
     assert (reopened.width(), reopened.height()) == (

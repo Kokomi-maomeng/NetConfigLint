@@ -197,9 +197,22 @@ jobs:
           } else {
             $payload = 'build/macos-pkg/root'; $platform = 'macos'; $extension = '*.pkg'
           }
+          $provenanceArguments = @()
+          if (-not $IsWindows) {
+            python scripts/native_privacy_provenance.py --download $platform --directory build/upstream-runtime
+            if ($LASTEXITCODE -ne 0) { throw 'Reviewed runtime provenance input gate failed' }
+            $pythonArchives = @(Get-ChildItem build/upstream-runtime -File -Filter 'python-3.13.15-*.tar.gz')
+            if ($pythonArchives.Count -ne 1) { throw 'Expected one exact reviewed Python runtime archive' }
+            $provenanceArguments += @('--upstream-python-archive', $pythonArchives[0].FullName)
+            if ($IsLinux) {
+              $patchers = @(Get-ChildItem build/upstream-runtime -File -Filter 'patchelf-0.19.1.0-*.whl')
+              if ($patchers.Count -ne 1) { throw 'Expected one exact reviewed patcher wheel' }
+              $provenanceArguments += @('--reviewed-patcher-wheel', $patchers[0].FullName)
+            }
+          }
           $installers = @(Get-ChildItem release -Filter $extension -File)
           if ($installers.Count -ne 1) { throw 'Expected one native installer' }
-          python scripts/audit_installer_payload.py $payload --root . --platform $platform --installer $installers[0].FullName --upstream-wheel $wheel --output build/installer-payload-privacy.json
+          python scripts/audit_installer_payload.py $payload --root . --platform $platform --installer $installers[0].FullName --upstream-wheel $wheel @provenanceArguments --output build/installer-payload-privacy.json
           if ($LASTEXITCODE -ne 0) { throw 'Native installer payload privacy gate failed' }
       - name: Prepare internal Linux runtime for native desktop qualification
         if: runner.os == 'Linux'

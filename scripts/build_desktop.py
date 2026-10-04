@@ -20,6 +20,26 @@ APP_VERSION = tomllib.loads(
 MACOS_EXECUTABLE = "NetConfigLintApp"
 
 
+def compilation_environment(root: Path) -> dict[str, str]:
+    """Remove build-machine paths from compiler diagnostics and debug strings."""
+    environment = {**os.environ, "PYTHONUTF8": "1"}
+    # Nuitka passes inherited CFLAGS to GCC/Clang. This changes compiler-emitted
+    # __FILE__/debug paths, without exempting the compiled program from audit.
+    prefixes = (
+        (Path.home(), "/usr/src/build-user"),
+        (Path(sys.base_prefix), "/usr/local"),
+        (root, "/usr/src/netconfiglint"),
+    )
+    flags = []
+    for original, replacement in prefixes:
+        value = str(original.resolve())
+        if any(character.isspace() for character in value):
+            raise ValueError("Unix compiler path mapping requires build paths without whitespace")
+        flags.append(f"-ffile-prefix-map={value}={replacement}")
+    environment["CFLAGS"] = " ".join(filter(None, (environment.get("CFLAGS", ""), *flags)))
+    return environment
+
+
 def _make_macos_icon(root: Path) -> Path:
     source = root / "netconfiglint/resources/icons/generated"
     iconset = root / "build/NetConfigLint.iconset"
@@ -129,7 +149,7 @@ def main() -> None:
             "--extra-ignore-dirs=.venv,build,dist,release,tests,docs,experiments,licenses,scripts",
         ],
         cwd=root,
-        env={**os.environ, "PYTHONUTF8": "1"},
+        env=compilation_environment(root),
         check=True,
     )
     distributions = list(dist.glob("*" + suffix))

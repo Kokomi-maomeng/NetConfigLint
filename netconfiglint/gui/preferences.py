@@ -10,6 +10,7 @@ from PySide6.QtGui import QGuiApplication
 
 class Preferences(QObject):
     changed = Signal()
+    layoutReset = Signal()
     COLORS: ClassVar[tuple[str, ...]] = (
         "violet",
         "blue",
@@ -30,6 +31,8 @@ class Preferences(QObject):
         "reduceMotion": False,
         "panels": ["configuration", "diagnostics", "temporary"],
         "panelOrder": ["configuration", "diagnostics", "temporary"],
+        "panelWidths": [540, 340, 300],
+        "panelHeights": [480, 480, 480],
         "windowWidth": 1440,
         "windowHeight": 900,
         "windowX": -1,
@@ -90,6 +93,15 @@ class Preferences(QObject):
                 return
             if key in ("windowX", "windowY") and not -10000 <= value <= 10000:
                 return
+        elif key in ("panelWidths", "panelHeights"):
+            if not isinstance(value, list) or len(value) != 3 or any(isinstance(v, bool) for v in value):
+                return
+            try:
+                value = [int(v) for v in value]
+            except (ValueError, TypeError, OverflowError):
+                return
+            if any(not 100 <= v <= 10000 for v in value):
+                return
         elif key in ("panels", "panelOrder"):
             if not isinstance(value, list) or any(v not in self.DEFAULTS["panels"] for v in value):
                 return
@@ -110,6 +122,12 @@ class Preferences(QObject):
     @Slot(str, "QVariant")
     def setValue(self, key: str, value: Any) -> None:
         self._assign(key, value, save=True)
+
+    @Slot()
+    def resetWorkspaceLayout(self) -> None:
+        for key in ("panels", "panelOrder", "panelWidths", "panelHeights"):
+            self._assign(key, list(self.DEFAULTS[key]), save=True)
+        self.layoutReset.emit()
 
     @Slot(int, int, result="QVariantMap")
     def restoreWindowGeometry(self, minimum_width: int, minimum_height: int) -> dict[str, int]:

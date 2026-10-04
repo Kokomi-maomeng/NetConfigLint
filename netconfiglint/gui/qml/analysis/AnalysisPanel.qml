@@ -25,7 +25,13 @@ AppCard {
     signal stepRequested(int direction)
     padding: 0
     onResultCurrentChanged: severityFilter = "ALL"
-    function pendingCount() { return (coverage.catalogued || 0) + (coverage.unparsed || 0) + (coverage.unsupported || 0) }
+    function pendingCount() {
+        if (typeof coverage.pending === "number") return coverage.pending
+        var lines = (coverage.catalogued_lines || []).concat(coverage.unparsed_lines || [],
+                    coverage.unsupported_lines || [], coverage.context_unknown_lines || [])
+        if (lines.length) return lines.filter(function(line, index) { return lines.indexOf(line) === index }).length
+        return (coverage.catalogued || 0) + (coverage.unparsed || 0) + (coverage.unsupported || 0)
+    }
     function totalCount() { return (summary.ERROR || 0) + (summary.WARNING || 0) + (summary.INFO || 0) + (summary.UNKNOWN || 0) }
     function filteredCount() { return severityFilter === "ALL" ? totalCount() : (summary[severityFilter] || 0) }
     function catalogFamilies() {
@@ -190,6 +196,7 @@ AppCard {
             ScrollBar.vertical: AppScrollBar {}
             delegate: ItemDelegate {
                 required property var modelData
+                objectName: "pendingLine-" + modelData.line
                 width: ListView.view.width
                 text: i18n.catalog["issue.line"] + " " + modelData.line + " · " + (i18n.catalog["pending." + modelData.status] || modelData.status || "")
                 onClicked: { root.pendingLineActivated(modelData.line); pendingDialog.close() }

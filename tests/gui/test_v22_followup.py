@@ -183,8 +183,17 @@ def test_compact_cards_and_navigation_interactions(tmp_path: Path, qapp: object)
     flickable = scroll.property("contentItem")
     assert isinstance(flickable, QQuickItem)
     if _find(window, "configCheckPage").property("narrow"):
-        flickable.setProperty("contentY", _find(window, "temporaryEditor").y())
-        QTest.qWait(100)
+        # Panel y is relative to SplitView. Include the workspace preamble and
+        # wait for the real viewport position before sending a mouse click.
+        for _ in range(100):
+            point = scratch_editor.mapToScene(QPointF(80, 100)).toPoint()
+            save_button = _find(window, "temporarySaveButton")
+            save_point = save_button.mapToItem(flickable, QPointF(0, 0))
+            if 0 <= point.y() < window.height() and 0 <= save_point.y() < flickable.height():
+                break
+            target = _find(window, "temporaryEditor").mapToItem(flickable, QPointF(0, 0))
+            flickable.setProperty("contentY", flickable.property("contentY") + target.y() - 8)
+            QTest.qWait(10)
     point = scratch_editor.mapToScene(QPointF(80, 100)).toPoint()
     assert 0 <= point.y() < window.height()
     QTest.mouseClick(window, Qt.MouseButton.LeftButton, pos=point)

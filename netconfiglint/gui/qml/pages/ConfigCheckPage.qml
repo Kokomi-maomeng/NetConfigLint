@@ -31,6 +31,25 @@ Item {
     function openExportDialog() { exportOptions.open() }
     function openTemporaryExportDialog() { temporaryFileDialog.open() }
     function panel(key) { return key === "configuration" ? configEditor : (key === "diagnostics" ? analysisPanel : temporaryEditor) }
+    function savePanelSizes() {
+        var key = root.narrow ? "panelHeights" : "panelWidths"
+        var sizes = preferences.values[key].slice()
+        var keys = ["configuration", "diagnostics", "temporary"]
+        for (var i = 0; i < keys.length; ++i) {
+            var item = panel(keys[i])
+            var value = root.narrow ? item.height : item.width
+            if (item.visible && value >= 100) sizes[i] = Math.round(value)
+        }
+        preferences.setValue(key, sizes)
+    }
+    function restorePanelSizes() {
+        var keys = ["configuration", "diagnostics", "temporary"]
+        for (var i = 0; i < keys.length; ++i) {
+            var item = panel(keys[i])
+            item.SplitView.preferredWidth = preferences.values.panelWidths[i]
+            item.SplitView.preferredHeight = preferences.values.panelHeights[i]
+        }
+    }
     function syncOrder() {
         var order = preferences.values.panelOrder
         for (var i = 0; i < order.length; ++i) {
@@ -192,7 +211,11 @@ Item {
                 objectName: "workspaceContent"
                 width: workspaceScroll.availableWidth
                 readonly property int panelCount: 1 + (analysisPanel.visible ? 1 : 0) + (temporaryEditor.visible ? 1 : 0)
-                readonly property real panelsHeight: root.narrow ? 480 * panelCount + 16 * (panelCount - 1) : 280
+                readonly property real panelsHeight: root.narrow
+                    ? Math.max(400, preferences.values.panelHeights[0])
+                      + (analysisPanel.visible ? Math.max(400, preferences.values.panelHeights[1]) : 0)
+                      + (temporaryEditor.visible ? Math.max(400, preferences.values.panelHeights[2]) : 0)
+                      + 16 * (panelCount - 1) : 280
                 height: Math.max(workspaceScroll.availableHeight, workspacePreamble.height + 12 + panelsHeight)
                 Column {
                     id: workspacePreamble
@@ -227,6 +250,7 @@ Item {
                     onYChanged: root.revealFocusedEditor()
                     onHeightChanged: root.revealFocusedEditor()
                     orientation: root.narrow ? Qt.Vertical : Qt.Horizontal
+                    onResizingChanged: { if (!resizing) Qt.callLater(root.savePanelSizes) }
                     handle: Item {
                         implicitWidth: 16
                         implicitHeight: 16
@@ -237,9 +261,9 @@ Item {
                         objectName: "configurationEditor"
                         editorObjectName: "configurationTextArea"
                         visible: true
-                        SplitView.preferredWidth: 540
+                        SplitView.preferredWidth: preferences.values.panelWidths[0]
                         SplitView.minimumWidth: root.narrow ? 0 : headerMinimumWidth
-                        SplitView.preferredHeight: 480
+                        SplitView.preferredHeight: preferences.values.panelHeights[0]
                         SplitView.minimumHeight: root.narrow ? 400 : 0
                         title: root.controller.editorReadOnly ? i18n.catalog["editor.bundle_preview"] : i18n.catalog["editor.configuration"]
                         titleObjectName: "checkPageTitle"
@@ -262,10 +286,10 @@ Item {
                         property string panelKey: "diagnostics"
                         objectName: "analysisPanel"
                         visible: preferences.values.panels.indexOf(panelKey) >= 0
-                        SplitView.preferredWidth: 340
+                        SplitView.preferredWidth: preferences.values.panelWidths[1]
                         SplitView.minimumWidth: root.narrow ? 0 : 240
                         SplitView.fillHeight: root.narrow
-                        SplitView.preferredHeight: 480
+                        SplitView.preferredHeight: preferences.values.panelHeights[1]
                         SplitView.minimumHeight: root.narrow ? 400 : 0
                         diagnosticsModel: root.controller.diagnosticsModel
                         detection: root.controller.detection
@@ -289,9 +313,9 @@ Item {
                         objectName: "temporaryEditor"
                         editorObjectName: "temporaryTextArea"
                         visible: preferences.values.panels.indexOf(panelKey) >= 0
-                        SplitView.preferredWidth: 300
+                        SplitView.preferredWidth: preferences.values.panelWidths[2]
                         SplitView.minimumWidth: root.narrow ? 0 : headerMinimumWidth
-                        SplitView.preferredHeight: 480
+                        SplitView.preferredHeight: preferences.values.panelHeights[2]
                         SplitView.minimumHeight: root.narrow ? 400 : 0
                         title: i18n.catalog["temporary.local_draft"] + (root.controller.temporaryDirty ? " *" : "")
                         text: syntaxHighlighter.prepareText(temporaryEditor.editor ? temporaryEditor.editor.textDocument : null, root.controller.temporaryText, temporaryEditor.editor)
@@ -426,5 +450,9 @@ Item {
     }
     DropArea { anchors.fill: parent; onDropped: drop => { if (drop.urls.length > 0) root.controller.requestAction("load", String(drop.urls[0])) } }
     Connections { target: root.controller; function onJumpToLine(line, endLine) { Qt.callLater(function() { configEditor.jumpToLine(line) }) } }
+    Connections {
+        target: preferences
+        function onLayoutReset() { root.syncOrder(); root.restorePanelSizes() }
+    }
     Component.onCompleted: Qt.callLater(syncOrder)
 }

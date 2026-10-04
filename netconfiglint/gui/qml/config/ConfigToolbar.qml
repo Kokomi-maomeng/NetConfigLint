@@ -107,6 +107,8 @@ AppCard {
                         }
                     }
                 }
+                MenuSeparator {}
+                MenuItem { objectName: "resetLayoutButton"; text: i18n.catalog["panels.reset_layout"]; onTriggered: preferences.resetWorkspaceLayout() }
             }
         }
     }

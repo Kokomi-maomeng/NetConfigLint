@@ -29,6 +29,7 @@ ApplicationWindow {
     property int currentPage: 0
     property rect normalGeometry: Qt.rect(0, 0, 1440, 900)
     property bool geometryReady: false
+    property bool restoringNormalGeometry: false
     property bool lastNonMinimizedMaximized: false
     property bool wasMinimized: false
     property bool minimizing: false
@@ -53,7 +54,7 @@ ApplicationWindow {
         onTriggered: window.showMinimized()
     }
     function rememberNormalGeometry() {
-        if (geometryReady && !minimizing && !wasMinimized && visibility === Window.Windowed && width >= minimumWidth && height >= minimumHeight)
+        if (geometryReady && !restoringNormalGeometry && !minimizing && !wasMinimized && visibility === Window.Windowed && width >= minimumWidth && height >= minimumHeight)
             normalGeometry = Qt.rect(x, y, width, height)
     }
     Component.onCompleted: {
@@ -87,9 +88,23 @@ ApplicationWindow {
             if (wasMinimized && lastNonMinimizedMaximized) {
                 Qt.callLater(function() { if (window.visibility === Window.Windowed) window.showMaximized() })
             } else if (!minimizing) {
+                // Some compositors choose their own restore rectangle for a
+                // window first opened maximized. Retain our saved normal size.
+                var restoreSavedGeometry = lastNonMinimizedMaximized
+                var savedGeometry = normalGeometry
+                restoringNormalGeometry = restoreSavedGeometry
                 lastNonMinimizedMaximized = false
                 wasMinimized = false
-                Qt.callLater(rememberNormalGeometry)
+                Qt.callLater(function() {
+                    if (restoreSavedGeometry && window.visibility === Window.Windowed) {
+                        window.x = savedGeometry.x
+                        window.y = savedGeometry.y
+                        window.width = savedGeometry.width
+                        window.height = savedGeometry.height
+                    }
+                    window.restoringNormalGeometry = false
+                    window.rememberNormalGeometry()
+                })
             }
             if (!windowStateTransition.running && !openingTransition.running) {
                 shell.opacity = 1

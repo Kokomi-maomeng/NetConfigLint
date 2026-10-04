@@ -114,13 +114,14 @@ def expected_resources(root: Path) -> dict[str, bytes]:
 
 def resource_path(name: str) -> str | None:
     normalized = name.replace("\\", "/")
-    if "netconfiglint/" not in normalized:
-        return None
-    relative = "netconfiglint/" + normalized.split("netconfiglint/", 1)[1]
-    if relative == SUPPORT_RESOURCE or (
-        relative.startswith(RESOURCE_PREFIXES) and PurePosixPath(relative).suffix in RESOURCE_SUFFIXES
-    ):
-        return relative
+    # The Debian deployment directory is itself /opt/netconfiglint. Select the
+    # package resource anchor, rather than treating that outer directory as it.
+    for anchor in re.finditer(r"(?:^|(?<=/))netconfiglint/", normalized):
+        relative = "netconfiglint/" + normalized[anchor.end() :]
+        if relative == SUPPORT_RESOURCE or (
+            relative.startswith(RESOURCE_PREFIXES) and PurePosixPath(relative).suffix in RESOURCE_SUFFIXES
+        ):
+            return relative
     return None
 
 
