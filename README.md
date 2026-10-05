@@ -326,7 +326,7 @@ checking the final dependency closure.
 .\scripts\build_msi.ps1 -SkipAppBuild
 ```
 
-The portable command creates `release/NetConfigLint-2.4.0-windows-x64-portable.zip`. Extract the
+The portable command creates `release/NetConfigLint-<version>-windows-x64-portable.zip`. Extract the
 single top-level folder and start `NetConfigLint.exe`; the Nuitka build uses the Windows GUI
 subsystem and therefore does not open a console window.
 

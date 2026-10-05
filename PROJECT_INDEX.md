@@ -1,48 +1,53 @@
 # NetConfigLint 项目总索引
 
-当前开发版本为 v3.0：37 项体验问题的逐项修复、补全资料与适用范围、保存保护、全文搜索及三端安装程序。见 [v3.0 修复记录](docs/v3.0-ux-repairs.md) 和 [命令支持范围](docs/v3.0-command-support.md)。历史交付与回退资料继续保留。
+更新时间：2026-10-06。当前源码为 v3.0.0，产品基线提交 `7854236c700e1d23a59b35ce71ca01a483de1396`；`v3.0.0` 标签解析到同一提交。GitHub 已公开发布 Windows 便携 ZIP、Windows MSI、Linux amd64 DEB 和 macOS arm64 PKG。
 
-本索引供后续开发任务从当前工作区继续使用。更新时间：2026-10-04。先读本文，再按所需版本打开对应文档和本地归档。Git 标签和提交是源码历史的依据；安装包以 SHA-256 核对，不根据文件名推断版本或发布状态。
+先读本文。空间维护规则见 [本地文件整理、查找与恢复](docs/local-storage-maintenance.md) 与 [项目工作规则](AGENTS.md)。本次完整扫描、删除清单、恢复验证和占用结果在本机 [2026-10-06 清理报告](archive/maintenance/2026-10-06/REPORT.zh-CN.md)。本地私有目录已被 Git 忽略。
 
-## 当前基线
+## 当前开发与发布资料
 
-- v2.4 通用 Huawei VRP / H3C Comware 7 命令族识别、中文说明与建议翻译已完成本地候选验收；Windows 与 Debian 13 各 590 项测试通过。Windows 便携候选包位于 `release/NetConfigLint-2.4.0-windows-x64-portable.zip`，本地 SHA-256 和范围限制见 `docs/v2.4-command-catalog-and-i18n.md`。GitHub Release 的独立构建包须按公开下载结果另行验证。
-- v2.3 GUI 已并入 `main`，最小窗口宽度的 macOS 边界修复正在验收。Windows 本地便携包为 `release/NetConfigLint-2.3.0-windows-x64-portable.zip`，SHA-256 `488691cb7ef089988424f9aa4dcd42aa1fa8626e3ef0e0730c7bfc1634e58df6`。GitHub 发布状态与下载包校验值需按 [v2.3.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v2.3.0) 现场核对。见 `docs/v2.3-gui-acceptance.md`。
-- v2.2 开发分支为 `codex/v2.2-gui-portable`，候选改动见 [PR #6](https://github.com/Kokomi-maomeng/NetConfigLint/pull/6)；此前 `main` 的 v2.1 合并提交为 `0c62984`。公开版本以 Git 标签和 Release 实际资产为准，后续任务应重新检查分支、HEAD、CI 与下载状态。
-- v2.0 历史发布文件：`release/` 内 Windows 便携 ZIP、Windows 未签名 MSI、Linux amd64 DEB、macOS arm64 未签名 PKG，以及对应的官方 `SHA256SUMS.txt`。这些文件于 2026-09-24 与 [GitHub v2.0.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v2.0.0) 资产 SHA-256 逐项核对。`release/` 为本地目录，已被 Git 忽略。
-- v2.2 本地验收产物：`release/NetConfigLint-2.2.0-windows-x64-portable.zip` 与同名 `.sha256`。GitHub Release 会独立构建便携 ZIP，其校验值须与实际下载文件核对；证据和限制见 `docs/v2.2-gui-acceptance.md`。
-- 源码入口：`netconfiglint/`；自动化和发布：`scripts/`、`.github/workflows/`；测试：`tests/`；许可：`licenses/`、`THIRD_PARTY_NOTICES.md`。
-- 不要将本地 `archive/`、`release/`、`build/`、`.venv/` 或实际设备资料加入 Git。历史审计资料可能包含真实配置导出的分析结果，归档仅留本机。
+- 产品源码：`netconfiglint/`；可复用构建、发布与验证脚本：`scripts/`、`.github/workflows/`；测试：`tests/`；许可：`licenses/`、`THIRD_PARTY_NOTICES.md`。当前可用开发环境 `.venv/` 保留。
+- [v3.0 修复记录](docs/v3.0-ux-repairs.md)、[命令支持范围](docs/v3.0-command-support.md) 与 [公开 v3.0.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v3.0.0)。本地 `release/` 仅保留各平台/架构/包类型最新合格包和校验文件，旧包按固定下载地址或候选差异恢复。
+- 后续验收问题：本机 [Debian/Linux 与 Windows 用户体验报告](docs/audits/v3.0.0-linux-user-2026-10-05/REPORT.zh-CN.md) 和 [问题登记](docs/audits/v3.0.0-linux-user-2026-10-05/问题登记.csv)。L01–L14 与 W-OBS01 保留原记录；文件清理没有修复这些产品问题。
+- 历史审计报告、原聊天 ID 和产物关系见 [聊天与任务目录](archive/TASKS.md)。上次整理的状态是 2026-09-24 的历史记录，以新的索引、实际 Git/Release 和恢复清单为准。
 
-## 历次版本与增量
+## 历次版本与记录
 
-| 阶段 | 标签 / 工作内容 | 主要产出与记录 |
+| 阶段 | 主要内容 | 记录 |
 | --- | --- | --- |
-| 初版 | `v1.0.0-beta.1`、`v1.1.0-beta.1` | 离线分析核心、CLI/QML 桌面雏形、基础 Huawei VRP 规则、早期 ZIP 和安装程序；`docs/release-v1.0.0-beta.1.md`、`docs/release-v1.1.0-beta.1.md`。 |
-| v1.2 | `v1.2.0` | Huawei 规则与合成用例扩充、便携包和三端 CI；`docs/release-v1.2.0.md`。 |
-| v1.3 | `v1.3.0` | QML 交互、布局、编辑器和便携包改进；`docs/release-v1.3.0.md`。 |
-| v1.4 | `v1.4.0` | Material 界面、导出流程；完整审计与复现证据在 `docs/v1.4-acceptance.md` 及本地 `archive/evidence/v1.4-audit-full/`。 |
-| v1.5 | `v1.5.0` | 根据 v1.4 审计修复 P1/P2/P3，完善 Huawei 配置语义和默认片段模式；`docs/v1.5-audit-repairs.md`、`docs/v1.5-huawei-repairs.md`、`docs/v1.5-acceptance.md`。 |
-| v2.0 | `v2.0.0` | H3C Comware 分析与 UNKNOWN 来源映射、真实诊断包导入/导出、界面细节、四平台打包；`docs/h3c-command-support.md`、`docs/v2.0-audit-report.md`、`docs/v2.0-acceptance.md`。 |
-| v2.1 | 合并提交 `0c62984` | 四种检查模式、历史恢复、Windows 便携包；`docs/v2.1-change-scope.md`。本地 ZIP 在 `release/`。 |
-| v2.2 | `codex/v2.2-gui-portable`、PR #6 | 窗口状态与 GUI 重建、编辑区选区与缩放、Windows 便携 ZIP；`docs/v2.2-gui-acceptance.md`。Debian 13 已完成 X11 冒烟，macOS 以托管 CI 和源码检查为边界。 |
-| v2.3 | `codex/v2.3-gui-portable` | 四角、设置折叠、编辑器选区与查找、Ctrl+F 开关、卡片最小宽度、Windows 便携 ZIP；`docs/v2.3-gui-acceptance.md`。 |
-| v2.4 | `codex/v2.4-command-catalog-i18n` | 通用 VRP/Comware 命令族目录、覆盖状态区分、中文注释排除、H3C 运行与安全诊断文案双语；`docs/v2.4-command-catalog-and-i18n.md`。 |
-| 标签后 | `13ee32a` 前的三次提交 | 发布工作流及审计修正；以 `git log v2.0.0..main` 查看。 |
+| 初版 | v1.0/v1.1 Beta，离线核心、CLI/QML 雏形 | `docs/release-v1.0.0-beta.1.md`、`docs/release-v1.1.0-beta.1.md` |
+| v1.2 | Huawei 规则与用例、便携包及三端 CI | `docs/release-v1.2.0.md` |
+| v1.3 | QML 交互、布局、编辑器和便携包 | `docs/release-v1.3.0.md` |
+| v1.4 | Material 界面与导出，完整审计 | `docs/v1.4-acceptance.md`；本机 `archive/evidence/v1.4-audit-full/` |
+| v1.5 | 审计修复、Huawei 配置语义与片段模式 | `docs/v1.5-audit-repairs.md`、`docs/v1.5-huawei-repairs.md`、`docs/v1.5-acceptance.md` |
+| v2.0 | H3C、UNKNOWN 来源、诊断包与三端安装包 | `docs/h3c-command-support.md`、`docs/v2.0-audit-report.md`、`docs/v2.0-acceptance.md` |
+| v2.1 | 检查模式、历史恢复、便携化 | `docs/v2.1-change-scope.md`；没有对应公开 Release，本地必要 ZIP 差异保留 |
+| v2.2 | GUI 重建、窗口状态、选区与缩放 | `docs/v2.2-gui-acceptance.md` |
+| v2.3 | 窗口四角、设置、查找和卡片布局 | `docs/v2.3-gui-acceptance.md` |
+| v2.4 | 通用命令族识别与诊断文案双语 | `docs/v2.4-command-catalog-and-i18n.md` |
+| v2.5 | v2.4 审计修复与发布验收 | `docs/v2.5-repairs-and-qualification.md` |
+| v2.6 | 厂商独立检测、参数感知补全与完整体验审计 | `docs/v2.6-command-completion.md`；本机 `docs/audits/v2.6.0-user-2026-10-02/` |
+| v3.0 | 37 项修复、保存保护、搜索与三端安装程序 | `docs/v3.0-ux-repairs.md`、`docs/v3.0-command-support.md`；新的体验问题见当前报告 |
 
-每个标签的完整源码快照、相邻版本的 `git diff --binary` 增量补丁及变更文件清单，保存在本地 `archive/source-history/`。旧版完整发布包及既有解压目录在 `archive/versions/<版本>/`。源码提交、分支和标签仍保留在 Git 中；本地另有 `archive/source-history/all-refs.bundle` 离线备份。
+## 本地归档与旧路径
 
-## 归档与任务交接
+- [归档说明](archive/README.md)：内容库、源码历史、用户数据、恢复方法和范围。
+- `archive/evidence-store/2026-10-06/content.zip` 与 `paths.json.gz`：唯一内容、候选包差异及原路径索引。两者必须配套保留。
+- [历史发布入口](archive/versions/README.md)：正式包的原版本页面和候选包定位。
+- `archive/build-path-map-2026-09-24.csv`：旧 `build/<名称>` 的第一阶段迁移映射。现在查找工具会继续定位到内容库、公开资产或历史引用。
+- `archive/operations-2026-09-24.md`：上次迁移记录，保留当时状态；当前路径以本次清理清单为准。
+- `archive/user-data-backups/`：用户数据原备份，保持原目录与字节内容。
 
-- `archive/README.md`：本地归档结构、文件来源、恢复方法和范围限制。
-- `archive/TASKS.md`：先前 Codex 任务标题、任务 ID、内容、产出及归档状态。任务原文仍保留在 Codex 任务历史中，不复制对话原文或凭据到仓库。
-- `archive/build-path-map-2026-09-24.csv`：旧 `build/<名称>` 到分类后位置的逐项映射。历史文档提到旧路径时按此表定位。
-- `archive/operations-2026-09-24.md`：整理操作记录、验证及回退说明。
+```powershell
+python scripts/local_storage.py locate "build/native_max_probe.py"
+python scripts/local_storage.py restore "build/native_max_probe.py"
+python scripts/local_storage.py restore "release/NetConfigLint-2.4.0-windows-x64-portable.zip" --download
+```
 
-后续在当前“NetConfigLint 项目总任务”继续即可；先前任务作为可检索的归档留存。Codex 没有把多个任务原始消息物理合成为单条对话的功能，因此用此索引与任务 ID 汇总内容和证据。
+默认恢复到 `build/restored-history/<原路径>`，不会覆盖当前文件。必要旧候选包按共享段与本地差异精确重建；运行时产生的数据单独保留。缓存/旧环境按记录重建。9 个清理前已缺失的旧引用已登记文档与原聊天位置，不声称其原始输出已经恢复。
 
-## 回退与验证
+## 源码回退与校验
 
-查看旧版源码：`git worktree add <独立目录> v1.5.0`。不要直接覆盖当前工作区。若远端不可用，可用 `git bundle verify archive/source-history/all-refs.bundle` 检查本地备份，再按 Git bundle 的标准流程恢复。旧版安装包按 `archive/release-files.sha256` 校验；v2.2 本地便携包按 `release/NetConfigLint-2.2.0-windows-x64-portable.zip.sha256` 校验，公开便携包按 GitHub Release 提供的 `SHA256SUMS.txt` 校验。
+Git 标签、分支和提交仍是源码历史依据。查看旧源码使用 `git worktree add <独立目录> v1.5.0`。本地 `archive/source-history/` 保留原快照、增量及旧 bundle，并新增 `all-refs-2026-10-06.bundle`，覆盖本次维护前的全部本地引用。先运行 `git bundle verify <bundle路径>`，校验和见同目录 `SHA256SUMS.txt`。
 
-历史测试、CI 和审计只证明对应提交、产物与运行环境。H3C 未建模命令以 UNKNOWN 表示；托管 macOS 验收不代表任意用户硬件。当前功能或公开下载状态应在新任务中重新核实。
+历史记录只证明对应提交、包和环境。H3C/Huawei 未建模或未知目标保留 Unknown，托管 macOS 检查不等于所有硬件验收。公开状态在新的发布/清理任务中重新核验。独有资料留在本地内容库；公开恢复依赖可能受后来删除或网络不可用影响，本地归档仍不是异地备份。
