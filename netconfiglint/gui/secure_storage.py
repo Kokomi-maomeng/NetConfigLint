@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 import os
 import stat
+import sys
 import tempfile
 from pathlib import Path
 
@@ -28,6 +29,8 @@ def has_link_ancestor(path: Path) -> bool:
 
 
 def _windows_private_acl(path: Path, *, directory: bool) -> None:
+    if sys.platform != "win32":
+        raise OSError("Windows private permissions are unavailable on this platform")
     # chmod on Windows does not remove inherited read access. Use a protected
     # DACL granting the current token user, SYSTEM and local Administrators.
     from ctypes import wintypes

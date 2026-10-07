@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import stat
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -95,6 +96,8 @@ def writable_destination(identity: FileIdentity) -> bool:
 
 
 def _check_windows_write_access(path: Path) -> None:
+    if sys.platform != "win32":
+        raise OSError("Windows file access checks are unavailable on this platform")
     import ctypes
     from ctypes import wintypes
 
@@ -131,6 +134,8 @@ def _preserve_metadata(source: Path, temporary: Path) -> None:
 
 
 def _preserve_windows_owner(source: Path, temporary: Path) -> None:
+    if sys.platform != "win32":
+        raise OSError("Windows ownership checks are unavailable on this platform")
     import ctypes
     from ctypes import wintypes
 
@@ -164,7 +169,7 @@ def _preserve_windows_owner(source: Path, temporary: Path) -> None:
 
 
 def _replace(temporary: Path, target: Path, existing: bool) -> None:
-    if os.name == "nt" and existing:
+    if sys.platform == "win32" and existing:
         # ReplaceFileW merges the original DACL, streams and Windows metadata.
         # Do not ignore merge errors: preserving metadata is part of saving.
         import ctypes
