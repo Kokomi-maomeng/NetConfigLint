@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -25,6 +26,24 @@ from netconfiglint.core.lexer import normalize_cli_line
 VENDORS = ("h3c", "huawei")
 LABELS = {"h3c": "H3C", "huawei": "Huawei"}
 _INTERFACE_TYPES = INTERFACE_TYPES
+
+
+class CompletionCancelled(Exception):
+    """A superseded interactive request stopped before producing any result."""
+
+
+def _unique_extend(
+    row: dict[str, object], field: str, values: Iterable[object], seen: dict[str, set[str]]
+) -> None:
+    """Keep source order without quadratic comparisons in large command groups."""
+    target = row[field]
+    assert isinstance(target, list)
+    known = seen.setdefault(field, set())
+    for value in values:
+        identity = value if isinstance(value, str) else json.dumps(value, sort_keys=True, ensure_ascii=False)
+        if identity not in known:
+            known.add(identity)
+            target.append(value)
 
 
 @lru_cache(maxsize=8)
@@ -364,10 +383,58 @@ def _legacy_requested(entry: Command, words: list[str], prefix: str) -> bool:
     return False
 
 
+def _syntax_details(entry: Command) -> list[dict[str, object]]:
+    return [
+        {
+            "syntax": entry.syntax,
+            "sources": [origin["url"]],
+            "views": origin.get("views", []),
+            "scopes": [origin.get("manual", "")],
+            "annotations": origin.get("annotations", []),
+        }
+        for origin in entry.provenance
+    ] or [
+        {
+            "syntax": entry.syntax,
+            "sources": [entry.source],
+            "views": list(entry.views),
+            "scopes": list(entry.scopes),
+            "annotations": list(entry.annotations),
+        }
+    ]
+
+
+def interactive_requires_async(source: str, cursor: int) -> bool:
+    """Keep catalog loading and broad/large-document work off the GUI thread."""
+    if len(source) > 10_000 or not _index.cache_info().currsize:
+        return True
+    position = _python_offset(source, cursor)
+    before, _ = normalize_cli_line(source[source.rfind("\n", 0, position) + 1 : position])
+    words = before.split()
+    return len(_entries(words[0].lower() if words else "")) > 256
+
+
 def complete(
-    source: str, cursor: int, selected: tuple[str, ...] = (), manuals: tuple[str, ...] = ()
+    source: str,
+    cursor: int,
+    selected: tuple[str, ...] = (),
+    manuals: tuple[str, ...] = (),
+    *,
+    include_details: bool = True,
+    detail_key: str = "",
+    cancelled: Callable[[], bool] | None = None,
 ) -> dict[str, object]:
-    """Return replacements in QML coordinates, with common-prefix shell behavior."""
+    """Return replacements in QML coordinates, with common-prefix shell behavior.
+
+    Interactive callers omit bulk provenance and load a selected ``detailKey``
+    separately. The default retains the full metadata API for offline callers.
+    """
+
+    def check_cancelled() -> None:
+        if cancelled is not None and cancelled():
+            raise CompletionCancelled
+
+    check_cancelled()
     position = _python_offset(source, cursor)
     line_start = source.rfind("\n", 0, position) + 1
     line_end = source.find("\n", position)
@@ -398,10 +465,14 @@ def complete(
         vendors = detect_vendors(context)
     view = _view(source, line_start)
     matches: dict[tuple[str, str], dict[str, object]] = {}
+    item_seen: dict[tuple[str, str], dict[str, set[str]]] = {}
     arguments: set[str] = set()
     argument_details: dict[tuple[str, str], dict[str, object]] = {}
+    argument_seen: dict[tuple[str, str], dict[str, set[str]]] = {}
     paths: list[tuple[Command, set[str], tuple[int, ...]]] = []
-    for entry in _entries((words[0] if words else prefix).lower()):
+    for index, entry in enumerate(_entries((words[0] if words else prefix).lower())):
+        if index % 128 == 0:
+            check_cancelled()
         if entry.vendor not in vendors:
             continue
         if manuals and not any(scope in manuals for scope in entry.scopes):
@@ -419,7 +490,9 @@ def complete(
         vendor: max((score for entry, _, score in paths if entry.vendor == vendor), default=())
         for vendor in vendors
     }
-    for entry, next_tokens, score in paths:
+    for index, (entry, next_tokens, score) in enumerate(paths):
+        if index % 128 == 0:
+            check_cancelled()
         if score != best_scores[entry.vendor]:
             continue
         relevance = 0 if view in entry.views else 1 if "any" in entry.views or view == "any" else 2
@@ -450,6 +523,8 @@ def complete(
                         "description": description,
                         "sources": [],
                         "syntaxes": [],
+                        "syntaxDetails": [],
+                        "detailKey": "argument:" + (kind or token) + ":" + status,
                     },
                 )
                 for field, incoming in (
@@ -457,9 +532,17 @@ def complete(
                     ("sources", list(entry.sources or (entry.source,))),
                     ("syntaxes", [entry.syntax]),
                 ):
-                    existing = detail[field]
-                    assert isinstance(existing, list)
-                    existing.extend(value for value in incoming if value not in existing)
+                    if include_details or field == "aliases" or not detail[field]:
+                        _unique_extend(
+                            detail, field, incoming, argument_seen.setdefault((kind or token, status), {})
+                        )
+                if include_details:
+                    _unique_extend(
+                        detail,
+                        "syntaxDetails",
+                        _syntax_details(entry),
+                        argument_seen.setdefault((kind or token, status), {}),
+                    )
                 values.update(
                     (value, "interface-type" if kind == "interface-type" else "object:" + kind)
                     for value in _parameter_values(token, entry.vendor, context, entry.syntax, words)
@@ -475,6 +558,9 @@ def complete(
             if not token.lower().startswith(prefix.lower()):
                 continue
             identity = (kind, token) if kind.startswith("object:") else ("cli", token.casefold())
+            key = identity[0] + ":" + identity[1]
+            if detail_key and detail_key != key:
+                continue
             item = matches.setdefault(
                 identity,
                 {
@@ -492,6 +578,7 @@ def complete(
                     "syntaxes": [],
                     "sourceDetails": [],
                     "syntaxDetails": [],
+                    "detailKey": key,
                 },
             )
             item_vendors = item["vendors"]
@@ -506,30 +593,12 @@ def complete(
                 ("syntaxes", [entry.syntax]),
                 ("sourceDetails", list(entry.provenance)),
             ):
-                existing = item[field]
-                assert isinstance(existing, list)
-                existing.extend(value for value in metadata_values if value not in existing)
-            syntax_details = item["syntaxDetails"]
-            assert isinstance(syntax_details, list)
-            details = [
-                {
-                    "syntax": entry.syntax,
-                    "sources": [origin["url"]],
-                    "views": origin.get("views", []),
-                    "scopes": [origin.get("manual", "")],
-                    "annotations": origin.get("annotations", []),
-                }
-                for origin in entry.provenance
-            ] or [
-                {
-                    "syntax": entry.syntax,
-                    "sources": [entry.source],
-                    "views": list(entry.views),
-                    "scopes": list(entry.scopes),
-                    "annotations": list(entry.annotations),
-                }
-            ]
-            syntax_details.extend(value for value in details if value not in syntax_details)
+                if include_details or (field == "views") or (field != "sourceDetails" and not item[field]):
+                    _unique_extend(item, field, metadata_values, item_seen.setdefault(identity, {}))
+            if include_details:
+                _unique_extend(
+                    item, "syntaxDetails", _syntax_details(entry), item_seen.setdefault(identity, {})
+                )
             if relevance < int(str(item["rank"])):
                 item.update(syntax=entry.syntax, source=entry.source, rank=relevance)
     items = sorted(matches.values(), key=lambda item: (int(str(item["rank"])), str(item["text"]).lower()))

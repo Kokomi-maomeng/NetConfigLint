@@ -24,6 +24,14 @@ def find(window: QQuickWindow, name: str) -> QObject:
     return obj or next(child for child in descendants(window.contentItem()) if child.objectName() == name)
 
 
+def wait_for(predicate) -> None:
+    for _ in range(500):
+        if predicate():
+            return
+        QTest.qWait(10)
+    assert predicate()
+
+
 @pytest.fixture
 def desktop(qapp: object, tmp_path: Path):
     controller = AnalysisController(
@@ -48,6 +56,9 @@ def test_tab_popup_keyboard_accept_and_undo(desktop: tuple, name: str) -> None:
     editor.forceActiveFocus()
     QTest.keyClick(window, Qt.Key.Key_Tab)
     popup = find(window, name + "CompletionPopup")
+    wait_for(
+        lambda: popup.property("visible") and find(window, name + "CompletionList").property("count") >= 2
+    )
     assert popup.property("visible")
     assert editor.property("text") == "sys"
     candidate_list = find(window, name + "CompletionList")
@@ -81,12 +92,14 @@ def test_unique_middle_and_parameter_completion(desktop: tuple, name: str) -> No
     editor.setProperty("cursorPosition", 5)
     editor.forceActiveFocus()
     QTest.keyClick(window, Qt.Key.Key_Tab)
+    wait_for(lambda: editor.property("text") == "sysname suffix\nnext")
     assert editor.property("text") == "sysname suffix\nnext"
     QMetaObject.invokeMethod(editor, "undo")
     assert editor.property("text") == "sysnam-old suffix\nnext"
     editor.setProperty("text", "peer 192.0.2.1 as-n")
     editor.setProperty("cursorPosition", len(editor.property("text")))
     QTest.keyClick(window, Qt.Key.Key_Tab)
+    wait_for(lambda: editor.property("text") == "peer 192.0.2.1 as-number ")
     assert editor.property("text") == "peer 192.0.2.1 as-number "
 
 
@@ -98,6 +111,7 @@ def test_cancellation_selection_readonly_and_stale_candidates(desktop: tuple) ->
     editor.setProperty("cursorPosition", 3)
     editor.forceActiveFocus()
     QTest.keyClick(window, Qt.Key.Key_Tab)
+    wait_for(lambda: popup.property("visible"))
     QTest.keyClick(window, Qt.Key.Key_Escape)
     for _ in range(50):
         if not popup.property("visible"):
@@ -105,6 +119,7 @@ def test_cancellation_selection_readonly_and_stale_candidates(desktop: tuple) ->
         QTest.qWait(10)
     assert editor.property("text") == "sys" and not popup.property("visible")
     QTest.keyClick(window, Qt.Key.Key_Tab)
+    wait_for(lambda: popup.property("visible"))
     QTest.keyClick(window, Qt.Key.Key_A)
     for _ in range(50):
         if not popup.property("visible"):
@@ -151,11 +166,13 @@ def test_unicode_offset_and_popup_bounds(desktop: tuple) -> None:
     editor.setProperty("cursorPosition", len(source.encode("utf-16-le")) // 2)
     editor.forceActiveFocus()
     QTest.keyClick(window, Qt.Key.Key_Tab)
+    wait_for(lambda: editor.property("text") == source[:-6] + "sysname ")
     assert editor.property("text") == source[:-6] + "sysname "
     editor.setProperty("text", "sys")
     editor.setProperty("cursorPosition", 3)
     QTest.keyClick(window, Qt.Key.Key_Tab)
     popup = find(window, "temporaryTextAreaCompletionPopup")
+    wait_for(lambda: popup.property("visible"))
     assert popup.property("visible")
     assert popup.property("x") >= 0 and popup.property("y") >= 0
     assert popup.property("x") + popup.property("width") <= window.width()
@@ -172,6 +189,7 @@ def test_mouse_accept_and_changed_document_rejects_stale_popup(desktop: tuple, n
     QTest.keyClick(window, Qt.Key.Key_Tab)
     candidate_list = find(window, name + "CompletionList")
     popup = find(window, name + "CompletionPopup")
+    wait_for(lambda: popup.property("visible"))
     for _ in range(50):
         if popup.property("opened"):
             break

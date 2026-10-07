@@ -21,9 +21,23 @@ from netconfiglint.core.analyzer.control import (
 from netconfiglint.core.diagnostics import Confidence, Diagnostic, Severity, SourceRange
 from netconfiglint.core.input import DecodedNetworkText, read_network_text
 from netconfiglint.gui.exporting import render_report
+from netconfiglint.gui.file_saving import (
+    FileChangedError,
+    FileIdentity,
+    SaveRecoveryError,
+    file_identity,
+    inspect_destination,
+    save_configuration,
+    writable_destination,
+)
 from netconfiglint.gui.i18n import TranslationController
 from netconfiglint.gui.models import DiagnosticListModel, HistoryListModel, HistoryStore
 from netconfiglint.gui.models.history import HistoryEntry, default_temporary_path, local_timestamp
+from netconfiglint.gui.secure_storage import (
+    atomic_write_private,
+    make_private_directory,
+    protect_private_file,
+)
 from netconfiglint.vendors import registry
 
 Analyzer = Callable[[str, str, str], AnalysisResult]
@@ -35,6 +49,7 @@ class _LoadedInput:
     decoded: DecodedNetworkText
     preview: tuple[str, dict[int, int]] | None
     revision: int
+    identity: FileIdentity
 
 
 @dataclass(frozen=True)
@@ -43,6 +58,7 @@ class _CompletedAnalysis:
     entries: list[HistoryEntry] | None
     history_error: bool
     history_epoch: int
+    new_entry_id: str | None
 
 
 class AnalysisController(QObject):
@@ -73,6 +89,7 @@ class AnalysisController(QObject):
     unsavedRequested = Signal()
     saveAsRequested = Signal(str)
     closeApproved = Signal()
+    fileConflictRequested = Signal()
 
     def __init__(
         self,
@@ -96,18 +113,25 @@ class AnalysisController(QObject):
         self._status_message = ""
         self._file_name = ""
         self._file_path: Path | None = None
+        self._file_identity: FileIdentity | None = None
+        self._file_conflict: dict[str, Any] = {}
+        self._conflict_path: Path | None = None
+        self._conflict_identity: FileIdentity | None = None
         self._saved_source = ""
         self._source_identity = "new"
         self._initial_view = ""
         self._running_initial_view = ""
         self._pending_action: tuple[str, str] | None = None
         self._pending_save_scopes: list[str] = []
-        self._example_snapshot: tuple[str, str, str, Path | None, str, str, str, str] | None = None
+        self._example_snapshot: (
+            tuple[str, str, str, Path | None, str, str, str, str, FileIdentity | None] | None
+        ) = None
         self._revision = 0
         self._loading = False
         self._load_revision = -1
         self._history_epoch = 0
         self._running_revision = -1
+        self._running_privacy_token: str | None = None
         self._result_current = False
         self._export_payload: str | None = None
         self._closing = False
@@ -129,13 +153,19 @@ class AnalysisController(QObject):
             else default_temporary_path()
         )
         try:
+            if self._temporary_path.exists() or self._temporary_path.is_symlink():
+                make_private_directory(self._temporary_path.parent)
+                protect_private_file(self._temporary_path)
             with self._temporary_path.open("rb") as saved:
                 contents = saved.read(16_000_001)
             self._temporary_text = (
                 contents.decode("utf-8").replace("\r\n", "\n") if len(contents) <= 16_000_000 else ""
             )
+        except FileNotFoundError:
+            self._temporary_text = ""
         except (OSError, UnicodeError):
             self._temporary_text = ""
+            self._status_message = "temporary.private_error"
         self._saved_temporary = self._temporary_text
         self._result_timestamp = ""
         self._fileLoaded.connect(self._apply_loaded_input)
@@ -182,10 +212,7 @@ class AnalysisController(QObject):
             self.toastRequested.emit("temporary.save_error")
             return
         try:
-            self._temporary_path.parent.mkdir(parents=True, exist_ok=True)
-            temporary = self._temporary_path.with_suffix(".tmp")
-            temporary.write_text(value, encoding="utf-8", newline="")
-            temporary.replace(self._temporary_path)
+            atomic_write_private(self._temporary_path, value)
         except OSError:
             self.toastRequested.emit("temporary.save_error")
             return
@@ -317,7 +344,7 @@ class AnalysisController(QObject):
         return self._history_store.enabled
 
     def _set_history_enabled(self, value: bool) -> None:
-        if value != self._history_store.enabled:
+        if not value or value != self._history_store.enabled:
             self._history_epoch += 1
             try:
                 self._history_store.set_enabled(value)
@@ -367,8 +394,15 @@ class AnalysisController(QObject):
 
     @staticmethod
     def _read_input_file(path: Path, revision: int) -> _LoadedInput:
+        identity = file_identity(path)
+        if identity is None:
+            raise FileNotFoundError
         decoded = read_network_text(path, AnalysisLimits())
-        return _LoadedInput(path, decoded, registry.extract_configuration_preview(decoded.text), revision)
+        if file_identity(path) != identity:
+            raise FileChangedError("Input changed while loading")
+        return _LoadedInput(
+            path, decoded, registry.extract_configuration_preview(decoded.text), revision, identity
+        )
 
     @Slot(str)
     def loadFile(self, value: str) -> None:
@@ -433,6 +467,7 @@ class AnalysisController(QObject):
         }
         self._file_name = item.path.name
         self._file_path = item.path
+        self._file_identity = item.identity
         self._saved_source = self._source_text
         self._source_identity = "file"
         self.workspaceChanged.emit()
@@ -496,6 +531,11 @@ class AnalysisController(QObject):
         self._running_revision = self._revision
         self._running_initial_view = self._initial_view if self._mode == "snippet" else ""
         self._cancellation = CancellationToken()
+        try:
+            self._running_privacy_token = self._history_store.privacy_token()
+        except OSError:
+            self._running_privacy_token = "unavailable"
+            self.toastRequested.emit("history.write_error")
         self._set_busy(True)
         self._set_status("analysis.running")
         if not self._async_enabled:
@@ -509,6 +549,7 @@ class AnalysisController(QObject):
             self._cancellation,
             self._active_history_id,
             self._history_epoch,
+            self._running_privacy_token,
         )
         future.add_done_callback(self._worker_done)
 
@@ -540,11 +581,13 @@ class AnalysisController(QObject):
         cancellation: CancellationToken,
         active_history_id: str | None,
         epoch: int,
+        privacy_token: str | None,
     ) -> _CompletedAnalysis:
         result = self._analyze_input(source, mode, vendor, cancellation)
         if cancellation.cancelled:
             raise AnalysisCancelled()
         entries = None
+        new_entry_id = None
         error = False
         if self._history_store.enabled and active_history_id is None:
             store = HistoryStore(
@@ -555,18 +598,19 @@ class AnalysisController(QObject):
                 retention=self._history_store.retention,
             )
             try:
-                store.append(
+                new_entry_id = store.append(
                     result,
                     source,
                     vendor,
                     title=self._file_name,
                     initial_view=self._running_initial_view,
                     guard=lambda: epoch == self._history_epoch and not cancellation.cancelled,
+                    privacy_token=privacy_token,
                 )
                 entries = list(store.entries)
             except OSError:
                 error = True
-        return _CompletedAnalysis(result, entries, error, epoch)
+        return _CompletedAnalysis(result, entries, error, epoch, new_entry_id)
 
     def _analyze_input(
         self, source: str, mode: str, vendor: str, cancellation: CancellationToken
@@ -626,19 +670,22 @@ class AnalysisController(QObject):
                 if completed.history_error:
                     raise OSError("Background history write failed")
                 if completed.entries is not None and completed.history_epoch == self._history_epoch:
-                    self._history_store.entries = completed.entries
-                    if completed.entries:
-                        self._active_history_id = completed.entries[0].entry_id
+                    self._history_store.refresh()
+                    if completed.new_entry_id and any(
+                        entry.entry_id == completed.new_entry_id for entry in self._history_store.entries
+                    ):
+                        self._active_history_id = completed.new_entry_id
             elif self._active_history_id is None:
-                self._history_store.append(
+                new_entry_id = self._history_store.append(
                     result,
                     self._source_text,
                     self._vendor,
                     title=self._file_name,
                     initial_view=self._running_initial_view,
+                    privacy_token=self._running_privacy_token,
                 )
-                if self._history_store.enabled and self._history_store.entries:
-                    self._active_history_id = self._history_store.entries[0].entry_id
+                if new_entry_id:
+                    self._active_history_id = new_entry_id
             active_entry = (
                 self._history_store.get(self._active_history_id) if self._active_history_id else None
             )
@@ -938,6 +985,7 @@ class AnalysisController(QObject):
                 self._vendor,
                 self._mode,
                 self._initial_view,
+                self._file_identity,
             )
             self.clear()
             self._set_vendor("h3c")
@@ -951,13 +999,16 @@ class AnalysisController(QObject):
             self.clear()
             self._set_source_text(self._temporary_text)
         elif action == "undo_example" and self._example_snapshot is not None:
-            text, saved, name, path, identity, vendor, mode, initial_view = self._example_snapshot
+            text, saved, name, path, identity, vendor, mode, initial_view, file_identity = (
+                self._example_snapshot
+            )
             self._set_vendor(vendor)
             self._set_mode(mode)
             self._set_initial_view(initial_view)
             self._set_source_text(text)
             self._saved_source, self._file_name = saved, name
             self._file_path, self._source_identity = path, identity
+            self._file_identity = file_identity
             self._example_snapshot = None
             self.fileNameChanged.emit()
             self.workspaceChanged.emit()
@@ -979,21 +1030,86 @@ class AnalysisController(QObject):
     def saveSourceFile(self, value: str) -> bool:
         path = Path(QUrl(value).toLocalFile() if value.startswith("file:") else value)
         try:
-            import tempfile
+            current = inspect_destination(path)
+            same_path = self._file_path is not None and path.absolute() == self._file_path.absolute()
+            reason = ""
+            if current is not None and not writable_destination(current):
+                reason = "readonly"
+            elif same_path and current != self._file_identity:
+                reason = "changed"
+            elif current is not None and current.links:
+                reason = "link"
+            elif current is not None and not same_path:
+                reason = "exists"
+            if reason:
+                self._request_file_conflict(path, current, reason)
+                return False
+            return self._save_source(path, current)
+        except OSError:
+            self.toastRequested.emit("file.save_error")
+            return False
 
-            with tempfile.NamedTemporaryFile(
-                mode="w", encoding="utf-8", newline="", dir=path.parent, delete=False
-            ) as stream:
-                temporary = Path(stream.name)
-                stream.write(self._source_text)
+    fileConflict = Property("QVariantMap", lambda self: self._file_conflict, notify=fileConflictRequested)  # type: ignore[arg-type]
+
+    def _request_file_conflict(self, path: Path, identity: FileIdentity | None, reason: str) -> None:
+        self._conflict_path, self._conflict_identity = path, identity
+        self._file_conflict = {
+            "reason": reason,
+            "path": str(path),
+            "target": str(identity.target) if identity else "",
+            "canOverwrite": reason != "readonly",
+            "canReload": identity is not None,
+            "linked": bool(identity and identity.links),
+        }
+        self.fileConflictRequested.emit()
+
+    @Slot(str)
+    def resolveFileConflict(self, action: str) -> None:
+        path, identity = self._conflict_path, self._conflict_identity
+        self._conflict_path = None
+        if path is None:
+            return
+        if action == "save_as":
+            self.saveAsRequested.emit("configuration")
+        elif action == "reload":
+            self._pending_action = None
+            self._pending_save_scopes = []
+            self.loadFile(str(path))
+        elif action == "overwrite" and self._file_conflict.get("canOverwrite"):
             try:
-                temporary.replace(path)
-            finally:
-                temporary.unlink(missing_ok=True)
+                if inspect_destination(path) != identity:
+                    self._request_file_conflict(path, inspect_destination(path), "changed")
+                else:
+                    self._save_source(path, identity)
+            except OSError:
+                self.toastRequested.emit("file.save_error")
+        else:
+            self._pending_action = None
+            self._pending_save_scopes = []
+
+    def _save_source(self, path: Path, identity: FileIdentity | None) -> bool:
+        try:
+            saved_identity = save_configuration(path, self._source_text, identity)
+        except SaveRecoveryError as error:
+            self._file_conflict = {
+                "reason": "recovery",
+                "path": str(path),
+                "target": "\n".join(str(p) for p in error.paths),
+                "canOverwrite": False,
+                "canReload": path.exists(),
+                "linked": True,
+            }
+            self._conflict_path, self._conflict_identity = path, identity
+            self.fileConflictRequested.emit()
+            return False
+        except FileChangedError:
+            self._request_file_conflict(path, inspect_destination(path), "changed")
+            return False
         except OSError:
             self.toastRequested.emit("file.save_error")
             return False
         self._file_path = path
+        self._file_identity = saved_identity
         self._file_name = path.name
         self._source_identity = "file"
         self._saved_source = self._source_text
@@ -1032,7 +1148,17 @@ class AnalysisController(QObject):
 
     @Slot(str)
     def filterHistory(self, value: str) -> None:
+        self.refreshHistory()
         self._history_model.set_filter(value)
+
+    @Slot()
+    def refreshHistory(self) -> None:
+        try:
+            self._history_store.refresh()
+            self._history_model.replace(self._history_store.entries)
+            self.historyEnabledChanged.emit()
+        except OSError:
+            self.toastRequested.emit("history.write_error")
 
     def _support_summary(self) -> dict[str, Any]:
         from netconfiglint.core.support import support_scope

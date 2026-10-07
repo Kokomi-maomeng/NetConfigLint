@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import zipfile
@@ -33,10 +34,7 @@ def qualified_run() -> tuple[dict, dict, dict]:
         for qt in ("6.9.0", "6.11.2")
     ]
     names += [f"ubuntu-latest / Python 3.12.14 / Qt {qt}" for qt in ("6.9.0", "6.11.2")]
-    names += [
-        f"Actual build and desktop smoke / {system}"
-        for system in ("windows-latest", "ubuntu-latest", "macos-latest")
-    ]
+    names += [f"Actual build and desktop smoke / {system}" for system in ("windows-latest", "ubuntu-latest")]
     names += ["Static and dependency security gates"]
     jobs = {"jobs": [{"name": name, "status": "completed", "conclusion": "success"} for name in names]}
     artifacts = {
@@ -57,7 +55,50 @@ def verify_run(run: dict, jobs: dict | list, artifacts: dict | list) -> dict:
 def test_complete_ci_from_codex_branch_can_qualify_without_rebuilding() -> None:
     run, jobs, artifacts = qualified_run()
     result = verify_run(run, [jobs], [artifacts])
-    assert result["passed"] and result["jobs"] == 18
+    assert result["passed"] and result["jobs"] == 17
+    assert result["artifacts"] == ["compiled-desktop-ubuntu-latest", "compiled-desktop-windows-latest"]
+
+
+@pytest.mark.parametrize("platform", ["windows-latest", "ubuntu-latest", "macos-latest"])
+def test_single_desktop_dispatch_cannot_qualify_the_two_platform_release(platform: str) -> None:
+    run, jobs, _ = qualified_run()
+    jobs["jobs"] = [
+        {"name": "quality", "status": "completed", "conclusion": "skipped"},
+        {"name": "security", "status": "completed", "conclusion": "skipped"},
+        {
+            "name": f"Actual build and desktop smoke / {platform}",
+            "status": "completed",
+            "conclusion": "success",
+        },
+    ]
+    artifacts = {
+        "artifacts": [{"name": f"compiled-desktop-{platform}", "expired": False, "size_in_bytes": 12}]
+    }
+    with pytest.raises(ValueError, match="14 quality, two desktop"):
+        verify_run(run, jobs, artifacts)
+
+
+def test_macos_quality_remains_required_without_a_macos_installer() -> None:
+    run, jobs, artifacts = qualified_run()
+    jobs["jobs"] = [job for job in jobs["jobs"] if not job["name"].startswith("macos-latest / Python")]
+    with pytest.raises(ValueError, match="14 quality, two desktop"):
+        verify_run(run, jobs, artifacts)
+
+
+def test_workflow_default_builds_two_platforms_and_retains_explicit_macos_dispatch() -> None:
+    root = Path(__file__).parents[2]
+    workflow = (root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    quality, desktop = workflow.split("  desktop-build:", 1)
+    assert "os: [windows-latest, ubuntu-latest, macos-latest]" in quality
+    matrix = next(line for line in desktop.splitlines() if "os: ${{ fromJSON(" in line)
+    selected_platforms = re.findall(r"'\[([^']+)\]'", matrix)
+    assert json.loads("[" + selected_platforms[-1] + "]") == ["windows-latest", "ubuntu-latest"]
+    macos = re.search(r"inputs.scope == 'macos-desktop' && '(\[[^']+\])'", matrix)
+    assert macos is not None and json.loads(macos.group(1)) == ["macos-latest"]
+    assert "options: [all, linux-desktop, windows-desktop, macos-desktop]" in workflow
+    release = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    assert "release/*.pkg" not in release
+    assert all(f"release/*.{extension}" in release for extension in ("zip", "msi", "deb"))
 
 
 @pytest.mark.parametrize(
@@ -76,6 +117,7 @@ def test_complete_ci_from_codex_branch_can_qualify_without_rebuilding() -> None:
         "missing-artifact",
         "expired-artifact",
         "duplicate-artifact",
+        "unexpected-desktop-artifact",
     ],
 )
 def test_ci_reuse_rejects_unqualified_run(mutation: str) -> None:
@@ -102,6 +144,10 @@ def test_ci_reuse_rejects_unqualified_run(mutation: str) -> None:
         artifacts["artifacts"].pop()
     elif mutation == "expired-artifact":
         artifacts["artifacts"][0]["expired"] = True
+    elif mutation == "unexpected-desktop-artifact":
+        artifacts["artifacts"].append(
+            {"name": "compiled-desktop-macos-latest", "expired": False, "size_in_bytes": 12}
+        )
     else:
         artifacts["artifacts"].append(artifacts["artifacts"][0].copy())
     with pytest.raises(ValueError):
@@ -300,15 +346,31 @@ def make_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return artifact_root
 
 
-def test_reused_artifacts_stage_only_four_audited_assets_and_checksums(
+def test_reused_artifacts_stage_only_three_audited_assets_and_checksums(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     artifacts = make_artifacts(tmp_path, monkeypatch)
     stage = tmp_path / "release"
     result = auditor.verify_reused_artifacts(tmp_path, artifacts, "v3.0.0", stage, 44)
-    assert result["passed"] and len(result["release_files"]) == 4
-    assert len(list(stage.iterdir())) == 5
-    assert len((stage / "SHA256SUMS.txt").read_text().splitlines()) == 4
+    assert result["passed"] and len(result["release_files"]) == 3
+    assert len(list(stage.iterdir())) == 4
+    assert len((stage / "SHA256SUMS.txt").read_text().splitlines()) == 3
+
+
+def test_two_platform_staging_does_not_replace_or_delete_an_existing_macos_package(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifacts = make_artifacts(tmp_path, monkeypatch)
+    previous_mac = artifacts / "compiled-desktop-macos-latest/release/NetConfigLint-3.0.0-macos-arm64.pkg"
+    previous_mac.parent.mkdir(parents=True)
+    previous_mac.write_bytes(b"previous qualified stable macOS package")
+    previous_hash = hashlib.sha256(previous_mac.read_bytes()).hexdigest()
+    stage = tmp_path / "new-release"
+    result = auditor.verify_reused_artifacts(tmp_path, artifacts, "v3.0.0", stage, 44)
+    assert result["passed"] and len(result["release_files"]) == 3
+    assert not list(stage.glob("*.pkg"))
+    assert hashlib.sha256(previous_mac.read_bytes()).hexdigest() == previous_hash
+    assert auditor.release_asset_names("3.0.0", "macos", [previous_mac.name])
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = '3.0.0',
+    [string]$Version = '3.1.0',
     [string]$CertificateThumbprint = '',
     [string]$PfxPath = '',
     [switch]$SkipAppBuild

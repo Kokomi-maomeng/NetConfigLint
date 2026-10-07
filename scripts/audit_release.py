@@ -55,7 +55,6 @@ SUPPORT_RESOURCE = "netconfiglint/vendors/support_matrix.json"
 DESKTOP_ARTIFACTS = {
     "windows": "compiled-desktop-windows-latest",
     "linux": "compiled-desktop-ubuntu-latest",
-    "macos": "compiled-desktop-macos-latest",
 }
 
 
@@ -342,8 +341,7 @@ def verify_ci_run(
     }
     expected_jobs.update(f"ubuntu-latest / Python 3.12.14 / Qt {qt}" for qt in ("6.9.0", "6.11.2"))
     expected_jobs.update(
-        f"Actual build and desktop smoke / {system}"
-        for system in ("windows-latest", "ubuntu-latest", "macos-latest")
+        f"Actual build and desktop smoke / {system}" for system in ("windows-latest", "ubuntu-latest")
     )
     expected_jobs.add("Static and dependency security gates")
     actual_jobs = _api_items(jobs, "jobs")
@@ -352,12 +350,19 @@ def verify_ci_run(
         or {job.get("name") for job in actual_jobs} != expected_jobs
         or any(job.get("status") != "completed" or job.get("conclusion") != "success" for job in actual_jobs)
     ):
-        raise ValueError("All 14 quality, three desktop and security CI jobs must pass")
+        raise ValueError("All 14 quality, two desktop and security CI jobs must pass")
     actual_artifacts = _api_items(artifacts, "artifacts")
+    desktop_names = {
+        item.get("name")
+        for item in actual_artifacts
+        if str(item.get("name", "")).startswith("compiled-desktop-")
+    }
+    if desktop_names != set(DESKTOP_ARTIFACTS.values()):
+        raise ValueError("The full release run must contain only the Windows and Linux desktop artifacts")
     for name in DESKTOP_ARTIFACTS.values():
         matching = [item for item in actual_artifacts if item.get("name") == name]
         if len(matching) != 1 or matching[0].get("expired") or matching[0].get("size_in_bytes", 0) <= 0:
-            raise ValueError("All three unexpired desktop artifacts must exist exactly once")
+            raise ValueError("Both unexpired desktop artifacts must exist exactly once")
     return {
         "passed": True,
         "source_run_id": run_id,

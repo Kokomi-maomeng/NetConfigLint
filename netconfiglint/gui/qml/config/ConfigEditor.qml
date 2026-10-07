@@ -39,25 +39,22 @@ AppCard {
     property var completionResult: ({ items: [], arguments: [] })
     property bool applyingCompletion: false
     property bool completionActive: false
+    property bool completionBusy: false
+    property int completionRequestId: -1
+    property string completionRequestSource: ""
+    property int completionRequestPosition: -1
+    property bool completionRequestViewOnly: false
+    property bool completionRequestAfterInsertion: false
     property string completionSourceText: ""
     property int completionCursor: -1
     property var completionDetail: ({})
     property string completionDetailScopeNote: ""
-    property var queryResult: ({ items: [], arguments: [] })
+    readonly property var queryResult: commandQuery.queryResult
     function openCommandQuery() {
         commandQuery.open()
-        queryField.forceActiveFocus()
-        queryTimer.restart()
     }
-    function refreshCommandQuery() {
-        queryResult = commandCompletion.request(queryField.text, queryField.text.length)
-    }
-    function showQueryDetail(index) {
-        if (index < 0 || index >= queryResult.items.length) return
-        completionDetail = queryResult.items[index]
-        completionDetailScopeNote = queryResult.scopeNote || ""
-        completionDetails.open()
-    }
+    function refreshCommandQuery() { commandQuery.refresh() }
+    function showQueryDetail(index) { commandQuery.showDetailAt(index) }
     function refreshDiagnosticMarkers() {
         syntaxHighlighter.setDiagnosticMarkersFor(editor.textDocument, diagnosticMarkers || [], editor.previewStartLine)
         if (root.showAnalyze) syntaxHighlighter.setUnsupportedLinesFor(editor.textDocument,
@@ -83,17 +80,17 @@ AppCard {
         })
     }
     function showArgumentDetail(detail) {
-        completionDetail = { text: (detail.aliases || [detail.token]).join(" / "),
-            syntaxes: detail.syntaxes || [], sources: detail.sources || [], views: [], scopes: [],
-            annotations: [argumentDescription(detail)] }
+        completionDetail = detail
         completionDetailScopeNote = completionResult.scopeNote || ""
-        completionDetails.open()
+        completionDetails.show(syntaxHighlighter.fullText(editor),
+            syntaxHighlighter.globalPosition(editor, editor.cursorPosition), detail, completionDetailScopeNote)
     }
     function showCompletionDetail() {
         if (completionList.currentIndex < 0) return
         completionDetail = completionResult.items[completionList.currentIndex]
         completionDetailScopeNote = completionResult.scopeNote || ""
-        completionDetails.open()
+        completionDetails.show(syntaxHighlighter.fullText(editor),
+            syntaxHighlighter.globalPosition(editor, editor.cursorPosition), completionDetail, completionDetailScopeNote)
     }
     function requestCompletion() { requestCompletionInternal(false) }
     function requestCompletionInternal(viewOnly) {
@@ -103,7 +100,44 @@ AppCard {
             completionList.positionViewAtIndex(completionList.currentIndex, ListView.Contain)
             return
         }
-        completionResult = commandCompletion.request(syntaxHighlighter.fullText(editor), syntaxHighlighter.globalPosition(editor, editor.cursorPosition))
+        requestCompletionResult(viewOnly, false)
+    }
+    function cancelPendingCompletion() {
+        if (completionRequestId >= 0) commandCompletion.cancelQuery(root.editorObjectName + "-completion")
+        completionRequestId = -1
+        completionBusy = false
+    }
+    function requestCompletionResult(viewOnly, afterInsertion) {
+        cancelPendingCompletion()
+        completionRequestSource = syntaxHighlighter.fullText(editor)
+        completionRequestPosition = syntaxHighlighter.globalPosition(editor, editor.cursorPosition)
+        completionRequestViewOnly = viewOnly
+        completionRequestAfterInsertion = afterInsertion
+        completionSourceText = editor.text
+        completionCursor = editor.cursorPosition
+        var value = commandCompletion.requestInteractive(root.editorObjectName + "-completion",
+            completionRequestSource, completionRequestPosition)
+        if (value.pending) {
+            completionRequestId = value.requestId
+            completionBusy = true
+            completionResult = ({ items: [], arguments: [] })
+            completionPopup.open()
+        } else applyCompletionResult(value, viewOnly, afterInsertion)
+    }
+    function applyCompletionResult(value, viewOnly, afterInsertion) {
+        if (!value || value.error || typeof value.insert !== "string"
+            || typeof value.start !== "number" || typeof value.end !== "number"
+            || !value.items || typeof value.items.length !== "number") {
+            // Worker failures contain no replacement range. Keep the source and
+            // present a retryable failure instead of interpreting an incomplete edit.
+            completionResult = ({ error: true, items: [], arguments: [] })
+            completionList.currentIndex = -1
+            completionSourceText = editor.text
+            completionCursor = editor.cursorPosition
+            completionPopup.open()
+            return
+        }
+        completionResult = value
         if (editor.pagedPreview) {
             var pageOffset = syntaxHighlighter.globalPosition(editor, 0)
             completionResult.start -= pageOffset
@@ -115,15 +149,10 @@ AppCard {
             commandCompletion.replace(editor, completionResult.start, completionResult.end, completionResult.insert)
             applyingCompletion = false
             if (unique) { completionPopup.close(); return }
-            completionResult = commandCompletion.request(syntaxHighlighter.fullText(editor), syntaxHighlighter.globalPosition(editor, editor.cursorPosition))
-            if (editor.pagedPreview) {
-                var offset = syntaxHighlighter.globalPosition(editor, 0)
-                completionResult.start -= offset
-                completionResult.end -= offset
-            }
-            // Unique keyword completion advances to its argument; no popup is needed yet.
-            if (completionResult.start === editor.cursorPosition) return
+            requestCompletionResult(viewOnly, true)
+            return
         }
+        if (afterInsertion && completionResult.start === editor.cursorPosition) { completionPopup.close(); return }
         completionList.currentIndex = completionResult.items.length > 0 ? 0 : -1
         completionSourceText = editor.text
         completionCursor = editor.cursorPosition
@@ -222,9 +251,43 @@ AppCard {
         savedSelectionViewX = flickable.contentX
         savedSelectionViewY = flickable.contentY
         editor.selectAll()
+        editor.fullDocumentSelected = editor.pagedPreview
         flickable.contentX = savedSelectionViewX
         flickable.contentY = savedSelectionViewY
         restoreSelectionView.restart()
+    }
+    function selectCurrentPage() {
+        selectAllWithoutScroll()
+        editor.fullDocumentSelected = false
+    }
+    function copySelection() {
+        if (editor.fullDocumentSelected) syntaxHighlighter.copyDocument(editor)
+        else editor.copy()
+    }
+    function copyDocument() { syntaxHighlighter.copyDocument(editor) }
+    function replaceDocument(value) {
+        if (editor.readOnly) return
+        root.textEdited(syntaxHighlighter.replaceDocument(editor, value))
+    }
+    function clearDocument() { replaceDocument("") }
+    function clearCurrentPage() { editor.fullDocumentSelected = false; editor.clear() }
+    function cutSelection() {
+        if (editor.readOnly) return
+        if (editor.fullDocumentSelected) { copyDocument(); clearDocument() }
+        else editor.cut()
+    }
+    function pasteSelection() {
+        if (editor.readOnly) return
+        if (editor.fullDocumentSelected) replaceDocument(syntaxHighlighter.clipboardText())
+        else editor.paste()
+    }
+    function undoDocument() {
+        completionPopup.close()
+        root.textEdited(syntaxHighlighter.undoDocument(editor))
+    }
+    function redoDocument() {
+        completionPopup.close()
+        root.textEdited(syntaxHighlighter.redoDocument(editor))
     }
     function clampEditorViewport() {
         var flickable = scrollView.contentItem
@@ -259,7 +322,11 @@ AppCard {
             titleObjectName: root.titleObjectName
             actionText: root.showAnalyze ? (root.analysisBusy ? i18n.catalog["toolbar.analyzing"] : i18n.catalog["toolbar.analyze"]) : (root.showSave ? i18n.catalog["temporary.save_draft"] : "")
             actionObjectName: root.showSave ? "temporarySaveButton" : "analyzeButton"
-            actionEnabled: root.showSave || (!root.analysisBusy && root.text.trim().length > 0)
+            actionEnabled: {
+                root.text // Reevaluate after the displayed page is loaded or edited.
+                return root.showSave || (!root.analysisBusy && editor.documentLength > 0
+                    && syntaxHighlighter.fullText(editor).trim().length > 0)
+            }
             onActionClicked: { if (root.showSave) root.saveRequested(syntaxHighlighter.fullText(editor)); else root.analyzeRequested() }
             detail: (root.currentLine + editor.previewStartLine - 1) + " / " + (editor.pagedPreview ? editor.previewTotalLines : Math.max(1, editor.lineCount))
             minimumDetailDigits: Math.max(5, String(root.currentLine).length, String(Math.max(1, editor.lineCount)).length)
@@ -278,9 +345,11 @@ AppCard {
                 onClicked: root.openCommandQuery()
             }
             Label {
+                objectName: root.editorObjectName + "DocumentSelection"
                 Layout.fillWidth: true
-                text: editor.pagedPreview ? i18n.catalog["editor.preview_hint"] : i18n.catalog["completion.query_shortcut"]
-                color: Colors.textSecondary
+                text: editor.fullDocumentSelected ? i18n.catalog["editor.document_selected"]
+                    : editor.pagedPreview ? i18n.catalog["editor.preview_hint"] : i18n.catalog["completion.query_shortcut"]
+                color: editor.fullDocumentSelected ? Colors.primary : Colors.textSecondary
                 font: Typography.caption
                 wrapMode: Text.Wrap
             }
@@ -328,6 +397,10 @@ AppCard {
                     id: editor
                     property bool pagedPreview: false
                     property bool previewLoading: false
+                    property bool documentCanUndo: false
+                    property bool documentCanRedo: false
+                    property int documentLength: 0
+                    property bool fullDocumentSelected: false
                     property int previewPage: 1
                     property int previewPageCount: 1
                     property int previewStartLine: 1
@@ -354,6 +427,23 @@ AppCard {
                     Keys.onPressed: event => {
                         if (event.key === Qt.Key_Shift || event.key === Qt.Key_Control
                             || event.key === Qt.Key_Alt || event.key === Qt.Key_Meta) return
+                        if (event.matches(StandardKey.Undo)) { root.undoDocument(); event.accepted = true; return }
+                        if (event.matches(StandardKey.Redo)) { root.redoDocument(); event.accepted = true; return }
+                        if (event.matches(StandardKey.Copy)) { root.copySelection(); event.accepted = true; return }
+                        if (event.matches(StandardKey.Cut)) { root.cutSelection(); event.accepted = true; return }
+                        if (event.matches(StandardKey.Paste)) { root.pasteSelection(); event.accepted = true; return }
+                        if ([Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down, Qt.Key_Home,
+                                Qt.Key_End, Qt.Key_PageUp, Qt.Key_PageDown].indexOf(event.key) >= 0)
+                            syntaxHighlighter.breakEditGroup(editor)
+                        if (editor.fullDocumentSelected && !editor.readOnly) {
+                            if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {
+                                root.clearDocument(); event.accepted = true; return
+                            }
+                            if (event.text.length && !(event.modifiers & (Qt.ControlModifier | Qt.MetaModifier | Qt.AltModifier))
+                                && event.key !== Qt.Key_Tab && event.key !== Qt.Key_Backtab) {
+                                root.replaceDocument(event.text); event.accepted = true; return
+                            }
+                        }
                         if (event.key === Qt.Key_Space && (event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier)) {
                             root.openCommandQuery(); event.accepted = true; return
                         }
@@ -407,7 +497,9 @@ AppCard {
                         if (event.matches(StandardKey.SelectAll)) {
                             root.selectAllWithoutScroll()
                             event.accepted = true
+                            return
                         }
+                        editor.fullDocumentSelected = false
                     }
                     persistentSelection: Theme.selectionLocked || root.searchActive
                     renderType: Text.QtRendering
@@ -451,13 +543,21 @@ AppCard {
                         z: 3
                     }
                     ContextMenu.menu: TextEditMenu { editor: root.editor; zoomTarget: root }
+                    TapHandler { acceptedButtons: Qt.LeftButton; onPressedChanged: if (pressed) { editor.fullDocumentSelected = false; syntaxHighlighter.breakEditGroup(editor) } }
+                    onSelectionStartChanged: Qt.callLater(function() { if (editor.selectedText !== editor.text) editor.fullDocumentSelected = false })
+                    onSelectionEndChanged: Qt.callLater(function() { if (editor.selectedText !== editor.text) editor.fullDocumentSelected = false })
                     onTextChanged: {
-                        if (!root.applyingCompletion) completionPopup.close()
+                        // Rehighlighting can notify textChanged without changing the
+                        // plain text. Only a real edit invalidates the request.
+                        if (!root.applyingCompletion && text !== root.completionSourceText) completionPopup.close()
                         if (!previewLoading && !root.readOnly) root.textEdited(syntaxHighlighter.commitPreviewText(editor, text))
                         Qt.callLater(root.updateCurrentLine)
                     }
-                    onCursorPositionChanged: { if (!root.applyingCompletion) completionPopup.close(); Qt.callLater(root.updateCurrentLine) }
-                    onActiveFocusChanged: if (!activeFocus) completionPopup.close()
+                    onCursorPositionChanged: {
+                        if (!root.applyingCompletion && cursorPosition !== root.completionCursor) completionPopup.close()
+                        Qt.callLater(root.updateCurrentLine)
+                    }
+                    onActiveFocusChanged: if (!activeFocus) { completionPopup.close(); syntaxHighlighter.breakEditGroup(editor) }
                 }
             }
             Rectangle {
@@ -517,7 +617,7 @@ AppCard {
         modal: false
         focus: false
         onAboutToShow: root.completionActive = true
-        onAboutToHide: root.completionActive = false
+        onAboutToHide: { root.completionActive = false; root.cancelPendingCompletion() }
         padding: 12
         width: parent ? Math.min(520, parent.width - 24) : 520
         height: Math.min(360, contentColumn.preferredHeight + padding * 2, parent ? parent.height - 24 : 360)
@@ -535,6 +635,8 @@ AppCard {
                 + completionActions.implicitHeight + spacing
                 + (completionEmpty.visible ? completionEmpty.implicitHeight + spacing : 0)
                 + (completionList.count > 0 ? Math.min(280, completionList.count * 64) + spacing : 0)
+                + (completionLoading.visible ? completionLoading.implicitHeight + spacing : 0)
+            BusyIndicator { id: completionLoading; objectName: root.editorObjectName + "CompletionBusy"; running: root.completionBusy; visible: running; Layout.alignment: Qt.AlignHCenter; implicitHeight: 32; implicitWidth: 32 }
             Label {
                 id: completionHeading
                 Layout.fillWidth: true
@@ -562,9 +664,10 @@ AppCard {
             }
             Label {
                 id: completionEmpty
+                objectName: root.editorObjectName + "CompletionMessage"
                 Layout.fillWidth: true
-                visible: completionList.count === 0 && (root.completionResult.arguments || []).length === 0
-                text: i18n.catalog["completion.no_match"]
+                visible: !root.completionBusy && completionList.count === 0 && (root.completionResult.arguments || []).length === 0
+                text: root.completionResult.error ? i18n.catalog["completion.failed"] : i18n.catalog["completion.no_match"]
                 color: Colors.textSecondary
                 font: Typography.body
                 wrapMode: Text.Wrap
@@ -596,128 +699,35 @@ AppCard {
             }
         }
     }
-    AppDialog {
+    CompletionDetailsDialog {
         id: completionDetails
-        objectName: root.editorObjectName + "CompletionDetails"
-        title: i18n.catalog["completion.details"]
-        height: Math.min(620, Overlay.overlay ? Overlay.overlay.height - 32 : 620)
-        standardButtons: Dialog.Close
-        contentItem: ScrollView {
-            id: detailScroll
-            clip: true
-            contentWidth: availableWidth
-            Column {
-                id: detailContent
-                width: detailScroll.availableWidth
-                spacing: 12
-                SelectableText { width: parent.width; text: root.completionDetail.text || ""; font: fontPalette.editorFont(16); color: Colors.textPrimary; wrapMode: TextEdit.Wrap }
-                SelectableText { objectName: root.editorObjectName + "CompletionSyntaxes"; width: parent.width; text: (root.completionDetail.syntaxes || [root.completionDetail.syntax || ""]).join("\n\n"); font: fontPalette.editorFont(13); color: Colors.textPrimary; wrapMode: TextEdit.Wrap }
-                SelectableText { objectName: root.editorObjectName + "CompletionViews"; width: parent.width; text: i18n.catalog["completion.views"] + " " + (root.completionDetail.views || []).join(" / "); color: Colors.textSecondary; wrapMode: TextEdit.Wrap }
-                SelectableText { width: parent.width; text: i18n.catalog["completion.scope"] + "\n" + (root.completionDetail.scopes || []).join("\n") + "\n" + (i18n.catalog["completion.scope_note"] || root.completionDetailScopeNote); color: Colors.textSecondary; wrapMode: TextEdit.Wrap }
-                SelectableText { width: parent.width; text: (root.completionDetail.annotations || []).join("\n"); color: Colors.textSecondary; wrapMode: TextEdit.Wrap }
-                Repeater {
-                    model: (root.completionDetail.syntaxDetails || []).length ? []
-                        : root.completionDetail.sources || (root.completionDetail.source ? [root.completionDetail.source] : [])
-                    AppButton {
-                        required property string modelData
-                        required property int index
-                        width: parent.width
-                        text: i18n.catalog["completion.open_source"] + " " + (index + 1)
-                        ToolTip.visible: hovered
-                        ToolTip.text: modelData
-                        onClicked: Qt.openUrlExternally(modelData)
-                    }
-                }
-                Repeater {
-                    model: root.completionDetail.syntaxDetails || []
-                    Column {
-                        required property var modelData
-                        width: parent.width
-                        spacing: 6
-                        SelectableText { width: parent.width; text: modelData.syntax; font: fontPalette.editorFont(13); color: Colors.textPrimary; wrapMode: TextEdit.Wrap }
-                        SelectableText { width: parent.width; text: (modelData.views || []).join(" / ") + "\n" + (modelData.scopes || []).join("\n") + "\n" + (modelData.annotations || []).join("\n"); color: Colors.textSecondary; wrapMode: TextEdit.Wrap }
-                        Repeater {
-                            model: modelData.sources || []
-                            AppButton { required property string modelData; required property int index; width: parent.width; text: i18n.catalog["completion.open_source"] + " " + (index + 1); ToolTip.visible: hovered; ToolTip.text: modelData; onClicked: Qt.openUrlExternally(modelData) }
-                        }
-                    }
-                }
-            }
-        }
+        ownerName: root.editorObjectName
+        onDetailLoaded: value => root.completionDetail = value
         onClosed: {
             if (argumentDialog.visible) argumentFilter.forceActiveFocus()
-            else if (commandQuery.visible) queryField.forceActiveFocus()
+            else if (commandQuery.visible) commandQuery.focusQuery()
             else editor.forceActiveFocus()
         }
     }
-    Timer { id: queryTimer; interval: 160; onTriggered: root.refreshCommandQuery() }
-    AppDialog {
+    CommandQueryDialog {
         id: commandQuery
-        objectName: root.editorObjectName + "CommandQuery"
-        title: i18n.catalog["completion.query"]
-        height: Math.min(640, Overlay.overlay ? Overlay.overlay.height - 32 : 640)
-        standardButtons: Dialog.Close
-        contentItem: ColumnLayout {
-            AppTextField {
-                id: queryField
-                objectName: root.editorObjectName + "CommandQueryField"
-                Layout.fillWidth: true
-                implicitHeight: 44
-                placeholderText: ""
-                Text {
-                    anchors.left: parent.left
-                    anchors.leftMargin: queryField.leftPadding
-                    anchors.right: parent.right
-                    anchors.rightMargin: queryField.rightPadding
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: queryField.text.length === 0
-                    text: i18n.catalog["completion.query_placeholder"]
-                    color: Colors.textSecondary
-                    font: queryField.font
-                    elide: Text.ElideRight
-                }
-                onTextChanged: queryTimer.restart()
-                onAccepted: { root.refreshCommandQuery(); if (queryList.count) root.showQueryDetail(Math.max(0, queryList.currentIndex)) }
-                Keys.onDownPressed: { queryList.forceActiveFocus(); if (queryList.count) queryList.currentIndex = 0 }
-            }
-            Label { Layout.fillWidth: true; text: i18n.catalog["completion.query_scope_note"]; color: Colors.textSecondary; font: Typography.caption; wrapMode: Text.Wrap }
-            Label { Layout.fillWidth: true; text: queryList.count + " · " + i18n.catalog["completion.query_narrow_hint"]; color: Colors.textSecondary; font: Typography.caption; wrapMode: Text.Wrap }
-            ListView {
-                id: queryList
-                objectName: root.editorObjectName + "CommandQueryList"
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                model: root.queryResult.items || []
-                activeFocusOnTab: true
-                keyNavigationEnabled: true
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: AppScrollBar {}
-                Keys.onReturnPressed: root.showQueryDetail(currentIndex)
-                Keys.onEnterPressed: root.showQueryDetail(currentIndex)
-                Keys.onEscapePressed: queryField.forceActiveFocus()
-                delegate: ItemDelegate {
-                    required property var modelData
-                    required property int index
-                    width: ListView.view.width
-                    height: 64
-                    highlighted: ListView.isCurrentItem
-                    onClicked: root.showQueryDetail(index)
-                    contentItem: Column {
-                        spacing: 3
-                        Label { width: parent.width; text: modelData.text + " · " + modelData.vendors.join(" / "); font: fontPalette.editorFont(14); color: Colors.textPrimary; elide: Text.ElideRight }
-                        Label { width: parent.width; text: (modelData.views || []).join(" / ") + " · " + modelData.syntax; font: Typography.caption; color: Colors.textSecondary; elide: Text.ElideRight }
-                    }
-                }
-            }
+        ownerName: root.editorObjectName
+        onShowDetail: (source, cursor, row, scopeNote) => {
+            root.completionDetail = row
+            root.completionDetailScopeNote = scopeNote
+            completionDetails.show(source, cursor, row, scopeNote)
         }
+        onClosed: editor.forceActiveFocus()
     }
     AppDialog {
         id: argumentDialog
         objectName: root.editorObjectName + "ArgumentDialog"
         title: i18n.catalog["completion.all_arguments"] + " (" + (root.completionResult.arguments || []).length + ")"
         height: Math.min(640, Overlay.overlay ? Overlay.overlay.height - 32 : 640)
-        standardButtons: Dialog.Close
+        footer: DialogButtonBox {
+            AppButton { objectName: root.editorObjectName + "ArgumentDialogClose"; text: i18n.catalog["common.close"]; DialogButtonBox.buttonRole: DialogButtonBox.RejectRole }
+            onRejected: argumentDialog.close()
+        }
         onOpened: argumentFilter.forceActiveFocus()
         onClosed: editor.forceActiveFocus()
         contentItem: ColumnLayout {
@@ -771,7 +781,22 @@ AppCard {
             }
         }
     }
-    Connections { target: commandCompletion; function onChanged() { completionPopup.close() } }
+    Connections {
+        target: commandCompletion
+        function onChanged() { completionPopup.close(); root.cancelPendingCompletion() }
+        function onQueryReady(owner, serial, value) {
+            if (owner !== root.editorObjectName + "-completion" || serial !== root.completionRequestId) return
+            root.completionRequestId = -1
+            root.completionBusy = false
+            if (!editor.activeFocus || editor.selectionStart !== editor.selectionEnd
+                || syntaxHighlighter.fullText(editor) !== root.completionRequestSource
+                || syntaxHighlighter.globalPosition(editor, editor.cursorPosition) !== root.completionRequestPosition) {
+                completionPopup.close()
+                return
+            }
+            root.applyCompletionResult(value, root.completionRequestViewOnly, root.completionRequestAfterInsertion)
+        }
+    }
     Shortcut { sequence: Qt.platform.os === "osx" ? "Meta+G" : "Ctrl+G"; enabled: root.visible && editor.activeFocus; onActivated: jumpDialog.open() }
     Shortcut { sequences: [StandardKey.ZoomIn, Qt.platform.os === "osx" ? "Meta+=" : "Ctrl+="]; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(1) }
     Shortcut { sequences: [StandardKey.ZoomOut]; enabled: root.visible && editor.activeFocus; onActivated: root.zoom(-1) }

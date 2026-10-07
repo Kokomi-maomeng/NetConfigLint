@@ -133,7 +133,8 @@ ApplicationWindow {
             return
         }
     }
-    onCurrentPageChanged: pageTransition.restart()
+    onCurrentPageChanged: { pageTransition.restart(); analysisController.refreshHistory() }
+    onActiveChanged: if (active) analysisController.refreshHistory()
     function clearOtherSelections(item, position) {
         if (!item) return
         if (typeof item.deselect === "function") {
@@ -203,6 +204,8 @@ ApplicationWindow {
                     }
                     currentIndex: window.currentPage
                     controller: analysisController
+                    onExpandedChanged: if (expanded) analysisController.refreshHistory()
+                    onHistoryExpandedChanged: if (historyExpanded) analysisController.refreshHistory()
                     onHistorySelected: entryId => {
                         analysisController.requestAction("history", entryId)
                         window.currentPage = 0
@@ -252,6 +255,7 @@ ApplicationWindow {
         controller: analysisController
         onReturnToCheckRequested: window.currentPage = 0
     }
+    SaveConflictDialog { }
     AppDialog {
         id: unsavedDialog
         objectName: "unsavedDialog"

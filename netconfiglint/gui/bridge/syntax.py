@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import re
+import time
 from bisect import bisect_right
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from PySide6.QtCore import QObject, QTimer, Slot
-from PySide6.QtGui import QColor, QSyntaxHighlighter, QTextCharFormat, QTextDocument
+from PySide6.QtGui import QColor, QGuiApplication, QSyntaxHighlighter, QTextCharFormat, QTextDocument
 
 
 class NetworkConfigHighlighter(QSyntaxHighlighter):
@@ -201,7 +202,7 @@ class _TextPreview:
             ranges.append((start, end, line))
             line += text.count("\n", start, end)
             start = end
-        return cls(text, ranges, line)
+        return cls(text, ranges or [(0, 0, 1)], line)
 
     def visible_text(self) -> str:
         start, end, _ = self.ranges[self.page]
@@ -222,12 +223,88 @@ class _TextPreview:
         self.total_lines += line_delta
 
 
+@dataclass
+class _DocumentEdit:
+    start: int
+    removed: str
+    inserted: str
+
+
+@dataclass
+class _EditorHistory:
+    """Only changed spans are retained, rather than a full snapshot per keystroke."""
+
+    text: str
+    undo: list[_DocumentEdit] = field(default_factory=list)
+    redo: list[_DocumentEdit] = field(default_factory=list)
+    last_edit: float = 0
+
+    def break_group(self) -> None:
+        self.last_edit = 0
+
+    def record(self, before: str, after: str, offset: int) -> None:
+        if before == after:
+            return
+        start, limit = 0, min(len(before), len(after))
+        while start < limit and before[start] == after[start]:
+            start += 1
+        suffix = 0
+        while suffix < limit - start and before[-suffix - 1] == after[-suffix - 1]:
+            suffix += 1
+        old_end = len(before) - suffix
+        new_end = len(after) - suffix
+        edit = _DocumentEdit(offset + start, before[start:old_end], after[start:new_end])
+        now = time.monotonic()
+        merged = False
+        if self.undo and not self.redo and now - self.last_edit <= 1.0:
+            previous = self.undo[-1]
+            # Continuous typing/backspace/delete remains one normal edit group.
+            # Navigation, replacements, pastes and newline insertion separate groups.
+            if not edit.removed and len(edit.inserted) == 1 and edit.inserted != "\n":
+                if not previous.removed and previous.start + len(previous.inserted) == edit.start:
+                    previous.inserted += edit.inserted
+                    merged = True
+            elif not edit.inserted and len(edit.removed) == 1:
+                if not previous.inserted and edit.start + 1 == previous.start:
+                    previous.start = edit.start
+                    previous.removed = edit.removed + previous.removed
+                    merged = True
+                elif not previous.inserted and edit.start == previous.start:
+                    previous.removed += edit.removed
+                    merged = True
+        if not merged:
+            self.undo.append(edit)
+        self.redo.clear()
+        self.last_edit = now if len(edit.removed) + len(edit.inserted) == 1 else 0
+
+
 class SyntaxHighlighterBridge(QObject):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._highlighters: list[NetworkConfigHighlighter] = []
         self._document_proxies: list[QObject] = []
         self._previews: dict[QObject, _TextPreview] = {}
+        self._histories: dict[QObject, _EditorHistory] = {}
+
+    def _history(self, editor: QObject, text: str) -> _EditorHistory:
+        history = self._histories.get(editor)
+        if history is None:
+            history = _EditorHistory(text)
+            self._histories[editor] = history
+            editor.destroyed.connect(lambda: self._histories.pop(editor, None))
+        return history
+
+    @staticmethod
+    def _set_history_metadata(editor: QObject, history: _EditorHistory) -> None:
+        editor.setProperty("documentCanUndo", bool(history.undo))
+        editor.setProperty("documentCanRedo", bool(history.redo))
+        editor.setProperty("documentLength", len(history.text))
+
+    @Slot(QObject)
+    def breakEditGroup(self, editor: QObject) -> None:
+        history = self._histories.get(editor)
+        if history is not None:
+            history.break_group()
 
     @Slot(QObject)
     def attach(self, value: QObject) -> None:
@@ -255,6 +332,12 @@ class SyntaxHighlighterBridge(QObject):
             editor.setProperty("pagedPreview", large)
         if editor is None:
             return text
+        history = self._history(editor, text)
+        if history.text != text:
+            # A newly opened/restored document establishes a new editing baseline.
+            history = _EditorHistory(text)
+            self._histories[editor] = history
+        self._set_history_metadata(editor, history)
         if not large:
             self._previews.pop(editor, None)
             editor.setProperty("previewPage", 1)
@@ -287,6 +370,8 @@ class SyntaxHighlighterBridge(QObject):
         self._show_preview(editor, preview)
 
     def _show_preview(self, editor: QObject, preview: _TextPreview) -> None:
+        self._history(editor, preview.text).break_group()
+        editor.setProperty("fullDocumentSelected", False)
         editor.setProperty("previewLoading", True)
         self._set_preview_metadata(editor, preview)
         editor.setProperty("text", preview.visible_text())
@@ -309,13 +394,102 @@ class SyntaxHighlighterBridge(QObject):
 
     @Slot(QObject, str, result=str)
     def commitPreviewText(self, editor: QObject, text: str) -> str:
-        """Immediately splice edits into the complete source, retaining page-local undo."""
+        """Record compact document edits independently of the visible page's Qt undo stack."""
         preview = self._previews.get(editor)
+        history = self._history(editor, text)
+        previous = preview.visible_text() if preview is not None else history.text
+        offset = preview.ranges[preview.page][0] if preview is not None else 0
+        if editor.property("fullDocumentSelected"):
+            # Native input-method commits replace the selected page; its replacement
+            # is also the replacement for the explicit whole-document selection.
+            previous, offset = history.text, 0
+            self._previews.pop(editor, None)
+            preview = None
+            editor.setProperty("fullDocumentSelected", False)
+        history.record(previous, text, offset)
         if preview is None:
+            history.text = text
+            self._set_history_metadata(editor, history)
             return text
         preview.replace_visible(text)
+        history.text = preview.text
         self._set_preview_metadata(editor, preview)
+        self._set_history_metadata(editor, history)
         return preview.text
+
+    def _apply_document(self, editor: QObject, history: _EditorHistory, position: int) -> None:
+        """Show the edit location without emitting a second user edit during undo/redo."""
+        editor.setProperty("previewLoading", True)
+        editor.setProperty("fullDocumentSelected", False)
+        self._previews.pop(editor, None)
+        if len(history.text) > 250_000:
+            preview = _TextPreview.create(history.text)
+            preview.page = max(0, bisect_right([row[0] for row in preview.ranges], position) - 1)
+            self._previews[editor] = preview
+            editor.setProperty("pagedPreview", True)
+            self._set_preview_metadata(editor, preview)
+            editor.setProperty("text", preview.visible_text())
+            local = history.text[preview.ranges[preview.page][0] : position]
+        else:
+            editor.setProperty("pagedPreview", False)
+            editor.setProperty("previewPage", 1)
+            editor.setProperty("previewPageCount", 1)
+            editor.setProperty("previewStartLine", 1)
+            editor.setProperty("previewTotalLines", history.text.count("\n") + 1)
+            editor.setProperty("text", history.text)
+            local = history.text[:position]
+        editor.setProperty("cursorPosition", len(local.encode("utf-16-le")) // 2)
+        editor.setProperty("previewLoading", False)
+        self._set_history_metadata(editor, history)
+
+    @Slot(QObject, result=str)
+    def undoDocument(self, editor: QObject) -> str:
+        history = self._history(editor, self.fullText(editor))
+        if not editor.property("readOnly") and history.undo:
+            edit = history.undo.pop()
+            history.text = (
+                history.text[: edit.start] + edit.removed + history.text[edit.start + len(edit.inserted) :]
+            )
+            history.redo.append(edit)
+            history.break_group()
+            self._apply_document(editor, history, edit.start + len(edit.removed))
+        return history.text
+
+    @Slot(QObject, result=str)
+    def redoDocument(self, editor: QObject) -> str:
+        history = self._history(editor, self.fullText(editor))
+        if not editor.property("readOnly") and history.redo:
+            edit = history.redo.pop()
+            history.text = (
+                history.text[: edit.start] + edit.inserted + history.text[edit.start + len(edit.removed) :]
+            )
+            history.undo.append(edit)
+            history.break_group()
+            self._apply_document(editor, history, edit.start + len(edit.inserted))
+        return history.text
+
+    @Slot(QObject, str, result=str)
+    def replaceDocument(self, editor: QObject, text: str) -> str:
+        history = self._history(editor, self.fullText(editor))
+        if editor.property("readOnly"):
+            return history.text
+        # Match native TextArea paste/Enter semantics; file newline metadata is
+        # retained by the controller and reapplied when the source is saved.
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+        history.break_group()
+        history.record(history.text, text, 0)
+        history.text = text
+        history.break_group()
+        self._apply_document(editor, history, len(text))
+        return text
+
+    @Slot(QObject)
+    def copyDocument(self, editor: QObject) -> None:
+        QGuiApplication.clipboard().setText(self.fullText(editor))
+
+    @Slot(result=str)
+    def clipboardText(self) -> str:
+        return QGuiApplication.clipboard().text()
 
     @Slot(QObject, int, result=int)
     def globalPosition(self, editor: QObject, position: int) -> int:

@@ -299,7 +299,10 @@ def test_v23_search_regex_selection_drag_and_menu_style(tmp_path: Path, qapp: ob
     assert overlay.isVisible()  # The exit animation keeps the card rendered briefly.
     QTest.qWait(300)
     assert not overlay.isEnabled()
-    editor.setProperty("text", "alpha+beta\nsecond")
+    # Establish a fresh document baseline; editing the view now retains the
+    # global undo history rather than resetting it like TextArea.setText did.
+    controller.sourceText = "alpha+beta\nsecond"
+    QTest.qWait(20)
     editor.select(0, 10)
     editor.forceActiveFocus()
     QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)

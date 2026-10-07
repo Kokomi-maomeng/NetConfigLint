@@ -4,7 +4,6 @@ import json
 import os
 import re
 import sys
-import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
@@ -26,6 +25,7 @@ from PySide6.QtCore import (
 )
 
 from netconfiglint.core.analyzer import AnalysisResult
+from netconfiglint.gui.secure_storage import atomic_write_private, has_link_ancestor, make_private_directory
 
 _INVALID_INDEX = QModelIndex()
 
@@ -139,6 +139,8 @@ class HistoryStore:
         self.path = path or default_history_path()
         self.limit = limit
         self._persist_settings = persist_settings
+        self._privacy_revision = "initial"
+        self._loaded_signature: tuple[int, int, int, int] | None = None
         configured_retention = QSettings().value("privacy/historyRetention", "summary")
         self.retention = retention or ("full" if enabled is not None else str(configured_retention))
         if self.retention not in {"summary", "full"}:
@@ -146,10 +148,17 @@ class HistoryStore:
         configured = QSettings().value("privacy/historyEnabled", True, type=bool)
         self.enabled = bool(configured if enabled is None else enabled)
         self.load_warning = False
+        if self.enabled:
+            try:
+                self._refresh_privacy()
+            except OSError:
+                self.enabled = False
+                self.load_warning = True
         self.entries = self._load() if self.enabled else []
         if (
             retention is None
             and enabled is None
+            and not self._policy_path.exists()
             and not QSettings().contains("privacy/historyRetention")
             and any(entry.source_text for entry in self.entries)
         ):
@@ -157,11 +166,20 @@ class HistoryStore:
             self.retention = "full"
             if self._persist_settings:
                 QSettings().setValue("privacy/historyRetention", "full")
+        if self.retention == "summary":
+            self.entries = self._summaries(self.entries)
 
     def _load(self) -> list[HistoryEntry]:
         try:
             with self.path.open("rb") as stream:
                 data = stream.read(64 * 1024 * 1024 + 1)
+                metadata = os.fstat(stream.fileno())
+                self._loaded_signature = (
+                    metadata.st_dev,
+                    metadata.st_ino,
+                    metadata.st_size,
+                    metadata.st_mtime_ns,
+                )
             if len(data) > 64 * 1024 * 1024:
                 raise ValueError("History size limit")
             raw = json.loads(data)
@@ -249,32 +267,119 @@ class HistoryStore:
         )
 
     def set_retention(self, value: str) -> None:
-        if value not in {"summary", "full"} or value == self.retention:
+        if value not in {"summary", "full"}:
             return
-        if value == "summary" and self.enabled:
-            with self._transaction():
+        with self._transaction():
+            self._refresh_privacy()
+            if value == self.retention and value == "full":
+                return
+            self._save_privacy(self.enabled, value)
+            if value == "summary" and self.enabled:
                 self._refresh_for_write()
-                self.entries = [
-                    replace(e, source_text="", diagnostics=(), coverage=None, initial_view="")
-                    for e in self.entries
-                ]
                 self._write()
-        self.retention = value
-        if self._persist_settings:
-            QSettings().setValue("privacy/historyRetention", value)
 
     def set_enabled(self, enabled: bool) -> None:
-        if enabled and not self.enabled:
-            self.entries = self._load()
-        if not enabled and self.enabled:
-            self.clear()
-        self.enabled = enabled
+        with self._transaction():
+            self._refresh_privacy()
+            if enabled == self.enabled and enabled:
+                return
+            self._save_privacy(enabled, self.retention)
+            if enabled:
+                self.entries = self._load()
+            else:
+                self.path.unlink(missing_ok=True)
+                self.entries.clear()
+                self.load_warning = False
+
+    @property
+    def _policy_path(self) -> Path:
+        # Keep the revocation record after disabling removes history.json.
+        # Workers that intentionally do not write QSettings still consult it.
+        return self.path.with_name(self.path.name + ".privacy.json")
+
+    def _refresh_privacy(self) -> None:
+        if has_link_ancestor(self._policy_path):
+            raise OSError("History privacy policy cannot use linked or redirected paths")
+        try:
+            raw = json.loads(self._policy_path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            if self._persist_settings:
+                settings = QSettings()
+                settings.sync()
+                if settings.status() != QSettings.Status.NoError:
+                    raise OSError("History privacy preference could not be read") from None
+                if settings.contains("privacy/historyEnabled"):
+                    self.enabled = bool(settings.value("privacy/historyEnabled", False, type=bool))
+                if settings.contains("privacy/historyRetention"):
+                    configured = str(settings.value("privacy/historyRetention"))
+                    self.retention = configured if configured in {"summary", "full"} else "summary"
+            return
+        except (OSError, ValueError, RecursionError) as exc:
+            raise OSError("Invalid history privacy policy; history write refused") from exc
+        if (
+            not isinstance(raw, dict)
+            or type(raw.get("enabled")) is not bool
+            or raw.get("retention") not in {"summary", "full"}
+            or not isinstance(raw.get("revision"), str)
+        ):
+            raise OSError("Invalid history privacy policy; history write refused")
+        self.enabled = raw["enabled"]
+        self.retention = raw["retention"]
+        self._privacy_revision = raw["revision"]
+        if not self.enabled:
+            self.entries = []
+        elif self.retention == "summary" and hasattr(self, "entries"):
+            self.entries = self._summaries(self.entries)
+
+    @staticmethod
+    def _summaries(entries: list[HistoryEntry]) -> list[HistoryEntry]:
+        return [replace(e, source_text="", diagnostics=(), coverage=None, initial_view="") for e in entries]
+
+    def _save_privacy(self, enabled: bool, retention: str) -> None:
+        revision = uuid4().hex
+        # Commit the permission first. If scrubbing/deleting or settings sync
+        # then fails, another instance must still respect the revocation.
+        atomic_write_private(
+            self._policy_path,
+            json.dumps({"enabled": enabled, "retention": retention, "revision": revision}),
+        )
+        self.enabled, self.retention, self._privacy_revision = enabled, retention, revision
         if self._persist_settings:
-            QSettings().setValue("privacy/historyEnabled", enabled)
+            settings = QSettings()
+            settings.sync()
+            settings.setValue("privacy/historyEnabled", enabled)
+            settings.setValue("privacy/historyRetention", retention)
+            settings.sync()
+            if settings.status() != QSettings.Status.NoError:
+                raise OSError("History privacy preference could not be saved")
+
+    def privacy_token(self) -> str:
+        """Capture at analysis submission, and pass back to append after work."""
+        with self._transaction():
+            self._refresh_privacy()
+            return self._privacy_revision
+
+    def refresh(self) -> None:
+        """Refresh other-window privacy and entries before display or restore."""
+        with self._transaction():
+            self._refresh_privacy()
+            if not self.enabled:
+                self.entries = []
+                self._loaded_signature = None
+            else:
+                try:
+                    metadata = self.path.stat()
+                    signature = (metadata.st_dev, metadata.st_ino, metadata.st_size, metadata.st_mtime_ns)
+                except FileNotFoundError:
+                    signature = None
+                if signature != self._loaded_signature:
+                    self.entries = self._load()
+            if self.retention == "summary":
+                self.entries = self._summaries(self.entries)
 
     @contextmanager
     def _transaction(self) -> Iterator[None]:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        make_private_directory(self.path.parent)
         lock = QLockFile(str(self.path) + ".lock")
         lock.setStaleLockTime(30_000)
         if not lock.tryLock(1000):
@@ -283,7 +388,9 @@ class HistoryStore:
         try:
             yield
         except OSError:
-            self.entries = previous
+            self.entries = previous if self.enabled else []
+            if self.retention == "summary":
+                self.entries = self._summaries(self.entries)
             raise
         finally:
             lock.unlock()
@@ -292,6 +399,8 @@ class HistoryStore:
         self.entries = self._load()
         if self.load_warning:
             raise OSError("Damaged history preserved; recover or explicitly clear it before saving")
+        if self.retention == "summary":
+            self.entries = self._summaries(self.entries)
 
     def append(
         self,
@@ -302,40 +411,55 @@ class HistoryStore:
         guard: Callable[[], bool] | None = None,
         title: str = "",
         initial_view: str = "",
-    ) -> None:
-        if not self.enabled:
-            return
+        privacy_token: str | None = None,
+    ) -> str | None:
         if len(source_text) > 4_000_000:
             raise OSError("History source exceeds per-entry limit")
-        entry = HistoryEntry.from_result(
-            result,
-            source_text,
-            selected_vendor,
-            title=title,
-            initial_view=initial_view,
-            retention=self.retention,
-        )
         with self._transaction():
+            self._refresh_privacy()
+            if not self.enabled or (privacy_token is not None and privacy_token != self._privacy_revision):
+                return None
             self._refresh_for_write()
             if guard is not None and not guard():
-                return
+                return None
+            entry = HistoryEntry.from_result(
+                result,
+                source_text,
+                selected_vendor,
+                title=title,
+                initial_view=initial_view,
+                retention=self.retention,
+            )
             self.entries.insert(0, entry)
             del self.entries[self.limit :]
             self._write()
+            return entry.entry_id
 
     def clear(self) -> None:
         with self._transaction():
+            try:
+                self._refresh_privacy()
+            except OSError:
+                # Explicit clearing can recover a bad policy without granting
+                # source retention or re-enabling a previously unknown policy.
+                self.enabled, self.retention = False, "summary"
+            self._save_privacy(self.enabled, self.retention)
             self.path.unlink(missing_ok=True)
             self.entries.clear()
+            self._loaded_signature = None
             self.load_warning = False
 
     def remove_ids(self, ids: set[str]) -> None:
         with self._transaction():
+            self._refresh_privacy()
+            if not self.enabled:
+                return
             self._refresh_for_write()
             self.entries = [entry for entry in self.entries if entry.entry_id not in ids]
             self._write()
 
     def get(self, entry_id: str) -> HistoryEntry | None:
+        self.refresh()
         return next((item for item in self.entries if item.entry_id == entry_id), None)
 
     def _write(self) -> None:
@@ -354,22 +478,10 @@ class HistoryStore:
             encoded.append(data)
             retained.append(entry)
             size += additional
-        handle, name = tempfile.mkstemp(prefix=self.path.name + ".", suffix=".tmp", dir=self.path.parent)
-        temporary = Path(name)
-        try:
-            with os.fdopen(handle, "wb") as stream:
-                stream.write(prefix)
-                for index, data in enumerate(encoded):
-                    if index:
-                        stream.write(b",")
-                    stream.write(data)
-                stream.write(b"]}")
-                stream.flush()
-                os.fsync(stream.fileno())
-            temporary.replace(self.path)
-            self.entries = retained
-        finally:
-            temporary.unlink(missing_ok=True)
+        atomic_write_private(self.path, prefix + b",".join(encoded) + b"]}")
+        self.entries = retained
+        metadata = self.path.stat()
+        self._loaded_signature = (metadata.st_dev, metadata.st_ino, metadata.st_size, metadata.st_mtime_ns)
 
 
 class HistoryRole(IntEnum):

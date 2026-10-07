@@ -427,7 +427,25 @@ Item {
         title: i18n.catalog["storage.locations"]
         contentItem: SelectableText { wrapMode: TextEdit.WrapAnywhere; text: i18n.catalog["editor.temporary"] + ": " + root.controller.temporaryPath + "\n" + i18n.catalog["settings.history"] + ": " + root.controller.historyPath }
     }
-    Shortcut { sequences: [StandardKey.Save]; enabled: root.visible; onActivated: root.controller.saveConfiguration() }
+    readonly property var focusedSaveTarget: {
+        var item = root.Window.window ? root.Window.window.activeFocusItem : null
+        while (item) {
+            if (item === configEditor.editor) return configEditor
+            if (item === temporaryEditor.editor) return temporaryEditor
+            if (item === searchCard) return searchCard.targetCard
+            item = item.parent
+        }
+        return null
+    }
+    Shortcut {
+        sequences: [StandardKey.Save]
+        enabled: root.visible && root.focusedSaveTarget !== null
+        onActivated: {
+            if (root.focusedSaveTarget === temporaryEditor)
+                root.controller.saveTemporaryText(syntaxHighlighter.fullText(temporaryEditor.editor))
+            else root.controller.saveConfiguration()
+        }
+    }
     Connections { target: root.controller; function onSaveAsRequested(scope) { if (scope === "configuration") sourceSaveDialog.open() } }
     ExportDialog {
         id: exportOptions

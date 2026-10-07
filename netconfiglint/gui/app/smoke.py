@@ -8,7 +8,7 @@ import platform
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QMetaObject, QObject, QTimer, qVersion
+from PySide6.QtCore import QEventLoop, QMetaObject, QObject, QTimer, qVersion
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
@@ -84,6 +84,21 @@ def run_smoke(
             errors.append("Export dialog was unavailable")
         QTimer.singleShot(400, settings)
 
+    def wait_for_completion(editor: QObject, expected: str) -> None:
+        # Keep each callback bound to one request while dispatching GUI events.
+        loop = QEventLoop()
+        poll = QTimer()
+        poll.setInterval(20)
+        poll.timeout.connect(lambda: loop.quit() if editor.property("text") == expected else None)
+        deadline = QTimer()
+        deadline.setSingleShot(True)
+        deadline.timeout.connect(loop.quit)
+        poll.start()
+        deadline.start(15_000)
+        loop.exec()
+        poll.stop()
+        deadline.stop()
+
     def analyze_sample() -> None:
         try:
             completion_cases = []
@@ -101,8 +116,13 @@ def run_smoke(
                 ):
                     editor.setProperty("text", source)
                     editor.setProperty("cursorPosition", len(source))
+                    QMetaObject.invokeMethod(editor, "forceActiveFocus")
                     if not QMetaObject.invokeMethod(card, "requestCompletion"):
                         raise RuntimeError("Completion action unavailable")
+                    if editor.property("text") != expected:
+                        # Exercise cold asynchronous completion while dispatching
+                        # GUI events, just as an interactive user would wait.
+                        wait_for_completion(editor, expected)
                     if editor.property("text") != expected:
                         raise RuntimeError("Bundled completion failed")
                     completion_cases.append({"editor": editor_name, "passed": True})

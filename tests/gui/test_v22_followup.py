@@ -380,6 +380,8 @@ def test_open_then_analyze_keeps_result_visible(tmp_path: Path, qapp: object) ->
         if not controller.busy:
             break
         QTest.qWait(100)
+        # Let Python workers reacquire the GIL between Qt's synthetic waits.
+        time.sleep(0.001)
     assert controller.resultCurrent, (
         controller.statusMessage,
         controller.sourceText,

@@ -89,5 +89,4 @@ jobs:
             release/*.zip
             release/*.msi
             release/*.deb
-            release/*.pkg
             release/SHA256SUMS.txt

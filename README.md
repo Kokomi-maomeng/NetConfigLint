@@ -1,4 +1,4 @@
-# NetConfigLint v3.0
+# NetConfigLint v3.1
 
 Project versions, local release files, rollback records, and the consolidated task entry are mapped in [PROJECT_INDEX.md](PROJECT_INDEX.md).
 
@@ -13,6 +13,15 @@ vendor-supported validation and lab testing.
 
 See the [v2.4 command and language scope](docs/v2.4-command-catalog-and-i18n.md), [v2.3 GUI acceptance notes](docs/v2.3-gui-acceptance.md), [v2.2 GUI acceptance notes](docs/v2.2-gui-acceptance.md), [v2.1 change scope](docs/v2.1-change-scope.md), [H3C coverage contract](docs/h3c-command-support.md),
 and [v2.0 acceptance report](docs/v2.0-acceptance.md) for earlier release evidence.
+
+## Desktop v3.1
+
+See the [Debian and Windows experience repair record](docs/v3.1-ux-repairs.md)
+for the L01–L14 changes. Lookup runs asynchronously; syntax details load in bounded
+pages. Whole-document edit actions and undo span editor pages. Ctrl+S saves the
+focused editor. Saves detect external changes, preserve links after explicit target
+confirmation, respect read-only access, and preserve supported existing metadata.
+Local drafts are private, and history privacy revocation applies across processes.
 
 ## Desktop v3.0
 

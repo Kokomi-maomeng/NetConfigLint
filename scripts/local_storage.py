@@ -146,7 +146,9 @@ def download_verified(asset: dict[str, Any], target: Path) -> None:
     temporary = Path(name)
     try:
         request = urllib.request.Request(url, headers={"User-Agent": "NetConfigLint-local-storage"})
-        with os.fdopen(descriptor, "wb") as output, urllib.request.urlopen(request, timeout=60) as response:
+        # URL is restricted to the exact HTTPS release/upstream prefixes above;
+        # the resulting bytes must also match the recorded size and SHA-256.
+        with os.fdopen(descriptor, "wb") as output, urllib.request.urlopen(request, timeout=60) as response:  # nosec B310
             shutil.copyfileobj(response, output, length=1024 * 1024)
         if temporary.stat().st_size != size or sha256(temporary) != digest:
             raise ValueError("Downloaded asset failed size/SHA-256 verification")

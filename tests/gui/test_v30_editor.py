@@ -29,7 +29,7 @@ def _find(window: QQuickWindow, name: str) -> QObject:
 
 
 def _wait_for(predicate: Callable[[], bool], message: str) -> None:
-    for _ in range(150):
+    for _ in range(500):
         if predicate():
             return
         QTest.qWait(10)
@@ -245,6 +245,16 @@ def test_all_parameter_hints_and_query_remain_available_readonly_at_narrow_width
     editor.forceActiveFocus()
     QTest.keyClick(window, Qt.Key.Key_Space, Qt.KeyboardModifier.ControlModifier)
     card = _find(window, "configurationEditor" if name == "configurationTextArea" else "temporaryEditor")
+
+    def arguments_ready():
+        current = card.property("completionResult")
+        current = current.toVariant() if hasattr(current, "toVariant") else current
+        return bool(current.get("argumentDetails"))
+
+    _wait_for(
+        arguments_ready,
+        "Asynchronous parameter completion did not finish",
+    )
     result = card.property("completionResult")
     result = result.toVariant() if hasattr(result, "toVariant") else result
     assert len(result["arguments"]) > 8
@@ -283,6 +293,7 @@ def test_all_parameter_hints_and_query_remain_available_readonly_at_narrow_width
     QMetaObject.invokeMethod(card, "showQueryDetail", Q_ARG("QVariant", 0))
     detail = _find(window, name + "CompletionDetails")
     assert detail.property("visible")
+    _wait_for(lambda: not detail.property("busy"), "Selected command provenance did not finish loading")
     selected = card.property("completionDetail")
     selected = selected.toVariant() if hasattr(selected, "toVariant") else selected
     assert selected["sources"] and selected["syntaxDetails"]
