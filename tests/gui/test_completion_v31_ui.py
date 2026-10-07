@@ -65,7 +65,7 @@ def test_worker_preserves_gui_heartbeat_and_rejects_superseded_or_cancelled_resu
     def delayed(source: str, _cursor: int, *_args: Any, **_kwargs: Any) -> dict[str, Any]:
         if source == "slow":
             started.set()
-            release.wait(3)
+            release.wait(10)
         return {"items": [{"text": source}], "argumentDetails": []}
 
     monkeypatch.setattr(completion_module, "complete", delayed)
@@ -80,7 +80,8 @@ def test_worker_preserves_gui_heartbeat_and_rejects_superseded_or_cancelled_resu
     try:
         bridge.queryAsync("test", "slow", 4)
         wait_for(started.is_set)
-        QTest.qWait(70)
+        ticks.clear()
+        wait_for(lambda: len(ticks) >= 3)
         assert len(ticks) >= 3 and not delivered
         serial = bridge.queryAsync("test", "latest", 6)
         release.set()

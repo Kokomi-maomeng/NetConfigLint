@@ -66,7 +66,9 @@ jobs:
         run: mypy netconfiglint
       - name: Test suite
         if: matrix.os != 'ubuntu-latest' || matrix.python != '3.13.15' || matrix.qt != '6.11.2'
-        run: python -m pytest
+        # Keep every functional test in the platform matrix. The unchanged
+        # wall-clock performance budget runs once in the release environment below.
+        run: python -m pytest --ignore=tests/performance
       - name: Coverage gate
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13.15' && matrix.qt == '6.11.2'
         run: python -m pytest --ignore=tests/performance --cov=netconfiglint --cov-report=term --cov-fail-under=90
