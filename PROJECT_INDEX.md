@@ -1,13 +1,13 @@
 # NetConfigLint 项目总索引
 
-更新时间：2026-10-07。当前源码为 v3.1.0，按 Debian 使用体验报告修复 L01–L14；验收记录见 [v3.1 修复记录](docs/v3.1-ux-repairs.md)。本次发布范围为 Windows x64 便携 ZIP/MSI 和 Linux amd64 DEB，macOS 保留代码兼容性检查。上一稳定版 `v3.0.0` 的产品基线为 `7854236c700e1d23a59b35ce71ca01a483de1396`，其 macOS arm64 PKG 在没有新合格 PKG 时继续保留。
+更新时间：2026-10-08。已发布 [v3.1.0](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v3.1.0)，发布提交为 `6a5c5afc702f6622e46addbd5627e5aacae43990`，按 Debian 使用体验报告修复 L01–L14；验收记录见 [v3.1 修复记录](docs/v3.1-ux-repairs.md)。本次正式资产为 Windows x64 便携 ZIP/MSI 和 Linux amd64 DEB，macOS 保留代码兼容性检查。上一稳定版 `v3.0.0` 的产品基线为 `7854236c700e1d23a59b35ce71ca01a483de1396`，其 macOS arm64 PKG 在没有新合格 PKG 时继续保留。
 
 先读本文。空间维护规则见 [本地文件整理、查找与恢复](docs/local-storage-maintenance.md) 与 [项目工作规则](AGENTS.md)。本次完整扫描、删除清单、恢复验证和占用结果在本机 [2026-10-06 清理报告](archive/maintenance/2026-10-06/REPORT.zh-CN.md)。本地私有目录已被 Git 忽略。
 
 ## 当前开发与发布资料
 
 - 产品源码：`netconfiglint/`；可复用构建、发布与验证脚本：`scripts/`、`.github/workflows/`；测试：`tests/`；许可：`licenses/`、`THIRD_PARTY_NOTICES.md`。当前可用开发环境 `.venv/` 保留。
-- [v3.0 修复记录](docs/v3.0-ux-repairs.md)、[命令支持范围](docs/v3.0-command-support.md) 与 [公开 v3.0.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v3.0.0)。本地 `release/` 仅保留各平台/架构/包类型最新合格包和校验文件，旧包按固定下载地址或候选差异恢复。
+- [v3.1 修复记录](docs/v3.1-ux-repairs.md)、[命令支持范围](docs/v3.0-command-support.md) 与 [公开 v3.1.0 Release](https://github.com/Kokomi-maomeng/NetConfigLint/releases/tag/v3.1.0)。本地 `release/` 按平台/架构/包类型保留最新合格包和校验文件；v3.0 macOS PKG 继续保留，旧包按固定下载地址或候选差异恢复。本次发布、公开下载和保留流程证据在本机 `build/v31/` 与 `archive/maintenance/2026-10-07/`（计划于 10 月 7 日建立，执行于 10 月 8 日）。
 - 本次修复依据：本机 [Debian/Linux 与 Windows 用户体验报告](docs/audits/v3.0.0-linux-user-2026-10-05/REPORT.zh-CN.md) 和 [问题登记](docs/audits/v3.0.0-linux-user-2026-10-05/问题登记.csv)。L01–L14 的实现与验收对应关系见 v3.1 修复记录；W-OBS01 仍保留原观察与复核边界。
 - 历史审计报告、原聊天 ID 和产物关系见 [聊天与任务目录](archive/TASKS.md)。上次整理的状态是 2026-09-24 的历史记录，以新的索引、实际 Git/Release 和恢复清单为准。
 
