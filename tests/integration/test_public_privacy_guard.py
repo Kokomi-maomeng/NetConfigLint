@@ -120,3 +120,30 @@ def test_changed_font_cannot_inherit_exact_binary_contact_exception() -> None:
     allowed = {"binary:" + hashlib.sha256(font).hexdigest()}
     assert privacy_guard.contact_categories(font, allowed) == []
     assert privacy_guard.contact_categories(font + b"changed", allowed) == ["unreviewed-contact-email"]
+
+
+@pytest.mark.parametrize("directory", ["history", "temporary"])
+def test_portable_help_is_exact_and_cannot_hide_user_data(tmp_path: Path, directory: str) -> None:
+    import zipfile
+
+    name = f"NetConfigLint-3.1.0-windows-x64-portable/{directory}/README.txt"
+    # Exercise the actual text emitted by the PowerShell packaging script.
+    script = (Path(__file__).resolve().parents[2] / "scripts/build_portable.ps1").read_text()
+    block = (
+        script.split(f"Join-Path ${directory} 'README.txt'", 1)[1].split("-Value @(", 1)[1].split("\n)", 1)[0]
+    )
+    lines = [line.strip()[1:-1] for line in block.splitlines() if line.strip().startswith("'")]
+    data = ("\r\n".join(lines) + "\r\n").encode("utf-8-sig")
+    archive = tmp_path / "portable.zip"
+    with zipfile.ZipFile(archive, "w") as package:
+        package.writestr(name, data)
+    assert audit_release.audit_archive(tmp_path, archive)["passed"]
+    # Even harmless extra text invalidates the exact exception.
+    with zipfile.ZipFile(archive, "w") as package:
+        package.writestr(name, data + b"unreviewed extra content")
+    assert not audit_release.audit_archive(tmp_path, archive)["passed"]
+    with zipfile.ZipFile(archive, "w") as package:
+        package.writestr(name, data)
+        package.writestr(name.rsplit("/", 1)[0] + "/entries.json", b"[]")
+    assert not audit_release.audit_archive(tmp_path, archive)["passed"]
+    assert not audit_release.portable_placeholder("history/README.txt", data)

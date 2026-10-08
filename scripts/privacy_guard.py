@@ -27,7 +27,18 @@ PATTERNS = {
     "phone-shaped-value": rb"(?<![A-Za-z0-9])1[3-9][0-9]{9}(?![A-Za-z0-9])",
 }
 PRIVATE_NAMES = {".env", "history.json", "id_rsa", "id_ed25519", "credentials.json", "auth.json"}
-PRIVATE_DIRS = {".git", ".venv", "__pycache__", "archive", "release", "build", "deployment", "history"}
+PRIVATE_DIRS = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    "archive",
+    "release",
+    "build",
+    "dist",
+    "deployment",
+    "history",
+    "temporary",
+}
 
 
 def git(root: Path, *args: str) -> bytes:

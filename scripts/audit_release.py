@@ -62,6 +62,17 @@ DESKTOP_ARTIFACTS = {
     "windows": "compiled-desktop-windows-latest",
     "linux": "compiled-desktop-ubuntu-latest",
 }
+PORTABLE_PLACEHOLDERS = {
+    "history": (
+        "New installations store summary-only history by default. Full configuration and diagnostics "
+        "require explicit opt-in in Settings.\n"
+        "Disable history in Settings to delete saved entries. Treat this folder as sensitive.\n"
+    ),
+    "temporary": (
+        "The scratch editor writes editor.txt here only when Save is clicked.\n"
+        "This file can contain sensitive text. Back it up or remove it with the portable folder.\n"
+    ),
+}
 
 
 def git(root: Path, *args: str) -> bytes:
@@ -84,6 +95,20 @@ def scan_bytes(data: bytes) -> list[str]:
 
 def forbidden_path(name: str) -> bool:
     return private_path(name)
+
+
+def portable_placeholder(name: str, data: bytes) -> bool:
+    """Permit only the two exact, generated portable help files, never user data."""
+    match = re.fullmatch(
+        r"NetConfigLint-\d+\.\d+\.\d+-windows-x64-portable/(history|temporary)/README\.txt", name
+    )
+    if match is None:
+        return False
+    try:
+        content = data.decode("utf-8-sig").replace("\r\n", "\n")
+    except UnicodeDecodeError:
+        return False
+    return content == PORTABLE_PLACEHOLDERS[match[1]]
 
 
 def unsafe_package_path(name: str) -> bool:
@@ -245,7 +270,7 @@ def audit_archive(root: Path, archive: Path, *, upstream: dict[str, str] | None 
                     {"path": name, "categories": categories, "reason": "exact-reviewed-official-wheel-binary"}
                 )
                 categories = []
-            if forbidden_path(name):
+            if forbidden_path(name) and not portable_placeholder(name, data):
                 categories.append("private-artifact-path")
             if unsafe_package_path(name):
                 categories.append("unsafe-package-path")
