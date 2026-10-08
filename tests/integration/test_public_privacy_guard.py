@@ -120,6 +120,15 @@ def test_changed_font_cannot_inherit_exact_binary_contact_exception() -> None:
     allowed = {"binary:" + hashlib.sha256(font).hexdigest()}
     assert privacy_guard.contact_categories(font, allowed) == []
     assert privacy_guard.contact_categories(font + b"changed", allowed) == ["unreviewed-contact-email"]
+    root = Path(__file__).resolve().parents[2]
+    actual_allowed = privacy_guard.allowed_contacts(root)
+    for path in (root / "netconfiglint/resources/fonts").glob("*.ttf"):
+        actual_font = path.read_bytes()
+        assert privacy_guard.contact_categories(actual_font, actual_allowed) == []
+        # A random glyph-table contact must not become a global email exception.
+        assert privacy_guard.contact_categories(actual_font + b"changed", actual_allowed) == [
+            "unreviewed-contact-email"
+        ]
 
 
 @pytest.mark.parametrize("directory", ["history", "temporary"])
