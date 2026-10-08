@@ -1,0 +1,27 @@
+name: Public repository privacy
+
+on:
+  push:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  privacy:
+    name: Public data privacy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.13.15'
+      - name: Reject private identities, old tainted history, and sensitive content
+        run: python scripts/privacy_guard.py --refs HEAD --tags --output build/privacy.json

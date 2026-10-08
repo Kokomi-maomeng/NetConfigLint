@@ -16,3 +16,6 @@ history/
 !/pysidedeploy.spec
 *.log
 docs/audits/
+.env
+.env.*
+!.env.example

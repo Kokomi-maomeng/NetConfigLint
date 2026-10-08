@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+if [ -x .venv/Scripts/python.exe ]; then
+  runner=.venv/Scripts/python.exe
+elif [ -x .venv/bin/python ]; then
+  runner=.venv/bin/python
+else
+  runner=python3
+fi
+exec "$runner" scripts/privacy_guard.py --pre-push --tags

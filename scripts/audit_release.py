@@ -1,8 +1,8 @@
 """Read-only release audit. Reports locations/categories, never secret values.
 
 This bounded pattern scan complements manual review and dedicated secret scanners. It is
-not a proof that arbitrary private data cannot exist. Historical identity findings are
-reported separately from newly introduced metadata; no history is rewritten by this tool.
+not a proof that arbitrary private data cannot exist. Private identities fail the gate
+throughout reachable history, including merge commits; this tool does not rewrite history.
 """
 
 from __future__ import annotations
@@ -17,6 +17,13 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+try:
+    from scripts.privacy_guard import allowed_contacts, audit_metadata, contact_categories, private_path
+except ModuleNotFoundError as error:
+    if error.name != "scripts":
+        raise
+    from privacy_guard import allowed_contacts, audit_metadata, contact_categories, private_path
+
 PATTERNS = {
     "github-token": rb"(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{50,})",
     "openai-key": rb"sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{32,}",
@@ -26,7 +33,6 @@ PATTERNS = {
     "windows-personal-path": rb"(?i)[a-z]:[\\/]+Users[\\/]+(?!Public\b|Default\b)[\w.-]+[\\/]",
     "unix-personal-path": rb"/(?:Users|home)/[A-Za-z0-9_.-]+/",
 }
-FORBIDDEN = {".env", "history.json", "id_rsa", "id_ed25519", "credentials.json", "auth.json"}
 # Published by the Qt project on PyPI. Exact upstream bytes can contain build-worker
 # paths, locale strings resembling tokens, and PEM parser markers. They are reported
 # separately; application code and changed binaries never inherit this exception.
@@ -77,22 +83,7 @@ def scan_bytes(data: bytes) -> list[str]:
 
 
 def forbidden_path(name: str) -> bool:
-    path = PurePosixPath(name.replace("\\", "/"))
-    return (
-        path.name.lower() in FORBIDDEN
-        or path.name.upper().startswith("PRIVATE_")
-        or any(part.lower() in {".git", ".venv", "__pycache__"} for part in path.parts)
-        or "docs/audits/" in str(path)
-    )
-
-
-def is_public_github_merge(oid: str, parents: str, committer: str, subject: str, release_head: str) -> bool:
-    return (
-        oid == release_head
-        and len(parents.split()) == 2
-        and committer == "noreply@github.com"
-        and re.fullmatch(r"Merge pull request #\d+ from .+", subject) is not None
-    )
+    return private_path(name)
 
 
 def unsafe_package_path(name: str) -> bool:
@@ -125,6 +116,8 @@ def resource_path(name: str) -> str | None:
 
 
 def audit_repository(root: Path, baseline: str) -> dict[str, Any]:
+    # Kept for existing callers; a baseline never exempts historical private identities.
+    contacts = allowed_contacts(Path(__file__).resolve().parents[1])
     files = git(root, "ls-files", "-z").decode("utf-8").split("\0")
     findings: list[dict[str, str]] = []
     current_count = 0
@@ -133,7 +126,8 @@ def audit_repository(root: Path, baseline: str) -> dict[str, Any]:
         if not path.is_file():
             continue
         current_count += 1
-        categories = scan_bytes(path.read_bytes())
+        data = path.read_bytes()
+        categories = scan_bytes(data) + contact_categories(data, contacts)
         if forbidden_path(name):
             categories.append("private-artifact-path")
         findings.extend({"scope": "current", "path": name, "category": category} for category in categories)
@@ -158,7 +152,7 @@ def audit_repository(root: Path, baseline: str) -> dict[str, Any]:
             if header[1] != "blob":
                 continue
             blob_count += 1
-            categories = scan_bytes(data)
+            categories = scan_bytes(data) + contact_categories(data, contacts)
             if name and forbidden_path(name):
                 categories.append("private-artifact-path")
             findings.extend(
@@ -170,36 +164,15 @@ def audit_repository(root: Path, baseline: str) -> dict[str, Any]:
         process.stdout.close()
         process.wait(timeout=15)
 
-    prior = set(git(root, "rev-list", baseline).decode("ascii").splitlines())
-    metadata = []
-    records = git(root, "log", "--format=%H%x00%P%x00%ae%x00%ce%x00%s", "HEAD").decode("utf-8").splitlines()
+    metadata = audit_metadata(root, ["HEAD"], tags=True)
     release_head = git(root, "rev-parse", "HEAD").decode("ascii").strip()
-    for record in records:
-        oid, parents, author, committer, subject = record.split("\0")
-        # GitHub's merge button may retain the account's public author email even
-        # though GitHub itself commits the merge. This is already public Git
-        # metadata, not an application/package secret. Only the release HEAD's
-        # identifiable two-parent GitHub merge receives this narrow exception.
-        public_github_merge = is_public_github_merge(oid, parents, committer, subject, release_head)
-        for role, email in (("author", author), ("committer", committer)):
-            if not (email.endswith("@users.noreply.github.com") or email == "noreply@github.com"):
-                metadata.append(
-                    {
-                        "commit": oid,
-                        "role": role,
-                        "predates_release": oid in prior,
-                        "public_github_merge_attribution": public_github_merge and role == "author",
-                        "category": "non-noreply-identity",
-                    }
-                )
     return {
         "source_commit": release_head,
         "current_files": current_count,
         "history_blobs": blob_count,
         "findings": findings,
         "metadata_findings": metadata,
-        "passed": not findings
-        and all(item["predates_release"] or item["public_github_merge_attribution"] for item in metadata),
+        "passed": not findings and not metadata,
     }
 
 

@@ -10,6 +10,18 @@
 - Use UNKNOWN or conservative confidence when the supplied evidence is incomplete.
 - Run pytest, Ruff, and mypy before submitting a change.
 
+## Public repository privacy
+
+Read [the privacy policy](docs/privacy-policy.md) before committing or releasing.
+Install the local gates with `python scripts/install_privacy_hooks.py`, use a GitHub
+noreply email for author, committer and annotated tags, and run
+`python scripts/privacy_guard.py --refs HEAD --tags` before pushing. Historical and
+GitHub-created merge commits receive the same identity checks. Do not upload private
+audit evidence, real contact details, personal paths, screenshots or credentials.
+The required `Public data privacy` check and the release privacy gates must pass.
+Following the 2026-10-08 identity cleanup, refresh old clones from the cleaned remote
+and transfer unpublished work as reviewed patches; never merge the old history back.
+
 ## Configuration-data safety
 
 Only synthetic or fully desensitized fixtures may be committed. Do not submit real enterprise
